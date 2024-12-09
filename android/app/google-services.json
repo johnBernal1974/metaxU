@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "632604677797",
+    "project_id": "apptaxi-e641d",
+    "storage_bucket": "apptaxi-e641d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:632604677797:android:57076b1536f60afd3d1f4c",
+        "android_client_info": {
+          "package_name": "com.app_taxis.apptaxis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkkBWDtzJIC8Sl_7TzSfwVKuliMMmoTJI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

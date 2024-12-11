@@ -48,6 +48,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: grisMapa,
         body: Column(
           children: [
             Expanded(
@@ -83,9 +84,15 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
   Widget _cajonEstadoViaje(String status) {
     return Container(
+      decoration: const BoxDecoration(
+        color: primary, // Se agrega el color primary aquí
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
       padding: const EdgeInsets.only(top: 10, bottom: 10),
       width: double.infinity,
-      color: primary,
       child: Column(
         children: [
           Text(
@@ -93,13 +100,14 @@ class _TravelMapPageState extends State<TravelMapPage> {
             style: TextStyle(
               fontSize: 20.r,
               fontWeight: FontWeight.w900,
-              color: blanco,
+              color: Colors.black,
             ),
           ),
         ],
       ),
     );
   }
+
 
   Widget _cancelarViaje() {
     return Visibility(
@@ -286,7 +294,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
                       _controller.driver?.the01Nombres ?? '',
                       style: TextStyle(
                         fontSize: 11.r,
-                        color: blanco,
+                        color: Colors.black,
                         fontWeight: FontWeight.bold, // Color del texto
                       ),
                     ),
@@ -294,8 +302,8 @@ class _TravelMapPageState extends State<TravelMapPage> {
                       placaFormateada,
                       style: TextStyle(
                         fontSize: 14.r,
-                        color: blanco,
-                        fontWeight: FontWeight.bold, // Color del texto
+                        color: Colors.black,
+                        fontWeight: FontWeight.w900, // Color del texto
                       ),
                     ),
                   ],
@@ -329,10 +337,10 @@ class _TravelMapPageState extends State<TravelMapPage> {
                     color: gris,
                   )
                 ],
-                color: blancoCards,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              child: Icon(Icons.location_searching, color: negro, size:20.r,)),
+              child: Icon(Icons.location_searching, color: negro, size:30.r,)),
         ),
       ),
     );
@@ -342,7 +350,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
     final formatCurrency = NumberFormat("#,##0", "es_CO");
     return Container(
       width: screenWidth,
-      color: blanco,
       child: Column(
         children: [
           _cajonEstadoViaje(_controller.currentStatus),
@@ -352,11 +359,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/images/peaje2.png',
-                  height: 80.r,
-                  width: 80.r,
-                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -364,29 +366,10 @@ class _TravelMapPageState extends State<TravelMapPage> {
                       Text(
                         '\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}',
                         style: TextStyle(
-                          fontSize: 20.r,
+                          fontSize: 30.r,
                           fontWeight: FontWeight.w900,
                           color: negro,
                         ),
-                      ),
-                      Text(
-                        'Información Importante',
-                        style: TextStyle(
-                          fontSize: 14.r,
-                          fontWeight: FontWeight.bold,
-                          color: rojo,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Text(
-                        'Los peajes que lleguen a existir en la ruta son a cargo del usuario, no están incluidos en la tarifa.',
-                        style: TextStyle(
-                          fontSize: 12.r,
-                          fontWeight: FontWeight.w600,
-                          color: negro,
-                          height: 1
-                        ),
-                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),

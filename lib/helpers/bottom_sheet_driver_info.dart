@@ -20,6 +20,7 @@ class BottomSheetDriverInfo extends StatefulWidget {
   final String servicio;
   final String marca;
   final String idDriver;
+  final String clase;
 
   BottomSheetDriverInfo({super.key,
     required this.imageUrl,
@@ -33,6 +34,7 @@ class BottomSheetDriverInfo extends StatefulWidget {
     required this.servicio,
     required this.marca,
     required this.idDriver,
+    required this.clase,
   });
 
   @override
@@ -67,7 +69,13 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
       placaFormateada = placaCompleta;
     }
     return Container(
-      color: blancoCards,
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(12),
+          topLeft: Radius.circular(12)
+        )
+      ),
+
       padding: const EdgeInsets.all(16),
       width: MediaQuery.of(context).size.width,
       child: Column(
@@ -94,7 +102,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                         image: DecorationImage(
                           image: widget.imageUrl.isNotEmpty
                               ? NetworkImage(widget.imageUrl)
-                              : AssetImage('assets/images/default_image.png') as ImageProvider,
+                              : const AssetImage('assets/images/default_image.png') as ImageProvider,
                           fit: BoxFit.cover,
                         ),
                         color: Colors.white,
@@ -119,7 +127,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                               onPressed: () {
                                 _openWhatsApp(context);
                               },
-                              icon: Image.asset('assets/images/icono_whatsapp.png',
+                              icon: Image.asset('assets/icono_whatsapp.png',
                                   width: 24,
                                   height: 24),
                             ),
@@ -201,23 +209,20 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
               const SizedBox(height: 10),
               Container(
                   margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  child: const Divider(height: 2, color: grisMedio)),
+                  child: const Divider(height: 2, color: primary)),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
                     children: [
-                      const Text('Placa', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text('Placa', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
                       Container(
                         padding: const EdgeInsets.all(5),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            Image.asset(
-                              widget.servicio == 'Particular'
-                                  ? 'assets/images/fondo_placa.png'
-                                  : 'assets/images/placa_blanca.png',
+                            Image.asset("assets/placa_blanca.png",
                               width: 120,
                               height: 60,
                               fit: BoxFit.contain,
@@ -226,7 +231,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                               placaFormateada,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
-                                fontSize: 24,
+                                fontSize: 22,
                                 color: Colors.black,
                               ),
                             ),
@@ -235,7 +240,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                       ),
                     ],
                   ),
-                  const SizedBox(width: 15),
+                  const SizedBox(width: 5),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -255,6 +260,12 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                         children: [
                           const Text('Servicio: '),
                           Text(widget.servicio, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Text('Clase: '),
+                          Text(widget.clase, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
                         ],
                       ),
                     ],

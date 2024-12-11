@@ -32,22 +32,17 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     return Scaffold(
       backgroundColor: blancoCards,
       appBar: AppBar(
-        backgroundColor: blancoCards,
-        iconTheme: IconThemeData(color: negro, size: 24.r),
-        title: Text(
-          "Detalles del viaje",
-          style: TextStyle(
-            fontSize: 22.r,
-            fontWeight: FontWeight.bold,
-            color: negro,
-          ),
-        ),
-        actions:  <Widget>[
+        backgroundColor: primary,
+        iconTheme: const IconThemeData(color: negro, size: 30),
+        title: const Text("Detalle del viaje", style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 20
+        ),),
+        actions: const <Widget>[
           Image(
-            height: 40.r,
-            width: 100.r,
-            image: const AssetImage('assets/images/logo_zafiro-pequeño.png'),
-          )
+              height: 40.0,
+              width: 100.0,
+              image: AssetImage('assets/metax_logo.png'))
         ],
       ),
       body: SingleChildScrollView(
@@ -89,10 +84,8 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
             const Text('Conductor', style: TextStyle(fontSize: 14)),
             _buildName(),
             _buildSurname(),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
             _buildTipovehiculo(),
-
-
           ],
         )
       ],
@@ -141,36 +134,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
     );
   }
 
-  Widget _buildLicensePlate() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        headerText(
-          text: 'Placa:',
-          color: negroLetras,
-          fontSize: 12.r,
-          fontWeight: FontWeight.w500,
-        ),
-        const SizedBox(width: 5),
-        headerText(
-          text: _controller.driver?.the18Placa ?? '',
-          color: negro,
-          fontSize: 18.r,
-          fontWeight: FontWeight.w700,
-        ),
-      ],
-    );
-  }
-
   Widget _buildTipovehiculo() {
-    String tipoVehiculo = "";
-    String rol= _controller.driver?.rol ?? "";
-    if(rol == "carro"){
-      tipoVehiculo = "Vehículo";
-    }else if(rol == "moto"){
-      tipoVehiculo = "Motocicleta";
-    }
     return Container(
       alignment: Alignment.topLeft,
       child: Row(
@@ -179,32 +143,19 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              headerText(text: tipoVehiculo,color: negro,fontSize: 14,fontWeight: FontWeight.w700),
-              _buildLicensePlate(),
+              headerText(text: "Taxi de placa",color: negro,fontSize: 14,fontWeight: FontWeight.w700),
+              headerText(
+                text: _controller.driver?.the18Placa ?? '',
+                color: negro,
+                fontSize: 18.r,
+                fontWeight: FontWeight.w700,
+              ),
             ],
           ),
           SizedBox(width: 30.r),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              obtenerTipoVehiculo()
-            ],
-          )
         ],
       ),
     );
-  }
-
-  Widget obtenerTipoVehiculo() {
-    String tipoVehiculo = _controller.driver?.rol ?? "";
-    if (tipoVehiculo == "carro") {
-      return Image.asset("assets/images/carro_plateado.png", width: 80.r);
-    } else if (tipoVehiculo == "moto") {
-      return Image.asset("assets/images/moto_conductor.png", width: 40.r);
-    } else {
-      return Container(); // Devolver un widget vacío si no hay datos
-    }
   }
 
   Widget _buildDivider() {

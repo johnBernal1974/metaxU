@@ -95,14 +95,14 @@ class PushNotificationsProvider {
 
     // Definir el contenido de la notificación
     final notification = {
-      'title': 'Zafiro',
+      'title': 'Metax',
       //'body': 'Destino: ${data['destination']}, Tarifa: \$${tarifaFormateada}',
       'body': 'Nueva solicitud de servicio',
     };
 
     // Enviar la notificación a través de Firebase Cloud Messaging
     final response = await http.post(
-      Uri.parse('https://fcm.googleapis.com/v1/projects/transport-f7c79/messages:send'),
+      Uri.parse('https://fcm.googleapis.com/v1/projects/apptaxi-e641d/messages:send'),
       headers: <String, String>{
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

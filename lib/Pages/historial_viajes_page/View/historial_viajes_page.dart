@@ -46,7 +46,9 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
               width: 100.0,
               image: AssetImage('assets/metax_logo.png'))
         ],
+
       ),
+
       body: FutureBuilder(
         future: _controller.getAll(),
         builder: (context, AsyncSnapshot<List<TravelHistory>> snapshot) {
@@ -79,33 +81,37 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
             );
           } else {
             // Muestra la lista de viajes
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
-              itemBuilder: (_, index) {
-                String fechaFormateada = '';
-                if (snapshot.data![index].finalViaje != null) {
-                  DateTime finalDate =
-                  (snapshot.data![index].finalViaje as Timestamp).toDate();
-                  fechaFormateada =
-                      DateFormat('dd/MM/yyyy hh:mm a').format(finalDate);
-                }
-                return _historyInfo(
-                  snapshot.data![index].from,
-                  snapshot.data![index].to,
-                  snapshot.data![index].nameDriver,
-                  snapshot.data![index].apellidosDriver,
-                  snapshot.data![index].placa,
-                  fechaFormateada,
-                  snapshot.data![index].tarifa,
-                  snapshot.data![index].id,
-                );
-              },
+            return Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: ListView.builder(
+                itemCount: snapshot.data!.length,
+                itemBuilder: (_, index) {
+                  String fechaFormateada = '';
+                  if (snapshot.data![index].finalViaje != null) {
+                    DateTime finalDate =
+                    (snapshot.data![index].finalViaje as Timestamp).toDate();
+                    fechaFormateada =
+                        DateFormat('dd/MM/yyyy hh:mm a').format(finalDate);
+                  }
+                  return _historyInfo(
+                    snapshot.data![index].from,
+                    snapshot.data![index].to,
+                    snapshot.data![index].nameDriver,
+                    snapshot.data![index].apellidosDriver,
+                    snapshot.data![index].placa,
+                    fechaFormateada,
+                    snapshot.data![index].tarifa,
+                    snapshot.data![index].id,
+                  );
+                },
+              ),
             );
           }
         },
       ),
     );
   }
+
   void refresh() {
     if (mounted) {
       setState(() {});

@@ -376,7 +376,7 @@ class TravelInfoController{
       // Crear la nueva polyline
       Polyline polyline = Polyline(
         polylineId: const PolylineId('route'),
-        color: primary, // Asegúrate de definir el color correctamente
+        color: Colors.black, // Asegúrate de definir el color correctamente
         points: points,
         width: 5,
       );

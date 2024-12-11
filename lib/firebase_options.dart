@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -40,49 +41,50 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCXELqMHM7D8lT-0kexYu4jfqehfLNoRC0',
-    appId: '1:632604677797:web:514b1eff38122bb83d1f4c',
-    messagingSenderId: '632604677797',
-    projectId: 'apptaxi-e641d',
-    authDomain: 'apptaxi-e641d.firebaseapp.com',
-    storageBucket: 'apptaxi-e641d.firebasestorage.app',
-    measurementId: 'G-NRESF3C67Y',
+  static  FirebaseOptions web = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_WEB']!,
+    appId: dotenv.env['FIREBASE_APP_ID_WEB']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID_WEB']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID_WEB']!,
+    authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN_WEB']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET_WEB']!,
+    measurementId: dotenv.env['FIREBASE_MEASUREMENT_ID_WEB']!,
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDkkBWDtzJIC8Sl_7TzSfwVKuliMMmoTJI',
-    appId: '1:632604677797:android:57076b1536f60afd3d1f4c',
-    messagingSenderId: '632604677797',
-    projectId: 'apptaxi-e641d',
-    storageBucket: 'apptaxi-e641d.firebasestorage.app',
+  static FirebaseOptions android = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_ANDROID']!,
+    appId: dotenv.env['FIREBASE_APP_ID_ANDROID']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID_ANDROID']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID_ANDROID']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET_ANDROID']!,
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDXN2NGId0zr3ANUUxjJtF9tA3P1B9TxJ0',
-    appId: '1:632604677797:ios:2deb7fe326237d9e3d1f4c',
-    messagingSenderId: '632604677797',
-    projectId: 'apptaxi-e641d',
-    storageBucket: 'apptaxi-e641d.firebasestorage.app',
-    iosBundleId: 'com.apptaxis.apptaxis',
+
+  static FirebaseOptions ios = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_IOS']!,
+    appId: dotenv.env['FIREBASE_APP_ID_IOS']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID_IOS']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID_IOS']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET_IOS']!,
+    iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID']!,
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDXN2NGId0zr3ANUUxjJtF9tA3P1B9TxJ0',
-    appId: '1:632604677797:ios:2deb7fe326237d9e3d1f4c',
-    messagingSenderId: '632604677797',
-    projectId: 'apptaxi-e641d',
-    storageBucket: 'apptaxi-e641d.firebasestorage.app',
-    iosBundleId: 'com.apptaxis.apptaxis',
+  static FirebaseOptions macos = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_MACOS']!,
+    appId: dotenv.env['FIREBASE_APP_ID_MACOS']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID_MACOS']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID_MACOS']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET_MACOS']!,
+    iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID_MACOS']!,
   );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCXELqMHM7D8lT-0kexYu4jfqehfLNoRC0',
-    appId: '1:632604677797:web:1fb92982ee10663c3d1f4c',
-    messagingSenderId: '632604677797',
-    projectId: 'apptaxi-e641d',
-    authDomain: 'apptaxi-e641d.firebaseapp.com',
-    storageBucket: 'apptaxi-e641d.firebasestorage.app',
-    measurementId: 'G-NDZ9N4GLPL',
+  static FirebaseOptions windows = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_API_KEY_WINDOWS']!,
+    appId: dotenv.env['FIREBASE_APP_ID_WINDOWS']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID_WINDOWS']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID_WINDOWS']!,
+    authDomain: dotenv.env['FIREBASE_AUTH_DOMAIN_WINDOWS']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET_WINDOWS']!,
+    measurementId: dotenv.env['FIREBASE_MEASUREMENT_ID_WINDOWS']!,
   );
 }

@@ -271,10 +271,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
 
               },
-              icon: Icon(Icons.check_circle, size: 30.r, color: blanco,),
+              icon: Icon(Icons.check_circle, size: 30.r, color: Colors.black,),
               label: Text(
                 'Confirmar Viaje',
-                style: TextStyle(color: blanco, fontSize: 20.r, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.black, fontSize: 20.r, fontWeight: FontWeight.bold),
               ),
             ),
           ),

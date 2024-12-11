@@ -155,18 +155,18 @@ class TravelMapController{
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
-          currentStatus = '** Viaje aceptado **';
+          currentStatus = 'Viaje aceptado';
           pickupTravel();
           break;
         case 'driver_on_the_way':
-          currentStatus = '** Conductor en camino **';
+          currentStatus = 'Conductor en camino';
           break;
         case 'driver_is_waiting':
-          currentStatus = '** El Conductor ha llegado **';
+          currentStatus = 'El Conductor ha llegado';
           _soundConductorHaLlegado('assets/audio/zafiro_acaba_de_llegar.mp3');
           break;
         case 'started':
-          currentStatus = '** El Viaje ha iniciado **';
+          currentStatus = 'El Viaje ha iniciado';
 
           startTravel();
           break;
@@ -490,6 +490,7 @@ class TravelMapController{
           servicio: driver?.the19TipoServicio ?? '',
           marca: driver?.the15Marca ?? '',
           idDriver: driver?.id ?? '',
+          clase: driver?.the14TipoVehiculo ?? "",
         ));
   }
 

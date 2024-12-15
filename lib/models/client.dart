@@ -28,6 +28,7 @@ class Client {
   bool the41SuspendidoPorCancelaciones;
   bool fotoPerfilTomada;
 
+
   Client({
     required this.id,
     required this.the01Nombres,

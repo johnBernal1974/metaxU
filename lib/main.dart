@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "Cliente",
+      title: "Metax Cliente",
       initialRoute: "splash"
           "",
       routes: {

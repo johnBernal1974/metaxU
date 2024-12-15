@@ -617,7 +617,7 @@ class _MapClientPageState extends State<MapClientPage> {
         child: Card(
           shape: const CircleBorder(),
           color: primary,
-          surfaceTintColor: primary,
+          surfaceTintColor: Colors.white,
           elevation: 2,
           child: Container(
               padding: const EdgeInsets.all(5),
@@ -629,7 +629,7 @@ class _MapClientPageState extends State<MapClientPage> {
                     color: gris,
                   )
                 ],
-                color: primary,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Icon(Icons.location_searching, color: negro, size:20.r,)),
@@ -723,7 +723,7 @@ class _MapClientPageState extends State<MapClientPage> {
           margin: EdgeInsets.only(bottom: 350.r),
           padding: EdgeInsets.all(8.r),
           decoration: const BoxDecoration(
-            color: primary,
+            color: Colors.white,
             borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 bottomLeft: Radius.circular(24)

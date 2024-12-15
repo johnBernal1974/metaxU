@@ -263,7 +263,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: primary,
+              color: Colors.white,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(48.r),
                 bottomLeft: Radius.circular(48.r),

@@ -27,6 +27,8 @@ class Client {
   int the22Cancelaciones;
   bool the41SuspendidoPorCancelaciones;
   bool fotoPerfilTomada;
+  String palabraClave;
+  String preguntaPalabraClave;
 
 
   Client({
@@ -49,6 +51,8 @@ class Client {
     required this.the22Cancelaciones,
     required this.the41SuspendidoPorCancelaciones,
     required this.fotoPerfilTomada,
+    required this.palabraClave,
+    required this.preguntaPalabraClave
 
   });
 
@@ -72,6 +76,8 @@ class Client {
     the22Cancelaciones: json["22_cancelaciones"]  ?? '',
     the41SuspendidoPorCancelaciones: json["41_Suspendido_Por_Cancelaciones"]  ?? '',
     fotoPerfilTomada: json["foto_perfil_tomada"]  ?? '',
+    palabraClave: json["palabra_clave"]  ?? '',
+    preguntaPalabraClave: json["preunta_palabra_clave"]  ?? '',
   );
 
   Map<String, dynamic> toJson() => {
@@ -94,5 +100,8 @@ class Client {
     "22_cancelaciones": the22Cancelaciones,
     "41_Suspendido_Por_Cancelaciones": the41SuspendidoPorCancelaciones,
     "foto_perfil_tomada": fotoPerfilTomada,
+    "palabra_clave": palabraClave,
+    "preunta_palabra_clave": preguntaPalabraClave,
+
   };
 }

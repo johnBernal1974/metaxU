@@ -22,7 +22,7 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
     _currentUser = _auth.currentUser;
     _checkEmailVerification().then((isVerified) {
       if (!isVerified) {
-        _sendVerificationEmail(); // Enviar correo de verificación automáticamente si aún no está verificado
+        _sendVerificationEmail();
       }
     });
   }
@@ -36,7 +36,7 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
     });
     if (_isEmailVerified) {
       if(context.mounted){
-        Navigator.pushReplacementNamed(context, 'map_client');
+        Navigator.pushReplacementNamed(context, 'splash');
       }
     }
     return isVerified;
@@ -129,9 +129,7 @@ class EmailVerificationPageState extends State<EmailVerificationPage> {
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    //todo todo hacer las validaciones para saber si ya esta confirmado el mail
-            
-                    Navigator.pushReplacementNamed(context, 'map_client');
+                    Navigator.pushReplacementNamed(context, 'splash');
                   },
                   child: const Text(
                     'Ya verifiqué mi correo',

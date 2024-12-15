@@ -186,15 +186,34 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, 'register');
+                    onTap: () async {
+
+                      setState(() {
+                        _isLoading = true; // Iniciar el estado de carga
+                      });
+
+                      // Verificar la conexión a Internet antes de ejecutar la acción
+                      bool hasConnection = await connectionService.hasInternetConnection();
+
+                      setState(() {
+                        _isLoading = false; // Terminar el estado de carga
+                      });
+
+                      if (hasConnection) {
+                        if(context.mounted){
+                          Navigator.pushNamed(context, 'register');
+                        }
+                      } else {
+                        // Si no hay conexión, muestra un AlertDialog
+                        alertSinInternet();
+                      }
                     },
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center, // Centra horizontalmente
                       children: [
                         Icon(Icons.double_arrow, size: 16),
                         Text(
-                          "REGISTRATE AQUÍ",
+                          "Regístrate aquí",
                           style: TextStyle(
                             color: Colors.black,
                             fontWeight: FontWeight.w900,

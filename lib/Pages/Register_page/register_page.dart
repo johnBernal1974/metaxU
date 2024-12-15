@@ -4,9 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
 import 'dart:core';
 
+import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/client_provider.dart';
 import '../../src/colors/colors.dart';
@@ -24,10 +26,19 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final PageController _pageController = PageController();
+  final ConnectionService connectionService = ConnectionService();
   int _currentPage = 0;
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
   late ProgressDialog _progressDialog;
+  FocusNode _nameFocusNode = FocusNode();
+  FocusNode _apellidosFocusNode = FocusNode();
+  FocusNode _emailFocusNode = FocusNode();
+  FocusNode _emailConfirmFocusNode = FocusNode();
+  FocusNode _celularFocusNode = FocusNode();
+  FocusNode _passwordFocusNode = FocusNode();
+  FocusNode _passwordDonfirmFocusNode = FocusNode();
+
 
   // Variables para almacenar los datos ingresados por el usuario.
   String? name;
@@ -37,6 +48,8 @@ class _RegisterPageState extends State<RegisterPage> {
   String? celular;
   String? password;
   String? passwordConfirm;
+  String? selectedQuestion;
+  String? answer;
 
   // Variables para almacenar los errores
   String? nameError;
@@ -46,6 +59,8 @@ class _RegisterPageState extends State<RegisterPage> {
   String? celularError;
   String? passwordError;
   String? passwordConfirmError;
+  String? answerError;
+
 
   // Controladores para los campos de texto
   final TextEditingController nameController = TextEditingController();
@@ -55,6 +70,15 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController celularController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController passwordConfirmController = TextEditingController();
+  final TextEditingController answerController = TextEditingController();
+
+  // Opciones para las preguntas
+  final List<String> questions = [
+    'Nombre de tu mascota',
+    'Nombre de tu abuelo materno',
+    '¿Cuál es el nombre de tu profesor favorito?',
+  ];
+
 
   @override
   void initState() {
@@ -64,10 +88,16 @@ class _RegisterPageState extends State<RegisterPage> {
 
       _clientProvider = ClientProvider();
       _progressDialog = ProgressDialog(context);
-      // _checkConnection();
-      // checkForUpdate();
-      // _loadSearchHistory();
+     _checkConnection();
 
+
+    });
+  }
+
+  Future<void> _checkConnection() async {
+    await connectionService.checkConnectionAndShowCard(context, () {
+      setState(() {
+      });
     });
   }
 
@@ -81,8 +111,17 @@ class _RegisterPageState extends State<RegisterPage> {
     celularController.dispose();
     passwordController.dispose();
     passwordConfirmController.dispose();
+    answerController.dispose();
+    _nameFocusNode.dispose();
+    _apellidosFocusNode.dispose();
+    _emailFocusNode.dispose();
+    _emailConfirmFocusNode.dispose();
+    _celularFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _passwordDonfirmFocusNode.dispose();
     super.dispose();
   }
+
 
   // Método para avanzar a la siguiente página
   void _nextPage() {
@@ -95,6 +134,7 @@ class _RegisterPageState extends State<RegisterPage> {
       celularError = null;
       passwordError = null;
       passwordConfirmError = null;
+      answerError = null;
 
       // Validaciones
       if (_currentPage == 0 && (name == null || name!.isEmpty)) {
@@ -161,15 +201,20 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
+      if (_currentPage == 7 && (answer == null)) {
+        answerError = "Debes escribir tu respuesta.";
+        return;
+      }
+
       // Avanzar de página si no hay errores
-      if (_currentPage < 6) {
+      if (_currentPage < 7) {
         _pageController.nextPage(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
         );
         _currentPage++;
       } else {
-        // Registro final
+
         _register();
       }
     });
@@ -198,6 +243,30 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Usamos un post-frame callback para asegurarnos de que el foco se maneje después de la renderización
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_currentPage == 1) {
+        FocusScope.of(context).requestFocus(_apellidosFocusNode);
+        // Asegúrate de que el teclado se muestre después de que el foco haya sido aplicado
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } else if (_currentPage == 2) {
+        FocusScope.of(context).requestFocus(_emailFocusNode);
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } else if (_currentPage == 3) {
+        FocusScope.of(context).requestFocus(_emailConfirmFocusNode);
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } else if (_currentPage == 4) {
+        FocusScope.of(context).requestFocus(_celularFocusNode);
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } else if (_currentPage == 5) {
+        FocusScope.of(context).requestFocus(_passwordFocusNode);
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      } else if (_currentPage == 6) {
+        FocusScope.of(context).requestFocus(_passwordDonfirmFocusNode);
+        SystemChannels.textInput.invokeMethod('TextInput.show');
+      }
+    });
+
     return Scaffold(
       backgroundColor: blancoCards,
       key: key,
@@ -207,7 +276,7 @@ class _RegisterPageState extends State<RegisterPage> {
         title: const Text("Registro", style: TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 20
-        ),),
+        )),
         actions: const <Widget>[
           Image(
               height: 40.0,
@@ -219,7 +288,7 @@ class _RegisterPageState extends State<RegisterPage> {
         children: [
           // Indicador de progreso
           LinearProgressIndicator(
-            value: (_currentPage + 1) / 7, // Cambiar 3 por 7
+            value: (_currentPage + 1) / 8, // Cambiar 3 por 7
             backgroundColor: Colors.grey[300],
             color: primary,
           ),
@@ -235,6 +304,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 _buildCelularPage(),
                 _buildPasswordPage(),
                 _buildPasswordConfirmPage(),
+                _buildPalabraClave()
               ],
             ),
           ),
@@ -254,7 +324,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     child: const Row(
                       children: [
-                        Icon(Icons.keyboard_double_arrow_left, color: Colors.black, size: 16,),
+                        Icon(Icons.keyboard_double_arrow_left, color: Colors.black, size: 16),
                         Text(
                           "Atrás",
                           style: TextStyle(color: Colors.black),
@@ -263,7 +333,22 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                   ),
                 ElevatedButton(
-                  onPressed: _nextPage,
+                  onPressed: () async {
+                    if (_currentPage == 7) {
+                      // Verificar conexión a Internet antes de ejecutar la acción
+                      bool hasConnection = await connectionService.hasInternetConnection();
+
+                      if (hasConnection) {
+                        // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
+                        _register();
+                      } else {
+                        // Si no hay conexión, muestra un AlertDialog
+                        alertSinInternet();
+                      }
+                    } else {
+                      _nextPage();
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
                     shape: RoundedRectangleBorder(
@@ -273,13 +358,15 @@ class _RegisterPageState extends State<RegisterPage> {
                   child: Row(
                     children: [
                       Text(
-                        _currentPage == 6 ? "Registrar" : "Siguiente", // Cambiar 2 por 6
+                        _currentPage == 7 ? "Registrar" : "Siguiente",
                         style: const TextStyle(color: Colors.black87),
                       ),
-                      const Icon(Icons.double_arrow_rounded, color: Colors.black, size: 16,),
+                      const Icon(Icons.double_arrow_rounded, color: Colors.black, size: 16),
                     ],
                   ),
                 ),
+
+
               ],
             ),
           ),
@@ -288,8 +375,28 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Future alertSinInternet (){
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sin Internet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
+          content: const Text('Por favor, verifica tu conexión e inténtalo nuevamente.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cierra el diálogo
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _register() async {
-    // Aquí validarías el formulario, guardarías la información, etc.
+    _progressDialog.show();
     try{
       bool isSignUp =  await _authProvider.signUp(email!, password!);
       if(isSignUp){
@@ -312,7 +419,9 @@ class _RegisterPageState extends State<RegisterPage> {
             the00isTraveling: false,
             the22Cancelaciones: 0,
             the41SuspendidoPorCancelaciones: false,
-            fotoPerfilTomada: false
+            fotoPerfilTomada: false,
+            palabraClave: answer ?? "",
+            preguntaPalabraClave: selectedQuestion ?? ""
         );
 
         await _clientProvider.create(client);
@@ -409,6 +518,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: apellidosController,
+            focusNode: _apellidosFocusNode,
             onChanged: (value) => apellidos = value,
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
@@ -442,6 +552,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: emailController,
+            focusNode: _emailFocusNode,
             onChanged: (value) => email = value,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
@@ -471,6 +582,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: emailConfirmController,
+            focusNode: _emailConfirmFocusNode,
             onChanged: (value) => emailConfirm = value,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
@@ -500,6 +612,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: celularController,
+            focusNode: _celularFocusNode,
             onChanged: (value) => celular = value,
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
@@ -533,6 +646,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: passwordController,
+            focusNode: _passwordFocusNode,
             onChanged: (value) => password = value,
             obscureText: true,
             decoration: InputDecoration(
@@ -554,7 +668,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           const Text(
             "Confirma tu contraseña",
@@ -567,6 +681,7 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 16),
           TextField(
             controller: passwordConfirmController,
+            focusNode: _passwordDonfirmFocusNode,
             onChanged: (value) => passwordConfirm = value,
             obscureText: true,
             decoration: InputDecoration(
@@ -582,4 +697,66 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
+  Widget _buildPalabraClave() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const Text(
+            "Verificación de identidad",
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const Text(
+            "Selecciona una pregunta de seguridad y proporciona tu respuesta",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
+          ),
+          const SizedBox(height: 16),
+          // Dropdown para seleccionar la pregunta
+          DropdownButton<String>(
+            hint: const Text("Selecciona una pregunta"),
+            value: selectedQuestion,
+            onChanged: (String? newValue) {
+              setState(() {
+                selectedQuestion = newValue;
+              });
+            },
+            items: questions.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(
+                  value,
+                  style: TextStyle(fontSize: 14), // Puedes personalizar el tamaño aquí
+                  maxLines: 2,  // Esto asegura que el texto se ajuste en 2 líneas
+                  overflow: TextOverflow.ellipsis, // En caso de que sea más largo que 2 líneas
+                ),
+              );
+            }).toList(),
+          ),
+          // Mostrar un error si no se seleccionó una pregunta
+          const SizedBox(height: 16),
+          // TextField para ingresar la respuesta
+          TextField(
+            controller: answerController,
+            onChanged: (value) {
+              answer = value;
+            },
+            decoration: InputDecoration(
+              labelText: "Escribe tu respuesta",
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+        ],
+      ),
+    );
+  }
+
+
+
+
 }

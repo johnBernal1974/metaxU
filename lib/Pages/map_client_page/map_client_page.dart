@@ -8,6 +8,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_places_autocomplete_text_field/google_places_autocomplete_text_field.dart';
 import 'package:google_places_autocomplete_text_field/model/prediction.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../helpers/conectivity_service.dart';
@@ -62,7 +63,7 @@ class _MapClientPageState extends State<MapClientPage> {
       _authProvider = MyAuthProvider();
       _clientProvider = ClientProvider();
       _checkConnection();
-      //checkForUpdate();
+      checkForUpdate();
       _loadSearchHistory();
 
     });
@@ -70,9 +71,7 @@ class _MapClientPageState extends State<MapClientPage> {
 
   Future<void> _checkConnection() async {
     await connectionService.checkConnectionAndShowCard(context, () {
-      // Callback para manejar la restauración de la conexión
-      setState(() {
-
+           setState(() {
       });
     });
   }
@@ -83,20 +82,20 @@ class _MapClientPageState extends State<MapClientPage> {
     _controller.dispose();
   }
 
-  // Future<void> checkForUpdate() async {
-  //   try {
-  //     AppUpdateInfo updateInfo = await InAppUpdate.checkForUpdate();
-  //     print('Estado de la actualización: ${updateInfo.updateAvailability}');
-  //     if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
-  //       print('¡*****************Actualización disponible!*************');
-  //       await InAppUpdate.performImmediateUpdate();
-  //     } else {
-  //       print('***********************No hay actualizaciones disponibles.****************');
-  //     }
-  //   } catch (e) {
-  //     print('***************Error al verificar actualizaciones: $e');
-  //   }
-  // }
+  Future<void> checkForUpdate() async {
+    try {
+      AppUpdateInfo updateInfo = await InAppUpdate.checkForUpdate();
+      print('Estado de la actualización: ${updateInfo.updateAvailability}');
+      if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
+        print('¡*****************Actualización disponible!*************');
+        await InAppUpdate.performImmediateUpdate();
+      } else {
+        print('***********************No hay actualizaciones disponibles.****************');
+      }
+    } catch (e) {
+      print('***************Error al verificar actualizaciones: $e');
+    }
+  }
 
 
   @override

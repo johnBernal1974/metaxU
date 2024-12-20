@@ -97,18 +97,22 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                   child: Column(
                     children: [
                       Image.asset(
-                        'assets/metax_logo.png', // Ruta de la imagen.
+                        'assets/metax_logo2.png', // Ruta de la imagen.
                         width: 180, // Ancho de la imagen.
                         height: 180, // Altura de la imagen.
                         fit: BoxFit.contain, // Ajuste de la imagen.
                       ),
                       const SizedBox(height: 5), // Ajusta la separación (5px).
-                      const Text(
-                        "Un taxi confiable, siempre cerca.",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                      Container(
+                        alignment: Alignment.center,
+                        child: const Text(
+                          "¡Porque cada viaje es importante!",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],

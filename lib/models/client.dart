@@ -19,7 +19,7 @@ class Client {
   double the18Calificacion;
   int the19Viajes;
   String the20Rol;
-  Timestamp the21FechaDeRegistro;
+  String the21FechaDeRegistro;
   String token;
   String image;
   String status;
@@ -77,7 +77,7 @@ class Client {
     the41SuspendidoPorCancelaciones: json["41_Suspendido_Por_Cancelaciones"]  ?? '',
     fotoPerfilTomada: json["foto_perfil_tomada"]  ?? '',
     palabraClave: json["palabra_clave"]  ?? '',
-    preguntaPalabraClave: json["preunta_palabra_clave"]  ?? '',
+    preguntaPalabraClave: json["pregunta_palabra_clave"]  ?? '',
   );
 
   Map<String, dynamic> toJson() => {
@@ -101,7 +101,7 @@ class Client {
     "41_Suspendido_Por_Cancelaciones": the41SuspendidoPorCancelaciones,
     "foto_perfil_tomada": fotoPerfilTomada,
     "palabra_clave": palabraClave,
-    "preunta_palabra_clave": preguntaPalabraClave,
+    "pregunta_palabra_clave": preguntaPalabraClave,
 
   };
 }

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
 import 'dart:core';
 
+import '../../helpers/DateHelpers.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/client_provider.dart';
@@ -412,7 +413,7 @@ class _RegisterPageState extends State<RegisterPage> {
             the18Calificacion: 0,
             the19Viajes: 0,
             the20Rol: "basico",
-            the21FechaDeRegistro: Timestamp.now(),
+            the21FechaDeRegistro: DateHelpers.getStartDate(),
             token: "",
             image: "",
             status: "registrado",
@@ -727,7 +728,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 value: value,
                 child: Text(
                   value,
-                  style: TextStyle(fontSize: 14), // Puedes personalizar el tamaño aquí
+                  style: const TextStyle(fontSize: 14), // Puedes personalizar el tamaño aquí
                   maxLines: 2,  // Esto asegura que el texto se ajuste en 2 líneas
                   overflow: TextOverflow.ellipsis, // En caso de que sea más largo que 2 líneas
                 ),
@@ -751,7 +752,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 16),
 
-        ],git
+        ],
       ),
     );
   }

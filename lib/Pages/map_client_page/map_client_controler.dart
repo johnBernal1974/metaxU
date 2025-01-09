@@ -80,6 +80,34 @@ class ClientMapController {
       checkConnectionAndShowSnackbar();
       refresh();
     });
+   await obtenerDatos();
+  }
+
+  Future<void> obtenerDatos() async {
+    int reintentos = 0;
+    const int maxReintentos = 3;
+    const Duration tiempoReintento = Duration(seconds: 2);
+
+    while (reintentos < maxReintentos) {
+      try {
+        // Obtener datos aquí
+        await _obtenerDatosDeUbiucacion();
+        return;
+      } catch (e) {
+        reintentos++;
+        await Future.delayed(tiempoReintento);
+      }
+    }
+
+    // Mostrar mensaje de error si no se pudieron obtener los datos
+    mostrarMensajeError();
+  }
+
+  void mostrarMensajeError() {
+    Snackbar.showSnackbar(context, key, 'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
+  }
+
+  Future<void> _obtenerDatosDeUbiucacion() async {
     // Obtener la posición actual y establecerla como posición inicial
     _position = await Geolocator.getCurrentPosition();
     if (_position != null) {
@@ -90,6 +118,7 @@ class ClientMapController {
     }
     saveToken();
     getClientInfo();
+    getNearbyDrivers();
   }
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión

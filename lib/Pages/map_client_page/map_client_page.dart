@@ -526,12 +526,12 @@ class _MapClientPageState extends State<MapClientPage> {
                   ),
 
                   Text(_controller.client?.the01Nombres ?? '', style: TextStyle(
-                      fontSize: 18.r, fontWeight: FontWeight.w900, color: blanco
+                      fontSize: 18.r, fontWeight: FontWeight.w900, color: Colors.black
                   ),
                     maxLines: 1,
                   ),
                   Text(_controller.client?.the02Apellidos ?? '', style: TextStyle(
-                      fontSize: 13.r, fontWeight: FontWeight.w600, color: blancoCards
+                      fontSize: 13.r, fontWeight: FontWeight.w500, color: Colors.black
                   ),
                     maxLines: 1,
                   ),
@@ -542,7 +542,7 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           ListTile(
-            leading: const Icon(Icons.history, color: primary), // Icono para Historial de viajes
+            leading: const Icon(Icons.history, color: gris), // Icono para Historial de viajes
             title: Text('Historial de viajes', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
@@ -550,7 +550,7 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           ListTile(
-            leading: const Icon(Icons.privacy_tip, color: primary), // Icono para Políticas de privacidad
+            leading: const Icon(Icons.privacy_tip, color: gris), // Icono para Políticas de privacidad
             title: Text('Políticas de privacidad', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
@@ -558,7 +558,7 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           ListTile(
-            leading: const Icon(Icons.contact_mail, color: primary), // Icono para Contáctanos
+            leading: const Icon(Icons.contact_mail, color: gris), // Icono para Contáctanos
             title: Text('Contáctanos', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
@@ -566,7 +566,7 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           ListTile(
-            leading: const Icon(Icons.share, color: primary), // Icono para Compartir aplicación
+            leading: const Icon(Icons.share, color: gris), // Icono para Compartir aplicación
             title: Text('Compartir aplicación', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
@@ -577,7 +577,7 @@ class _MapClientPageState extends State<MapClientPage> {
           const Divider(color: grisMedio),
 
           ListTile(
-            leading: const Icon(Icons.logout, color: primary), // Icono para Cerrar sesión
+            leading: const Icon(Icons.logout, color: gris), // Icono para Cerrar sesión
             title: Text('Cerrar sesión', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
@@ -589,7 +589,7 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           ListTile(
-            leading: const Icon(Icons.delete, color: primary), // Icono para Eliminar cuenta
+            leading: const Icon(Icons.delete, color: gris), // Icono para Eliminar cuenta
             title: Text('Eliminar cuenta', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),

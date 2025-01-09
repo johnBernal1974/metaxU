@@ -80,6 +80,7 @@ class TravelInfoController{
   bool isSendingNotification = false; // Indicador para controlar el envío de notificaciones
   Set<String> notifiedDrivers = <String>{};
   Position? _position;
+  bool serviceAccepted = false; // Bandera global para detener notificaciones
 
 
 
@@ -543,7 +544,10 @@ class TravelInfoController{
     return null;
   }
 
+  ///marca para saber si se hizo el rebase
+
   void getNearbyDrivers() {
+    serviceAccepted = false; // Restablecer la bandera al inicio del proceso
     Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
       fromLatlng.latitude,
       fromLatlng.longitude,
@@ -570,13 +574,12 @@ class TravelInfoController{
     });
   }
 
-
   void _attemptToSendNotification(List<String> driverIds, int index) {
-    if (index >= driverIds.length) {
+    if (index >= driverIds.length || serviceAccepted) {
       if (kDebugMode) {
-        print('No hay más conductores disponibles. Proceso completado.');
+        print('No hay más conductores disponibles o el servicio fue aceptado.');
       }
-      notifiedDrivers.clear();  // Limpiamos el conjunto para futuras búsquedas.
+      notifiedDrivers.clear(); // Limpiamos el conjunto para futuras búsquedas.
       return;
     }
 
@@ -586,7 +589,7 @@ class TravelInfoController{
       return;
     }
 
-    notifiedDrivers.add(driverId);  // Añadimos el conductor al conjunto de notificados.
+    notifiedDrivers.add(driverId); // Añadimos el conductor al conjunto de notificados.
     if (kDebugMode) {
       print("Enviando notificación al conductor $driverId");
     }
@@ -596,8 +599,6 @@ class TravelInfoController{
       if (driver != null) {
         if (kDebugMode) {
           print('ID del conductor: ${driver.id}');
-        }
-        if (kDebugMode) {
           print('Token del conductor: ${driver.token}');
         }
       } else {
@@ -606,13 +607,13 @@ class TravelInfoController{
         }
       }
 
-      // Mover la verificación de `notifiedDrivers` al inicio del bloque condicional
       if (driver?.token != null) {
         bool accepted = await sendNotification(driver!.token);
         if (accepted) {
           if (kDebugMode) {
             print('El conductor $driverId aceptó el servicio.');
           }
+          serviceAccepted = true; // Detener el envío de notificaciones
         } else {
           if (kDebugMode) {
             print('El conductor $driverId no aceptó el servicio, pasando al siguiente...');
@@ -624,8 +625,6 @@ class TravelInfoController{
         }
       }
 
-      // Agregar al conductor después de verificar el token y enviar la notificación
-      notifiedDrivers.add(driverId);
       _attemptToSendNotification(driverIds, index + 1);
     }).catchError((error) {
       if (kDebugMode) {
@@ -643,6 +642,7 @@ class TravelInfoController{
         TravelInfo travelInfo = TravelInfo.fromJson(data);
 
         if (travelInfo.status == 'accepted') {
+          serviceAccepted = true; // Detener el envío de notificaciones
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const TravelMapPage()),
@@ -656,6 +656,7 @@ class TravelInfoController{
       }
     });
   }
+
 
   void createTravelInfo() async {
     TravelInfo travelInfo = TravelInfo(

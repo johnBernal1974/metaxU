@@ -139,8 +139,8 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           margin: EdgeInsets.only(right: 10.r,  left: 10.r),
           child: Card(
             shape: const CircleBorder(),
-            surfaceTintColor: primary,
-            color: primary,
+            surfaceTintColor: Colors.white,
+            color: Colors.white,
             elevation: 2,
             child: Container(
                 padding: EdgeInsets.all(5.r),
@@ -157,7 +157,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       height: MediaQuery.of(context).size.height * 0.50,
       width: double.infinity,
       decoration: BoxDecoration(
-          color: blancoCards,
+          color: Colors.white,
           borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(30),
               topRight: Radius.circular(30)
@@ -226,6 +226,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
           const Divider(height: 2, color: grisMedio, indent: 15, endIndent: 15),
+          const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -240,10 +241,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             margin: EdgeInsets.only(top: 15.r, left: 10.r, right: 10.r),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              color: blanco, // Cambia el color de fondo del contenedor a blanco
+              color: grisClaro, // Cambia el color de fondo del contenedor a blanco
             ),
             child: Text(_con.text.isNotEmpty ? _con.text : 'Sin apuntes', style: TextStyle(
-                fontSize: 16.r, color: Colors.redAccent, fontWeight: FontWeight.w900
+                fontSize: 16.r, color: Colors.black, fontWeight: FontWeight.w900
             ),
                 maxLines: 2),
           ),
@@ -325,13 +326,13 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   });
                 }
               },
-              icon: Icon(Icons.edit_note, size: 20.r, color: Colors.black),
+              icon: Icon(Icons.edit_note, size: 30.r, color: Colors.white),
               label: Text(
-                'Apuntes al conductor',
+                'Dejar un apunte al conductor',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14.r,
-                  color: Colors.black,
+                  color: Colors.white,
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -391,13 +392,19 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   showCursor: true,
                   controller: _con,
                   textCapitalization: TextCapitalization.sentences,
-                  cursorColor: primary, // Cambia el color del cursor
-                  decoration: const InputDecoration(
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: primary), // Línea inferior azul cuando no está enfocado
+                  cursorColor: primary,
+                  decoration: InputDecoration(
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: primary),
                     ),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: primary), // Línea inferior verde cuando está enfocado
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: primary),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _con.clear();
+                      },
                     ),
                   ),
                 ),
@@ -408,7 +415,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
-                        elevation: 6, // Elevación del botón
+                        elevation: 6,
                       ),
                       onPressed: () {
                         if (mounted) {
@@ -438,6 +445,27 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         ],
                       ),
                     ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey,
+                        elevation: 6,
+                      ),
+                      onPressed: () {
+                        if (mounted) {
+                          setState(() {
+                            isVisibleCajonApuntesAlConductor = false;
+                          });
+                        }
+                      },
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: negro,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.r,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -447,7 +475,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       ),
     );
   }
-
 
   void _obtenerApuntesAlConductor(){
     apuntesAlConductor = _con.text;
@@ -463,9 +490,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     _controller.createTravelInfo();
     _controller.getNearbyDrivers();
   }
-
-
-
 
   Widget _tarjetaSolicitandoConductor() {
     if (!mounted) {

@@ -31,8 +31,6 @@ class TravelMapController{
   final Completer<GoogleMapController> _mapController = Completer();
   final String _yourGoogleAPIKey = dotenv.get('API_KEY');
   late AudioPlayer _player;
-  bool _soundConductorLlegadaReproducido = false;
-  bool _soundConductorHaCanceladoReproducido = false;
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.3445324, -74.3639381),
     zoom: 12.0,
@@ -78,6 +76,10 @@ class TravelMapController{
   bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
+  TravelMapController() {
+    _player = AudioPlayer(); // Inicializa el objeto _player
+  }
+
 
 
   Future? init(BuildContext context, Function refresh) async {
@@ -120,8 +122,32 @@ class TravelMapController{
   void sonidoServicioAceptado (){
     if (!soundIsaceptado) {
       soundIsaceptado = true;
-      soundViajeAceptado('assets/audio/aceptado.mp3');
+      soundViajeAceptado('assets/audio/servicio_aceptado.wav');
     }
+  }
+
+  void _soundConductorHaLlegado(String audioPath) async {
+    if (_player.processingState != ProcessingState.completed) {
+      await _player.stop();
+    }
+    await _player.setAsset(audioPath);
+    await _player.play();
+  }
+
+  void _soundConductorHaCancelado(String audioPath) async {
+    if (_player.processingState != ProcessingState.completed) {
+      await _player.stop();
+    }
+    await _player.setAsset(audioPath);
+    await _player.play();
+  }
+
+  void soundViajeAceptado(String audioPath) async {
+    if (_player.processingState != ProcessingState.completed) {
+      await _player.stop();
+    }
+    await _player.setAsset(audioPath);
+    await _player.play();
   }
 
   void _getTravelInfo() async {
@@ -155,15 +181,18 @@ class TravelMapController{
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           currentStatus = 'Viaje aceptado';
           pickupTravel();
           break;
         case 'driver_on_the_way':
           currentStatus = 'Conductor en camino';
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
           currentStatus = 'El Conductor ha llegado';
-          _soundConductorHaLlegado('assets/audio/zafiro_acaba_de_llegar.mp3');
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+          _soundConductorHaLlegado('assets/audio/tu_taxi_ha_llegado.wav');
           break;
         case 'started':
           currentStatus = 'El Viaje ha iniciado';
@@ -172,13 +201,13 @@ class TravelMapController{
           break;
         case 'cancelByDriverAfterAccepted':
           Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado('assets/audio/conductor_cancelo_servicio.mp3');
+          _soundConductorHaCancelado('assets/audio/conductor_cancelo_el_servicio.wav');
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
                           break;
         case 'cancelTimeIsOver':
           Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado('assets/audio/conductor_cancelo_servicio.mp3');
+          _soundConductorHaCancelado('assets/audio/conductor_cancelo_el_servicio.wav');
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
                           break;
@@ -267,12 +296,12 @@ class TravelMapController{
       }
     });
   }
+
   void pickupTravel () {
     if(!isPickUpTravel){
       isPickUpTravel = true;
       LatLng from = LatLng(_driverLatlng!.latitude, _driverLatlng!.longitude);
       LatLng to = LatLng(travelInfo!.fromLat, travelInfo!.fromLng);
-      addMarker('from', to.latitude, to.longitude, 'Recoger aquí', '', fromMarker);
       setPolylines(from, to);
     }
   }
@@ -447,33 +476,6 @@ class TravelMapController{
 
     markers[id] = marker;
   }
-
-  void _soundConductorHaLlegado(String audioPath) async {
-    // Solo reproducir el sonido si no se ha reproducido antes
-    if (!_soundConductorLlegadaReproducido) {
-      _player = AudioPlayer();
-      await _player.setAsset(audioPath); // Utiliza la ruta completa al archivo de audio
-      await _player.play();
-      _soundConductorLlegadaReproducido = true; // Actualiza la bandera para indicar que el sonido ya se ha reproducido
-    }
-  }
-
-  void _soundConductorHaCancelado(String audioPath) async {
-    // Solo reproducir el sonido si no se ha reproducido antes
-    if (!_soundConductorHaCanceladoReproducido) {
-      _player = AudioPlayer();
-      await _player.setAsset(audioPath); // Utiliza la ruta completa al archivo de audio
-      await _player.play();
-      _soundConductorHaCanceladoReproducido = true; // Actualiza la bandera para indicar que el sonido ya se ha reproducido
-    }
-  }
-
-  void soundViajeAceptado(String audioPath) async {
-    _player = AudioPlayer();
-    await _player.setAsset('assets/audio/aceptado.mp3'); // Utiliza la ruta completa al archivo de audio
-    await _player.play();
-  }
-
 
   void openBottomSheetDiverInfo(){
     showModalBottomSheet(

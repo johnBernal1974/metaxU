@@ -1,9 +1,11 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../../helpers/conectivity_service.dart';
 import '../../../models/driver.dart';
 import '../../../src/colors/colors.dart';
@@ -20,19 +22,36 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
   late TravelMapController _controller;
   Driver? driver;
-  bool _soundAceptado = false;
   final ConnectionService connectionService = ConnectionService();
+  late AudioPlayer _player;
 
   @override
   void initState() {
     super.initState();
     _controller = TravelMapController();
+    _player = AudioPlayer();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       _controller.init(context, refresh);
+      soundViajeAceptado();
     });
-    if (!_soundAceptado) {
-      _controller.soundViajeAceptado('assets/audio/viaje_aceptado.mp3');
-      _soundAceptado = true;
+  }
+
+  void soundViajeAceptado() async {
+    playAudio('assets/audio/servicio_aceptado.wav');
+  }
+
+
+  void playAudio(String audioPath) async {
+    try {
+      if (_player.playing) {
+        await _player.stop(); // Detener cualquier reproducción anterior.
+      }
+      await _player.setAsset(audioPath); // Configurar el recurso de audio.
+      await _player.play(); // Reproducir el audio.
+    } catch (e) {
+      if (kDebugMode) {
+        print('**************************************Error al reproducir el audio: $e');
+      }
     }
   }
 

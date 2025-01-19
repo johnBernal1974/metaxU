@@ -8,7 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:just_audio/just_audio.dart';
+//import 'package:just_audio/just_audio.dart';
 import 'package:location/location.dart' as location;
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
@@ -22,6 +22,7 @@ import '../../../models/driver.dart';
 import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class TravelMapController{
   late BuildContext context;
@@ -30,7 +31,7 @@ class TravelMapController{
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
   final String _yourGoogleAPIKey = dotenv.get('API_KEY');
-  late AudioPlayer _player;
+  late AudioPlayer? _player;
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.3445324, -74.3639381),
     zoom: 12.0,
@@ -75,10 +76,8 @@ class TravelMapController{
   final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  late AudioPlayer _audioPlayer;
 
-  TravelMapController() {
-    _player = AudioPlayer(); // Inicializa el objeto _player
-  }
 
 
 
@@ -95,6 +94,7 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
     await checkConnectionAndShowSnackbar();
+    _audioPlayer = AudioPlayer();
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       checkConnectionAndShowSnackbar();
       refresh();
@@ -109,6 +109,9 @@ class TravelMapController{
         zoom: 20.0,
       );
     }
+    if (travelInfo?.status! == 'accepted') {
+      _audioPlayer.play(AssetSource('audio/servicio_aceptado.wav'));
+    }
   }
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
@@ -119,12 +122,12 @@ class TravelMapController{
   }
 
   void playAudio(String audioPath) async {
+    print('****************************Reproduciendo audio con objeto _audioPlayer: $_audioPlayer');
     try {
-      if (_player.playing) {
-        await _player.stop(); // Detener cualquier reproducción anterior.
+      if (await _audioPlayer!.state == PlayerState.playing) {
+        await _audioPlayer!.stop(); // Detener cualquier reproducción anterior.
       }
-      await _player.setAsset(audioPath); // Configurar el recurso de audio.
-      await _player.play(); // Reproducir el audio.
+      await _audioPlayer!.play(AssetSource(audioPath)); // Reproducir el audio.
     } catch (e) {
       if (kDebugMode) {
         print('Error al reproducir el audio: $e');
@@ -132,17 +135,79 @@ class TravelMapController{
     }
   }
 
-  void _soundConductorHaLlegado() {
-    playAudio('assets/audio/tu_taxi_ha_llegado.wav');
-  }
-
   void _soundConductorHaCancelado() {
-    playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
-  }
-  void soundViajeAceptado() async {
-    playAudio('assets/audio/servicio_aceptado.wav');
+    playAudio('audio/el_conductor_cancelo_el_servicio.wav');
   }
 
+  void _liberarRecursoDeAudio() {
+    if (_player != null) {
+      _player!.stop(); // Detener la reproducción del audio
+      _player!.dispose(); // Liberar el recurso de audio
+      _player = null; // Reinicializar el objeto AudioPlayer
+    }
+  }
+
+  void checkTravelStatus() async {
+    Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
+    _streamTravelController = stream.listen((DocumentSnapshot document) {
+      if (document.data() == null) return;
+      travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
+      if (travelInfo == null) return;
+      switch (travelInfo!.status) {
+        case 'accepted':
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+          currentStatus = 'Viaje aceptado';
+          pickupTravel();
+          break;
+        case 'driver_on_the_way':
+          currentStatus = 'Conductor en camino';
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+          break;
+        case 'driver_is_waiting':
+          playAudio('audio/tu_taxi_ha_llegado.wav');
+          currentStatus = 'El Conductor ha llegado';
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+          break;
+        case 'started':
+          currentStatus = 'El Viaje ha iniciado';
+          startTravel();
+          break;
+        case 'cancelByDriverAfterAccepted':
+          Navigator.pushReplacementNamed(context, 'map_client');
+          _soundConductorHaCancelado();
+          _actualizarIsTravelingFalse();
+          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
+
+                          break;
+        case 'cancelTimeIsOver':
+          Navigator.pushReplacementNamed(context, 'map_client');
+          _soundConductorHaCancelado();
+          _actualizarIsTravelingFalse();
+          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
+
+                          break;
+        case 'finished':
+          currentStatus = 'Viaje finalizado';
+          finishTravel();
+
+          break;
+        default:
+          break;
+      }
+      refresh();
+    });
+  }
+
+  void dispose(){
+    print('Dispose llamado*************************///////////////////***********************');
+    _statusSuscription.cancel();
+    _driverInfoSuscription.cancel();
+    _streamLocationController.cancel();
+    _streamTravelController.cancel();
+    _streamStatusController.cancel();
+    _player!.dispose();
+    _liberarRecursoDeAudio();
+  }
 
   void _getTravelInfo() async {
     // Obtener la información del viaje del proveedor de información de viaje
@@ -164,55 +229,6 @@ class TravelMapController{
       if (travelInfo == null) return;
       status= travelInfo!.status;
 
-    });
-  }
-
-  void checkTravelStatus() async {
-    Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
-    _streamTravelController = stream.listen((DocumentSnapshot document) {
-      if (document.data() == null) return;
-      travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
-      if (travelInfo == null) return;
-      switch (travelInfo!.status) {
-        case 'accepted':
-          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
-          currentStatus = 'Viaje aceptado';
-          pickupTravel();
-          break;
-        case 'driver_on_the_way':
-          currentStatus = 'Conductor en camino';
-          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
-          break;
-        case 'driver_is_waiting':
-          currentStatus = 'El Conductor ha llegado';
-          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
-          _soundConductorHaLlegado();
-          break;
-        case 'started':
-          currentStatus = 'El Viaje ha iniciado';
-
-          startTravel();
-          break;
-        case 'cancelByDriverAfterAccepted':
-          Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
-          _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
-                          break;
-        case 'cancelTimeIsOver':
-          Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
-          _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
-                          break;
-        case 'finished':
-          currentStatus = 'Viaje finalizado';
-          finishTravel();
-          break;
-        default:
-          break;
-      }
-      refresh();
     });
   }
 
@@ -372,14 +388,7 @@ class TravelMapController{
     refresh();
   }
 
-  void dispose(){
-    _statusSuscription.cancel();
-    _driverInfoSuscription.cancel();
-    _streamLocationController.cancel();
-    _streamTravelController.cancel();
-    _streamStatusController.cancel();
-    _player.dispose();
-  }
+
 
   void onMapCreated(GoogleMapController controller){
     controller.setMapStyle(utilsMap.mapStyle);

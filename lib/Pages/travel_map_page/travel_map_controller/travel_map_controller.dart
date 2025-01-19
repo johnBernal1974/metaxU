@@ -232,6 +232,8 @@ class TravelMapController{
     });
   }
 
+  ///probar su paso al master
+
   void cancelTravelByClient() {
     Map<String, dynamic> data = {
       'status': 'cancelTravelByClient',

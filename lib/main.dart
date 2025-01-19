@@ -16,6 +16,7 @@ import 'Pages/historial_viajes_page/View/historial_viajes_page.dart';
 import 'Pages/map_client_page/map_client_page.dart';
 import 'Pages/politicas_de_privacidad_page/View/politicas_de_privacidad.dart';
 import 'Pages/profile_page/profile_page.dart';
+import 'Pages/taxi_ha_llegado/taxi_ha_llegado_page.dart';
 import 'Pages/travel_calification_page/View/travel_calification_page.dart';
 import 'Pages/travel_info_page/travel_info_page.dart';
 import 'Pages/travel_map_page/View/travel_map_page.dart';
@@ -89,6 +90,7 @@ class MyApp extends StatelessWidget {
         'eliminar_cuenta': (BuildContext context) => const EliminarCuentaPage(),
         'travel_calification_page': (BuildContext context) => const TravelCalificationPage(),
         'detail_history_page': (BuildContext context) => const DetailHistoryPage(),
+        'taxi_ha_llegado_page': (BuildContext context) => const TaxiHaLLegado(),
 
       },
       theme: ThemeData(

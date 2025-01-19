@@ -8,7 +8,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-//import 'package:just_audio/just_audio.dart';
 import 'package:location/location.dart' as location;
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
@@ -164,7 +163,13 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
+          Navigator.pushReplacementNamed(context, 'taxi_ha_llegado_page');
+          _audioPlayer.stop();
           playAudio('audio/tu_taxi_ha_llegado.wav');
+          currentStatus = 'El Conductor ha llegado';
+          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+          break;
+        case 'client_notificado':
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
@@ -178,14 +183,13 @@ class TravelMapController{
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
 
-                          break;
+          break;
         case 'cancelTimeIsOver':
           Navigator.pushReplacementNamed(context, 'map_client');
           _soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
-
-                          break;
+          break;
         case 'finished':
           currentStatus = 'Viaje finalizado';
           finishTravel();

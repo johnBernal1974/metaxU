@@ -118,7 +118,8 @@ class _TravelMapPageState extends State<TravelMapPage> {
     return Visibility(
       visible: _controller.status == 'accepted' ||
           _controller.status == 'driver_on_the_way' ||
-          _controller.status == 'driver_is_waiting',
+          _controller.status == 'driver_is_waiting' ||
+          _controller.status == 'client_notificado',
       child: Padding(
         padding: EdgeInsets.only(top: 5.r),
         child: Align(
@@ -258,7 +259,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
     return GestureDetector(
       onTap: () {
-        if (['accepted', 'driver_on_the_way', 'driver_is_waiting'].contains(_controller.travelInfo?.status)) {
+        if (['accepted', 'driver_on_the_way', 'driver_is_waiting', "client_notificado"].contains(_controller.travelInfo?.status)) {
           _controller.openBottomSheetDiverInfo();
         }
       },

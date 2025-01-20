@@ -86,7 +86,7 @@ class _TaxiHaLLegadoState extends State<TaxiHaLLegado> {
                       ),),
                     ),
                   ),
-                  SizedBox(height: 30)
+                  const SizedBox(height: 30)
                 ],
               ),
             ),

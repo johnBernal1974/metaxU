@@ -1,15 +1,14 @@
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:just_audio/just_audio.dart';
 import '../../../helpers/conectivity_service.dart';
 import '../../../models/driver.dart';
 import '../../../src/colors/colors.dart';
 import '../travel_map_controller/travel_map_controller.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 class TravelMapPage extends StatefulWidget {
   const TravelMapPage({super.key});
@@ -23,17 +22,13 @@ class _TravelMapPageState extends State<TravelMapPage> {
   late TravelMapController _controller;
   Driver? driver;
   final ConnectionService connectionService = ConnectionService();
-  late AudioPlayer _audioPlayer;
-
 
   @override
   void initState() {
     super.initState();
     _controller = TravelMapController();
-    _audioPlayer = AudioPlayer();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       _controller.init(context, refresh);
-
     });
   }
 
@@ -42,7 +37,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
   @override
   void dispose() {
     _controller.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -225,7 +219,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
     );
   }
 
-
   Widget _googleMapsWidget() {
     return GoogleMap(
       mapType: MapType.normal,
@@ -240,7 +233,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
   }
 
   void refresh() {
-    if (mounted) {
+    if (context.mounted) {
       setState(() {});
     }
   }

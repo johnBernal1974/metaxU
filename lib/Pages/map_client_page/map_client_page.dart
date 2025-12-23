@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_places_autocomplete_text_field/google_places_autocomplete_text_field.dart';
 import 'package:google_places_autocomplete_text_field/model/prediction.dart';
 import 'package:in_app_update/in_app_update.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../helpers/conectivity_service.dart';
@@ -52,6 +53,8 @@ class _MapClientPageState extends State<MapClientPage> {
   LatLng? tolatlng;
   double bottomMaps= 270;
   final ConnectionService connectionService = ConnectionService();
+  LatLng? _ubicacionActual;
+
 
 
 
@@ -107,16 +110,20 @@ class _MapClientPageState extends State<MapClientPage> {
           appBar: AppBar(
             backgroundColor: primary,
             iconTheme: const IconThemeData(color: negro, size: 24),
-            title: const Text("¿ A dónde vamos?", style: TextStyle(
+            title: Text(
+              'Hoy es: ${DateFormat("d MMM 'de' y", 'es').format(DateTime.now())}',
+              style: const TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.w900,
-                fontSize: 21
-            )),
+                fontSize: 14,
+              ),
+            ),
             actions: const <Widget>[
               Image(
-                  height: 40.0,
-                  width: 90.0,
-                  image: AssetImage('assets/metax_logo.png'))
+                height: 40.0,
+                width: 90.0,
+                image: AssetImage('assets/metax_logo.png'),
+              ),
             ],
           ),
           backgroundColor: grisMapa,
@@ -219,22 +226,22 @@ class _MapClientPageState extends State<MapClientPage> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Estás aquí', style: TextStyle( fontSize: 14.r, fontWeight: FontWeight.w500, color: negro)),
+                  Text('Estás aquí', style: TextStyle( fontSize: 12.r, fontWeight: FontWeight.w500, color: negro)),
                   Row(
                     children: [
                       Image.asset(
                         'assets/ubicacion_client.png', // La imagen original
-                        height: 18.r, // Ajusta la altura de la imagen
-                        width: 18.r, // Ajusta el ancho de la imagen
+                        height: 16.r, // Ajusta la altura de la imagen
+                        width: 16.r, // Ajusta el ancho de la imagen
                       ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
                           _controller.from ?? '',
                           style: TextStyle(
-                              fontSize: 14.r,
-                              fontWeight: FontWeight.bold,
-                              color: negro
+                              fontSize: 12.r,
+                              fontWeight: FontWeight.w600,
+                              color: negroLetras
                           ),
                           maxLines: 2,
                         ),
@@ -280,7 +287,7 @@ class _MapClientPageState extends State<MapClientPage> {
                       SizedBox(width: 10.r), // Espacio entre el icono y el texto
                       const Expanded(
                         child: Text(
-                          'Escribe tu lugar de destino', // Texto predeterminado
+                          '¿A dónde vamos?', // Texto predeterminado
                           style: TextStyle(
                             color: Colors.black54,
                             fontWeight: FontWeight.w600,
@@ -485,9 +492,14 @@ class _MapClientPageState extends State<MapClientPage> {
         onCameraIdle: () async {
           if (_controller.currentLocation != null) {
             setState(() {
+              _ubicacionActual = LatLng(
+                _controller.currentLocation!.latitude,
+                _controller.currentLocation!.longitude,
+              );
               isLoading = false;
             });
           }
+
           if (isVisiblePinBusquedaDestino) {
             await _controller.setLocationdraggableInfo();
           }
@@ -717,8 +729,8 @@ class _MapClientPageState extends State<MapClientPage> {
         },
 
         child: Container(
-          height:  ScreenUtil().setSp(45),
-          width: ScreenUtil().setSp(110),
+          height:  ScreenUtil().setSp(40),
+          width: ScreenUtil().setSp(80),
           margin: EdgeInsets.only(bottom: 350.r),
           padding: EdgeInsets.all(8.r),
           decoration: const BoxDecoration(
@@ -741,7 +753,7 @@ class _MapClientPageState extends State<MapClientPage> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               Image.asset('assets/icono_buscar_posicion.png', width: 35.r, height: 35.r),
-              Text('Buscar en\nel mapa', style: TextStyle(fontSize: 12.r, color: negro, fontWeight: FontWeight.w900, height: 1),)
+              Text('Mapa', style: TextStyle(fontSize: 10.r, color: negro, fontWeight: FontWeight.w900, height: 1),)
             ],
 
           ),
@@ -807,11 +819,25 @@ class _MapClientPageState extends State<MapClientPage> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
+        SizedBox(height: 50.r),
+
+        Text(
+          'Escribe el sitio a donde vamos',
+          style: TextStyle(
+            fontSize: 18.r,
+            fontWeight: FontWeight.w900,
+            color: negroLetras,
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        SizedBox(height: 10.r),
+
         Container(
           padding: EdgeInsets.all(5.r),
-          margin: EdgeInsets.only(left: 10.r, right: 10.r, top: 60.r),
+          margin: EdgeInsets.only(left: 10.r, right: 10.r),
           decoration: BoxDecoration(
-            color: primary,
+            color: blancoCards,
             borderRadius: const BorderRadius.all(Radius.circular(1)),
             boxShadow: [
               BoxShadow(
@@ -859,7 +885,7 @@ class _MapClientPageState extends State<MapClientPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  Text('Origen', style: TextStyle(color: blanco,fontSize: 14.r, fontWeight: FontWeight.bold)),
+                                  Text('Origen', style: TextStyle(color: negroLetras,fontSize: 12.r, fontWeight: FontWeight.bold)),
                                   Container(
                                     margin: EdgeInsets.only( top: 10.r),
                                     width: MediaQuery.of(context).size.width.round() * 0.80,
@@ -900,7 +926,7 @@ class _MapClientPageState extends State<MapClientPage> {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             const SizedBox(width: 5),
-                            Text('Destino', style: TextStyle(color: blanco,fontSize: 12.r, fontWeight: FontWeight.bold)),
+                            Text('Destino', style: TextStyle(color: negroLetras,fontSize: 12.r, fontWeight: FontWeight.bold)),
                             SizedBox(
                               width: MediaQuery.of(context).size.width.round() * 0.80,
                               child: GestureDetector(
@@ -989,7 +1015,7 @@ class _MapClientPageState extends State<MapClientPage> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   Icon(Icons.cancel_rounded,size: 20.r,),
-                  const Text('Cerrar',style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text('Cerrar',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ],
               ),
             ),
@@ -1011,7 +1037,7 @@ class _MapClientPageState extends State<MapClientPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.history, size: 60.r, color: primary), // Icono para indicar que no hay historial
+                Icon(Icons.history, size: 60.r, color: negroLetras), // Icono para indicar que no hay historial
                 SizedBox(height: 10.r),
                 Text(
                   "Aún no tienes un historial de viajes recientes.",
@@ -1049,12 +1075,12 @@ class _MapClientPageState extends State<MapClientPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.history, color: primary, size: 16,),
+                    const Icon(Icons.history, color: negroLetras, size: 16,),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         historyItem,
-                        style: TextStyle(color: negro, fontSize: 12.r, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: negro, fontSize: 10.r, fontWeight: FontWeight.w500),
                         maxLines: 2,
                       ),
                     ),

@@ -80,42 +80,56 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         children: [
           // Elementos principales al centro de la pantalla.
           Center(
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/imagen_splash.png',
+                    width: 250,
+                    height: 250,
+                    fit: BoxFit.contain,
+                  ),
+
+                  const SizedBox(height: 30),
+                  const Text(
+                    "¡Porque cada viaje\nes importante!",
+                    style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        height: 1.2
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+
+          // 👇 Texto en la esquina inferior derecha
+          const Positioned(
+            bottom: 26,
+            right: 26,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Image.asset(
-                    'assets/imagen_taxi.png', // Ruta de la imagen.
-                    width: 200, // Ancho de la imagen.
-                    height: 150, // Altura de la imagen.
-                    fit: BoxFit.contain, // Ajuste de la imagen.
+                Text(
+                  'En alianza con',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
                   ),
                 ),
-                ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    children: [
-                      Image.asset(
-                        'assets/metax_logo2.png', // Ruta de la imagen.
-                        width: 180, // Ancho de la imagen.
-                        height: 180, // Altura de la imagen.
-                        fit: BoxFit.contain, // Ajuste de la imagen.
-                      ),
-                      const SizedBox(height: 5), // Ajusta la separación (5px).
-                      Container(
-                        alignment: Alignment.center,
-                        child: const Text(
-                          "¡Porque cada viaje es importante!",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
+                Text(
+                  'ASPRO',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
                 ),
               ],

@@ -8,6 +8,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:location/location.dart' as location;
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
@@ -21,7 +22,6 @@ import '../../../models/driver.dart';
 import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
-import 'package:audioplayers/audioplayers.dart';
 
 class TravelMapController{
   late BuildContext context;
@@ -30,7 +30,6 @@ class TravelMapController{
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
   final String _yourGoogleAPIKey = dotenv.get('API_KEY');
-  late AudioPlayer? _player;
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.3445324, -74.3639381),
     zoom: 12.0,
@@ -75,7 +74,7 @@ class TravelMapController{
   final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
-  late AudioPlayer _audioPlayer;
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
 
 
@@ -93,7 +92,6 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
     await checkConnectionAndShowSnackbar();
-    _audioPlayer = AudioPlayer();
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       checkConnectionAndShowSnackbar();
       refresh();
@@ -108,10 +106,9 @@ class TravelMapController{
         zoom: 20.0,
       );
     }
-    if (travelInfo?.status! == 'accepted') {
-      _audioPlayer.play(AssetSource('audio/servicio_aceptado.wav'));
-    }
   }
+
+
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
   Future<void> checkConnectionAndShowSnackbar() async {
@@ -123,10 +120,11 @@ class TravelMapController{
   void playAudio(String audioPath) async {
     print('****************************Reproduciendo audio con objeto _audioPlayer: $_audioPlayer');
     try {
-      if (await _audioPlayer!.state == PlayerState.playing) {
-        await _audioPlayer!.stop(); // Detener cualquier reproducción anterior.
+      if (_audioPlayer.playing) {
+        await _audioPlayer.stop(); // Detener cualquier reproducción anterior.
       }
-      await _audioPlayer!.play(AssetSource(audioPath)); // Reproducir el audio.
+      await _audioPlayer.setAsset('asset:$audioPath'); // Establecer el audio a reproducir.
+      await _audioPlayer.play(); // Reproducir el audio.
     } catch (e) {
       if (kDebugMode) {
         print('Error al reproducir el audio: $e');
@@ -135,16 +133,10 @@ class TravelMapController{
   }
 
   void _soundConductorHaCancelado() {
-    playAudio('audio/el_conductor_cancelo_el_servicio.wav');
+    playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
   }
 
-  void _liberarRecursoDeAudio() {
-    if (_player != null) {
-      _player!.stop(); // Detener la reproducción del audio
-      _player!.dispose(); // Liberar el recurso de audio
-      _player = null; // Reinicializar el objeto AudioPlayer
-    }
-  }
+
 
   void checkTravelStatus() async {
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
@@ -163,9 +155,10 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
-          Navigator.pushReplacementNamed(context, 'taxi_ha_llegado_page');
+          // Navigator.pushReplacementNamed(context, 'taxi_ha_llegado_page');
           _audioPlayer.stop();
-          playAudio('audio/tu_taxi_ha_llegado.wav');
+          playAudio('assets/audio/tu_taxi_ha_llegado.wav');
+          cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
@@ -193,13 +186,17 @@ class TravelMapController{
         case 'finished':
           currentStatus = 'Viaje finalizado';
           finishTravel();
-
           break;
         default:
           break;
       }
       refresh();
     });
+  }
+
+  void cambiarestadoNotificado(){
+    Map<String, dynamic> data = {'status': 'client_notificado'};
+    _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
   }
 
   void dispose(){
@@ -209,8 +206,8 @@ class TravelMapController{
     _streamLocationController.cancel();
     _streamTravelController.cancel();
     _streamStatusController.cancel();
-    _player!.dispose();
-    _liberarRecursoDeAudio();
+    _audioPlayer.dispose();
+    _audioPlayer.stop();
   }
 
   void _getTravelInfo() async {
@@ -235,8 +232,6 @@ class TravelMapController{
 
     });
   }
-
-  ///probar su paso al master
 
   void cancelTravelByClient() {
     Map<String, dynamic> data = {

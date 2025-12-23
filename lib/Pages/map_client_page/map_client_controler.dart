@@ -63,6 +63,8 @@ class ClientMapController {
     });
   }
 
+  ///este es el master
+
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;

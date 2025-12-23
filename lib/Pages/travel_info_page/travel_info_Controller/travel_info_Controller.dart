@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
@@ -81,7 +82,7 @@ class TravelInfoController{
   Set<String> notifiedDrivers = <String>{};
   Position? _position;
   bool serviceAccepted = false; // Bandera global para detener notificaciones
-
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
 
   Future<void> init(BuildContext context, Function refresh) async {
@@ -115,7 +116,6 @@ class TravelInfoController{
         print('Error: Los argumentos son nulos');
       }
     }
-
   }
 
 
@@ -124,6 +124,7 @@ class TravelInfoController{
     _clientInfoSuscription?.cancel();
     _streamStatusSuscription?.cancel();
     clearApuntesAlConductor();
+    _audioPlayer.dispose();
     km = null;
     min = null;
     total = 0.0;
@@ -237,8 +238,6 @@ class TravelInfoController{
     await prefs.setString('apuntes_al_conductor', apuntes);
     apuntesAlConductor = apuntes;
   }
-
-
 
   void clearApuntesAlConductor() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -634,6 +633,25 @@ class TravelInfoController{
     });
   }
 
+  void playAudio(String audioPath) async {
+    print('****************************Reproduciendo audio con objeto _audioPlayer: $_audioPlayer');
+    try {
+      if (_audioPlayer.playing) {
+        await _audioPlayer.stop(); // Detener cualquier reproducción anterior.
+      }
+      await _audioPlayer.setAsset('asset:$audioPath'); // Establecer el audio a reproducir.
+      await _audioPlayer.play(); // Reproducir el audio.
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al reproducir el audio: $e');
+      }
+    }
+  }
+
+  void _soundServicioAceptado() {
+    playAudio('assets/audio/servicio_aceptado_new.wav');
+  }
+
   void _checkDriverResponse() {
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
     _streamStatusSuscription = stream.listen((DocumentSnapshot document) {
@@ -643,6 +661,7 @@ class TravelInfoController{
 
         if (travelInfo.status == 'accepted') {
           serviceAccepted = true; // Detener el envío de notificaciones
+          _soundServicioAceptado();
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const TravelMapPage()),

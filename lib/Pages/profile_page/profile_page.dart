@@ -70,17 +70,33 @@ class _ProfilePageState extends State<ProfilePage> {
                         alignment: Alignment.center,
                         child: const Text(
                           'Viajes realizados',
-                          style: TextStyle(color: primary, fontSize: 12),
+                          style: TextStyle(color: negro, fontSize: 12),
                           textAlign: TextAlign.center, // Asegúrate de centrar el texto también
                         ),
                       ),
                       const SizedBox(height: 5),
-                      Text(
-                        _controller.client?.the19Viajes.toString() ?? 'hola',
-                        style: const TextStyle(color: negro, fontWeight: FontWeight.w900),
-                        textAlign: TextAlign.center, // Asegúrate de centrar el texto
-                      ),
-                      const SizedBox(height: 25),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100, // fondo gris claro (opcional)
+                border: Border.all(
+                  color: Colors.grey.shade400, // borde gris
+                  width: 1,
+                ),
+                borderRadius: BorderRadius.circular(8), // bordes redondeados
+              ),
+              child: Text(
+                _controller.client?.the19Viajes?.toString() ?? '0',
+                style: const TextStyle(
+                  color: negro,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+
+            const SizedBox(height: 25),
                       const Divider(height: 1, color: grisMedio),
                       const SizedBox(height: 5),
                     ],
@@ -111,7 +127,7 @@ class _ProfilePageState extends State<ProfilePage> {
         backgroundImage: _controller.client?.image != null
             ? CachedNetworkImageProvider(_controller.client!.image)
             : null,
-        radius: 80,
+        radius: 60,
       ),
     );
   }
@@ -119,9 +135,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        headerText( text: 'Nombre:' , color: gris, fontSize: 14,fontWeight: FontWeight.w500),
+        headerText( text: 'Nombre:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the01Nombres ?? "", color: negro,fontSize: 14,fontWeight: FontWeight.w700),
+        headerText( text: _controller.client?.the01Nombres ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -130,9 +146,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        headerText( text: 'Apellidos:' , color: gris, fontSize: 14,fontWeight: FontWeight.w500),
+        headerText( text: 'Apellidos:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the02Apellidos ?? "", color: negro,fontSize: 14,fontWeight: FontWeight.w700),
+        headerText( text: _controller.client?.the02Apellidos ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -142,9 +158,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        headerText( text: 'Email:' , color: gris, fontSize: 14,fontWeight: FontWeight.w500),
+        headerText( text: 'Email:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the06Email ?? '', color: negro,fontSize: 14,fontWeight: FontWeight.w700),
+        headerText( text: _controller.client?.the06Email ?? '', color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -153,9 +169,9 @@ class _ProfilePageState extends State<ProfilePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        headerText( text: 'Celular:' , color: gris, fontSize: 14,fontWeight: FontWeight.w500),
+        headerText( text: 'Celular:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the07Celular ?? '', color: negro,fontSize: 14,fontWeight: FontWeight.w700),
+        headerText( text: _controller.client?.the07Celular ?? '', color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -169,7 +185,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
 Widget _textSubtitledatosPersonales(){
   return const Text('Datos personales', style: TextStyle(
-    color: negro, fontSize: 20, fontWeight: FontWeight.w900
+    color: negro, fontSize: 16, fontWeight: FontWeight.w900
       ));
 }
 

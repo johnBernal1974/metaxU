@@ -37,8 +37,8 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
         backgroundColor: primary,
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text("Historial de viajes", style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20
+            fontWeight: FontWeight.w700,
+            fontSize: 14
         ),),
         actions: const <Widget>[
           Image(
@@ -54,17 +54,17 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
         builder: (context, AsyncSnapshot<List<TravelHistory>> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             // Muestra un indicador de progreso mientras se carga la información
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(
+                  CircularProgressIndicator(
                     color: gris,
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 10),
                   Text(
                     'Cargando información...',
-                    style: TextStyle(fontSize: 12.r),
+                    style: TextStyle(fontSize: 12),
                   ),
                 ],
               ),
@@ -148,15 +148,15 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
             // Información del destino
             Row(
               children: [
-                Image.asset('assets/marker_destino.png', height: 15.r, width: 15.r),
+                Image.asset('assets/marker_destino.png', height: 12, width: 12),
                 const SizedBox(width: 5),
                 Expanded(
                   child: Text(
                     to,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w500,
                       color: Colors.black,
-                      fontSize: 14.r,
+                      fontSize: 11,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -167,19 +167,19 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
             // Hora de finalización
             Text(
               'Hora finalización : $fechaViaje',
-              style: TextStyle(
+              style: const TextStyle(
                 color: gris,
                 fontWeight: FontWeight.w400,
-                fontSize: 12.r,
+                fontSize: 11,
               ),
             ),
 
             // Tarifa y botón de eliminar
             Text(
               formatter.format(tarifa), // Formatear la tarifa con NumberFormat
-              style: TextStyle(
+              style: const TextStyle(
                 color: negro,
-                fontSize: 16.r,
+                fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
             ),

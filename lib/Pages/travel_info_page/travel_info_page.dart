@@ -194,37 +194,92 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           const Divider(height: 2, color: grisMedio, indent: 15, endIndent: 15),
 
           Container(
-            margin: const EdgeInsets.only(top: 5, bottom: 5),
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: EdgeInsets.symmetric(horizontal: 8.r),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Column(
-                      children: [
-                        headerText(text:'Distancia', fontSize: 10.r, color: negro, fontWeight: FontWeight.w500),
-                        headerText(text: _controller.km ?? '', fontSize: 14.r, color: negro, fontWeight: FontWeight.w900),
-                      ],
-                    ),
 
-                    Column(
-                      children: [
-                        headerText(text:'Duración', fontSize: 10.r, color: negro, fontWeight: FontWeight.w500),
-                        headerText(text: _controller.min ?? '', fontSize: 14.r, color: negro, fontWeight: FontWeight.w900),
-                      ],
-                    ),
-                  ],
+                /// 📏 DISTANCIA
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      headerText(
+                        text: 'Distancia',
+                        fontSize: 9.r,
+                        color: negro,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      headerText(
+                        text: _controller.km ?? '',
+                        fontSize: 12.r,
+                        color: negro,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ],
+                  ),
                 ),
 
-                Container(
-                    width: 200.r,
-                    padding: EdgeInsets.all(10.r),
-                    child: headerText(text: formattedTarifa, fontSize: 26.r, color: negro, fontWeight: FontWeight.w900)
+                /// ⏱ DURACIÓN
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      headerText(
+                        text: 'Duración',
+                        fontSize: 9.r,
+                        color: negro,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      headerText(
+                        text: _controller.min ?? '',
+                        fontSize: 12.r,
+                        color: negro,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ],
+                  ),
+                ),
+
+                /// 💰 TARIFA
+                Flexible(
+                  flex: 2,
+                  child: Container(
+                    alignment: Alignment.centerRight,
+                    padding: EdgeInsets.symmetric(horizontal: 6.r),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.r,
+                        vertical: 6.r,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1EBE71), // ✅ verde pro
+                        borderRadius: BorderRadius.circular(20.r),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            offset: const Offset(0, 3),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: headerText(
+                          text: formattedTarifa,
+                          fontSize: 16.r,
+                          color: Colors.white, // 👈 contraste pro
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
+
           const Divider(height: 2, color: grisMedio, indent: 15, endIndent: 15),
           const SizedBox(height: 15),
           Row(
@@ -244,7 +299,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               color: grisClaro, // Cambia el color de fondo del contenedor a blanco
             ),
             child: Text(_con.text.isNotEmpty ? _con.text : 'Sin apuntes', style: TextStyle(
-                fontSize: 16.r, color: Colors.black, fontWeight: FontWeight.w900
+                fontSize: 14.r, color: negroLetras, fontWeight: FontWeight.w600
             ),
                 maxLines: 2),
           ),
@@ -255,10 +310,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           ),
           Container(
             width: double.infinity,
-            height: 48.r,
+            height: 40.r,
             margin: EdgeInsets.only(left: 25.r, right: 25.r, bottom: 30.r),
             child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: primary),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1EBE71)),
               onPressed: () async {
                 bool hasConnection = await connectionService.hasInternetConnection();
 
@@ -272,10 +327,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
 
               },
-              icon: Icon(Icons.check_circle, size: 30.r, color: Colors.black,),
+              icon: Icon(Icons.check_circle, size: 30.r, color: Colors.white,),
               label: Text(
                 'Confirmar Viaje',
-                style: TextStyle(color: Colors.black, fontSize: 20.r, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontSize: 16.r, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -326,13 +381,13 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   });
                 }
               },
-              icon: Icon(Icons.edit_note, size: 30.r, color: Colors.white),
+              icon: Icon(Icons.edit_note, size: 30.r, color: negroLetras),
               label: Text(
-                'Dejar un apunte al conductor',
+                'Apunte al conductor',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14.r,
-                  color: Colors.white,
+                  color: negroLetras,
                 ),
               ),
               style: ElevatedButton.styleFrom(
@@ -414,7 +469,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   children: [
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
+                        backgroundColor: const Color(0xFF1EBE71),
                         elevation: 6,
                       ),
                       onPressed: () {
@@ -447,7 +502,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
+                        backgroundColor: rojo,
                         elevation: 6,
                       ),
                       onPressed: () {
@@ -460,7 +515,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       child: Text(
                         'Cancelar',
                         style: TextStyle(
-                          color: negro,
+                          color: blanco,
                           fontWeight: FontWeight.bold,
                           fontSize: 14.r,
                         ),

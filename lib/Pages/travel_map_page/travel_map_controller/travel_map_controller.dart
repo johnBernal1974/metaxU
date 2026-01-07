@@ -118,19 +118,20 @@ class TravelMapController{
   }
 
   void playAudio(String audioPath) async {
-    print('****************************Reproduciendo audio con objeto _audioPlayer: $_audioPlayer');
     try {
       if (_audioPlayer.playing) {
-        await _audioPlayer.stop(); // Detener cualquier reproducción anterior.
+        await _audioPlayer.stop();
       }
-      await _audioPlayer.setAsset('asset:$audioPath'); // Establecer el audio a reproducir.
-      await _audioPlayer.play(); // Reproducir el audio.
+
+      await _audioPlayer.setAsset(audioPath);
+      await _audioPlayer.play();
     } catch (e) {
       if (kDebugMode) {
-        print('Error al reproducir el audio: $e');
+        print('❌ Error al reproducir audio: $e');
       }
     }
   }
+
 
   void _soundConductorHaCancelado() {
     playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
@@ -156,13 +157,14 @@ class TravelMapController{
           break;
         case 'driver_is_waiting':
           // Navigator.pushReplacementNamed(context, 'taxi_ha_llegado_page');
-          _audioPlayer.stop();
-          playAudio('assets/audio/tu_taxi_ha_llegado.wav');
+          // _audioPlayer.stop(); nuevo
+
           cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'client_notificado':
+          playAudio('assets/audio/tu_taxi_ha_llegado.mp3');
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;

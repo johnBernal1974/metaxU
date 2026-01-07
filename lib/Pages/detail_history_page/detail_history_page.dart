@@ -35,8 +35,8 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         backgroundColor: primary,
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text("Detalle del viaje", style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20
+            fontWeight: FontWeight.w700,
+            fontSize: 14
         ),),
         actions: const <Widget>[
           Image(
@@ -46,13 +46,13 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(15.r),
+        padding: const EdgeInsets.all(15),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             _buildDriverInfo(),
-            SizedBox(height: 15.r),
+            const SizedBox(height: 15),
             _buildDivider(),
             _buildOrigin(),
             _buildDivider(),
@@ -77,13 +77,19 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildProfilePhoto(),
-        SizedBox(width: 25.r),
+        const SizedBox(width: 18),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Conductor', style: TextStyle(fontSize: 14)),
-            _buildName(),
-            _buildSurname(),
+            const Text('Conductor', style: TextStyle(fontSize: 12)),
+            Row(
+              children: [
+                _buildName(),
+                const SizedBox(width: 3),
+                _buildSurname(),
+              ],
+            ),
+
             const SizedBox(height: 10),
             _buildTipovehiculo(),
           ],
@@ -102,7 +108,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           backgroundImage: _controller.driver!.image != null
               ? CachedNetworkImageProvider(_controller.driver!.image)
               : null,
-          radius: 50,
+          radius: 40,
         ),
       );
     } else {
@@ -116,8 +122,8 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
       child: headerText(
         text: _controller.driver?.the01Nombres ?? "",
         color: negro,
-        fontSize: 18.r,
-        fontWeight: FontWeight.w800,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -128,35 +134,46 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
       child: headerText(
         text: _controller.driver?.the02Apellidos ?? "",
         color: negro,
-        fontSize: 14.r,
-        fontWeight: FontWeight.w800,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 
   Widget _buildTipovehiculo() {
     return Container(
-      alignment: Alignment.topLeft,
+      alignment: Alignment.centerLeft,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              headerText(text: "Taxi de placa",color: negro,fontSize: 14,fontWeight: FontWeight.w700),
-              headerText(
-                text: _controller.driver?.the18Placa ?? '',
+          Text(
+            'Placa',
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400, // gris claro
+              borderRadius: BorderRadius.circular(6), // bordes redondeados
+            ),
+            child: Text(
+              _controller.driver?.the18Placa ?? '',
+              style: const TextStyle(
                 color: negro,
-                fontSize: 18.r,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
-            ],
+            ),
           ),
-          SizedBox(width: 30.r),
         ],
       ),
     );
   }
+
 
   Widget _buildDivider() {
     return const Divider(height: 1, color: grisMedio);
@@ -178,7 +195,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
 
   Widget _buildLocationInfo({required String title, required String content}) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 15.r, vertical: 5.r),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -186,9 +203,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  color:primary,
-                  fontSize: 14.r,
+                style: const TextStyle(
+                  color:negro,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -196,10 +213,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           ),
           Text(
             content,
-            style: TextStyle(
-              color: negro,
-              fontSize: 18.r,
-              fontWeight: FontWeight.w600,
+            style: const TextStyle(
+              color: negroLetras,
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -242,9 +259,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  color: primary,
-                  fontSize: 14.r,
+                style: const TextStyle(
+                  color: negro,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -252,10 +269,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           ),
           Text(
             content,
-            style: TextStyle(
-              color: negro,
-              fontSize: 14.r,
-              fontWeight: FontWeight.w600,
+            style: const TextStyle(
+              color: negroLetras,
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -273,9 +290,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  color: primary,
-                  fontSize: 14.r,
+                style: const TextStyle(
+                  color: negro,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -283,10 +300,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           ),
           Text(
             content,
-            style: TextStyle(
-              color: negro,
-              fontSize: 14.r,
-              fontWeight: FontWeight.w600,
+            style: const TextStyle(
+              color: negroLetras,
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -322,37 +339,34 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
   Widget _tarifa() {
     final formatter = NumberFormat.currency(
       locale: 'es_CO',
-      symbol: '',
+      symbol: '', // sin símbolo
       decimalDigits: 0,
       name: '',
-      customPattern: '\u00A4#,##0',
+      customPattern: '#,##0',
     );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 15.r, vertical: 5.r),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-               Row(
-                children: [
-                  Text(
-                    'Tarifa',
-                    style: TextStyle(
-                      color: primary,
-                      fontSize: 14.r,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                formatter.format(_controller.travelHistory?.tarifa ?? 0),
+              const Text(
+                'Tarifa',
                 style: TextStyle(
                   color: negro,
-                  fontSize: 14.r,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '\$ ${formatter.format(_controller.travelHistory?.tarifa ?? 0)}',
+                style: const TextStyle(
+                  color: negroLetras,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ],
@@ -361,6 +375,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
       ],
     );
   }
+
 
   Widget _calificacion() {
     return Column(
@@ -371,13 +386,13 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 children: [
                   Text(
-                    'Calificación',
+                    'Le diste una calificación de:',
                     style: TextStyle(
-                      color: primary,
-                      fontSize: 14.r,
+                      color: negro,
+                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -385,9 +400,9 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
               ),
               headerText(
                 text: _controller.travelHistory?.calificacionAlConductor.toString() ?? '',
-                color: negro,
-                fontSize: 14.r,
-                fontWeight: FontWeight.w600,
+                color: negroLetras,
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
               ),
             ],
           ),

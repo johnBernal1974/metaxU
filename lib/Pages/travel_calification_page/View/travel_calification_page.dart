@@ -93,8 +93,8 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
             offset: Offset(5,5),
             blurRadius: 5,
           )]),
-      child: Text('Servicio\nFinalizado', style: TextStyle(
-              fontSize: 24.r,
+      child: const Text('Servicio Finalizado', style: TextStyle(
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: Colors.black,
         height: 1.2

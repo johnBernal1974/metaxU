@@ -95,10 +95,10 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                       color: Colors.white,
                     ),
                     child: Container(
-                      width: 160,
-                      height: 160,
+                      width: 120,
+                      height: 120,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(100),
                         image: DecorationImage(
                           image: widget.imageUrl.isNotEmpty
                               ? NetworkImage(widget.imageUrl)
@@ -116,20 +116,27 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            IconButton(
+                            _iconBox(
+                              child: IconButton(
                                 onPressed: () {
                                   makePhoneCall(widget.celular);
                                 },
                                 icon: const Icon(Icons.phone),
-                                iconSize: 24),
+                                iconSize: 24,
+                              ),
+                            ),
                             const SizedBox(width: 25),
-                            IconButton(
-                              onPressed: () {
-                                _openWhatsApp(context);
-                              },
-                              icon: Image.asset('assets/icono_whatsapp.png',
+                            _iconBox(
+                              child: IconButton(
+                                onPressed: () {
+                                  _openWhatsApp(context);
+                                },
+                                icon: Image.asset(
+                                  'assets/icono_whatsapp.png',
                                   width: 24,
-                                  height: 24),
+                                  height: 24,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -209,7 +216,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
               const SizedBox(height: 10),
               Container(
                   margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  child: const Divider(height: 2, color: primary)),
+                  child: const Divider(height: 2, color: negroLetras)),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -223,15 +230,15 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                           alignment: Alignment.center,
                           children: [
                             Image.asset("assets/placa_blanca.png",
-                              width: 120,
-                              height: 60,
+                              width: 100,
+                              height: 50,
                               fit: BoxFit.contain,
                             ),
                             Text(
                               placaFormateada,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w900,
-                                fontSize: 22,
+                                fontSize: 14,
                                 color: Colors.black,
                               ),
                             ),
@@ -246,26 +253,26 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                     children: [
                       Row(
                         children: [
-                          const Text('Marca: '),
-                          Text(widget.marca, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
+                          const Text('Marca: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                          Text(widget.marca, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
                         ],
                       ),
                       Row(
                         children: [
-                          const Text('Color: '),
-                          Text(widget.color, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
+                          const Text('Color: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                          Text(widget.color, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
                         ],
                       ),
                       Row(
                         children: [
-                          const Text('Servicio: '),
-                          Text(widget.servicio, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
+                          const Text('Servicio: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                          Text(widget.servicio, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
                         ],
                       ),
                       Row(
                         children: [
-                          const Text('Clase: '),
-                          Text(widget.clase, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),)
+                          const Text('Clase: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                          Text(widget.clase, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
                         ],
                       ),
                     ],
@@ -278,6 +285,22 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
       ),
     );
   }
+
+  Widget _iconBox({required Widget child}) {
+    return Container(
+      width: 48,
+      height: 40,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: Colors.grey.shade300, // gris oscuro
+          width: 1.2,
+        ),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Center(child: child),
+    );
+  }
+
 
   void getDriverInfo() async {
     driver = await _driverProvider.getById(_authProvider.getUser()!.uid);

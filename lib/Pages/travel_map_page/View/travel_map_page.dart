@@ -359,7 +359,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 20.r,
+                  radius: 20,
                   backgroundColor: primary,
                   backgroundImage: _controller.driver?.image != null
                       ? NetworkImage(_controller.driver!.image)
@@ -372,16 +372,16 @@ class _TravelMapPageState extends State<TravelMapPage> {
                   children: [
                     Text(
                       _controller.driver?.the01Nombres ?? '',
-                      style: TextStyle(
-                        fontSize: 11.r,
+                      style: const TextStyle(
+                        fontSize: 11,
                         color: Colors.black,
                         fontWeight: FontWeight.bold, // Color del texto
                       ),
                     ),
                     Text(
                       placaFormateada,
-                      style: TextStyle(
-                        fontSize: 14.r,
+                      style: const TextStyle(
+                        fontSize: 14,
                         color: Colors.black,
                         fontWeight: FontWeight.w900, // Color del texto
                       ),

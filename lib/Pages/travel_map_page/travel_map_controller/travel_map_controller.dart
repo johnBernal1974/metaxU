@@ -74,7 +74,9 @@ class TravelMapController{
   final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  late final AudioPlayer _player;
+  bool _audioYaReproducido = false;
+
 
 
 
@@ -97,7 +99,7 @@ class TravelMapController{
       refresh();
     });
     _getTravelInfo();
-    obtenerStatus();
+    // obtenerStatus();
     _actualizarIsTravelingTrue();
     _position = await Geolocator.getCurrentPosition();
     if (_position != null) {
@@ -106,6 +108,7 @@ class TravelMapController{
         zoom: 20.0,
       );
     }
+    _player = AudioPlayer();
   }
 
 
@@ -117,25 +120,9 @@ class TravelMapController{
     });
   }
 
-  void playAudio(String audioPath) async {
-    try {
-      if (_audioPlayer.playing) {
-        await _audioPlayer.stop();
-      }
-
-      await _audioPlayer.setAsset(audioPath);
-      await _audioPlayer.play();
-    } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error al reproducir audio: $e');
-      }
-    }
-  }
-
-
-  void _soundConductorHaCancelado() {
-    playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
-  }
+  // void _soundConductorHaCancelado() {
+  //   playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
+  // }
 
 
 
@@ -164,7 +151,8 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'client_notificado':
-          playAudio('assets/audio/tu_taxi_ha_llegado.mp3');
+          soundTaxiHaLlegado('assets/audio/tu_taxi_ha_llegado.mp3');
+          print("Se esta reprodiciendo el sonido de taxi ha llegado*******************************************");
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
@@ -174,14 +162,14 @@ class TravelMapController{
           break;
         case 'cancelByDriverAfterAccepted':
           Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
+          //_soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
 
           break;
         case 'cancelTimeIsOver':
           Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
+          //_soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
           break;
@@ -196,6 +184,26 @@ class TravelMapController{
     });
   }
 
+
+
+  void soundTaxiHaLlegado([
+    String audioPath = 'assets/audio/tu_taxi_ha_llegado.mp3',
+  ]) async {
+    if (_audioYaReproducido) return;
+    _audioYaReproducido = true;
+
+    try {
+      await _player.stop();
+      await _player.setAsset(audioPath);
+      await _player.play();
+    } catch (e) {
+      debugPrint('❌ Error audio: $e');
+    }
+  }
+
+
+
+
   void cambiarestadoNotificado(){
     Map<String, dynamic> data = {'status': 'client_notificado'};
     _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
@@ -208,8 +216,7 @@ class TravelMapController{
     _streamLocationController.cancel();
     _streamTravelController.cancel();
     _streamStatusController.cancel();
-    _audioPlayer.dispose();
-    _audioPlayer.stop();
+    _player.dispose();
   }
 
   void _getTravelInfo() async {
@@ -224,16 +231,16 @@ class TravelMapController{
 
   }
 
-  void obtenerStatus() async {
-    Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
-    _streamStatusController = stream.listen((DocumentSnapshot document) {
-      if (document.data() == null) return;
-      travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
-      if (travelInfo == null) return;
-      status= travelInfo!.status;
-
-    });
-  }
+  // void obtenerStatus() async {
+  //   Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
+  //   _streamStatusController = stream.listen((DocumentSnapshot document) {
+  //     if (document.data() == null) return;
+  //     travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
+  //     if (travelInfo == null) return;
+  //     status= travelInfo!.status;
+  //
+  //   });
+  // }
 
   void cancelTravelByClient() {
     Map<String, dynamic> data = {

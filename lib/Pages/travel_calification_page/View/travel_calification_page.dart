@@ -69,10 +69,10 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
   Widget _subtituloCuantasEstrellas() {
     return Container(
       alignment: Alignment.center,
-      child: Text('¿Cuántas estrellas le das al conductor?', style: TextStyle(
+      child: const Text('¿Cuántas estrellas le das al conductor?', style: TextStyle(
           color: Colors.black,
-          fontSize: 16.r,
-          fontWeight: FontWeight.bold
+          fontSize: 12,
+          fontWeight: FontWeight.w900
       ),
       ),
     );
@@ -82,20 +82,20 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
     return Container(
       alignment: Alignment.center,
       width: double.infinity,
-      padding: EdgeInsets.only(left: 25.r, right: 25.r, top: 15.r, bottom: 15.r),
-      decoration: BoxDecoration(
+      padding: const EdgeInsets.only(left: 25, right: 25, top: 15, bottom: 15),
+      decoration: const BoxDecoration(
           borderRadius: BorderRadius.only(
-              bottomRight: Radius.circular(70.r),
-              bottomLeft: Radius.circular(70.r)),
+              bottomRight: Radius.circular(70),
+              bottomLeft: Radius.circular(70)),
           color: primary,
-          boxShadow: const [BoxShadow(
+          boxShadow: [BoxShadow(
             color: gris,
             offset: Offset(5,5),
             blurRadius: 5,
           )]),
       child: const Text('Servicio Finalizado', style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w900,
               color: Colors.black,
         height: 1.2
           ),
@@ -119,49 +119,49 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
           ),
           child: Row(
             children: [
-              Image.asset('assets/ubicacion_client.png', height: 20.r, width: 20.r),
-              SizedBox(width: 10.r,),
-              Text('Origen', style: TextStyle(
-                  fontSize: 14.r,
+              Image.asset('assets/ubicacion_client.png', height: 12, width: 12),
+              const SizedBox(width: 10),
+              const Text('Origen', style: TextStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: negro)),
             ],
           ),
         ),
         Container(
-          margin: EdgeInsets.only(left: 35.r, right: 15.r, top: 5.r),
-          child: Text(_controller.travelHistory?.from ?? '', style: TextStyle(
-              fontWeight: FontWeight.w900,fontSize: 12.r, color: negro), maxLines: 2),
+          margin: const EdgeInsets.only(left: 35, right: 15, top: 5),
+          child: Text(_controller.travelHistory?.from ?? '', style: const TextStyle(
+              fontWeight: FontWeight.w400,fontSize: 11, color: negro), maxLines: 2),
         ),
-        SizedBox(height: 10.r),
-        const Divider(color: grisMedio,height: 1,indent: 2, endIndent: 2,),
-        SizedBox(height: 15.r),
+        const SizedBox(height: 10),
+        const Divider(color: grisMedio,height: 1,indent: 2, endIndent: 2),
+        const SizedBox(height: 15),
         Container(
-          width: 100.r,
-          padding: EdgeInsets.only(left: 10.r, top: 2.r, bottom: 2.r),
-          decoration: BoxDecoration(
+          width: 100,
+          padding: const EdgeInsets.only(left: 10, top: 2, bottom: 2),
+          decoration: const BoxDecoration(
             borderRadius: BorderRadius.only(
-                bottomRight: Radius.circular(70.r),
-                topRight: Radius.circular(70.r)),
+                bottomRight: Radius.circular(70),
+                topRight: Radius.circular(70)),
             color: blanco,
           ),
           child: Row(
             children: [
-              Image.asset('assets/marker_destino.png', height: 20.r, width: 20.r),
-              SizedBox(width: 10.r,),
-              Text('Destino', style: TextStyle(
-                  fontSize: 14.r,
+              Image.asset('assets/marker_destino.png', height: 11, width: 11),
+              const SizedBox(width: 10),
+              const Text('Destino', style: TextStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: negro)),
             ],
           ),
         ),
         Container(
-          margin: EdgeInsets.only(left: 35.r, right: 15.r, top: 5.r),
-          child: Text(_controller.travelHistory?.to ?? '', style: TextStyle(
-              fontWeight: FontWeight.w900,fontSize: 12.r, color: negro), maxLines: 2),
+          margin: const EdgeInsets.only(left: 35, right: 15, top: 5),
+          child: Text(_controller.travelHistory?.to ?? '', style: const TextStyle(
+              fontWeight: FontWeight.w400,fontSize: 11, color: negro), maxLines: 2),
         ),
-        SizedBox(height: 15.r),
+        const SizedBox(height: 15),
         const Divider(color: grisMedio,height: 1,indent: 2, endIndent: 2)
       ],
     );
@@ -189,8 +189,8 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
             itemCount: 5,
             initialRating: 0,
             direction: Axis.horizontal,
-            itemSize: 35.r,
-            itemPadding: EdgeInsets.symmetric(horizontal: 4.r),
+            itemSize: 35,
+            itemPadding: const EdgeInsets.symmetric(horizontal: 4),
             allowHalfRating: true,
             unratedColor: grisMedio,
             onRatingUpdate: (ratingBar) {
@@ -205,8 +205,8 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
       padding: const EdgeInsets.only(left: 25, right: 25),
       child: Column(
         children: [
-          Text('Tarifa', style: TextStyle(fontSize: 12.r, fontWeight: FontWeight.bold, color: negro)),
-          Text(tarifaFormatted ?? '', style: TextStyle(fontSize: 30.r, fontWeight: FontWeight.w900)),
+          const Text('Tarifa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: negro)),
+          Text(tarifaFormatted ?? '', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -215,7 +215,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
 
   Widget _botones() {
     return Container(
-      margin: EdgeInsets.only(bottom: 50.r),
+      margin: const EdgeInsets.only(bottom: 50),
       alignment: Alignment.center,
       width: double.infinity,
       child: Row(

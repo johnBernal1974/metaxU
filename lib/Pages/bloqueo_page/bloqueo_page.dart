@@ -51,8 +51,8 @@ class _PaginaDeBloqueoState extends State<PaginaDeBloqueo> {
         backgroundColor: Colors.red,
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text("Usuario bloqueado", style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20
+            fontWeight: FontWeight.w700,
+            fontSize: 16
         ),),
         actions: const <Widget>[
           Image(

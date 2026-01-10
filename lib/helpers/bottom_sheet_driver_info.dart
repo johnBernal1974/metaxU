@@ -148,7 +148,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                           Text(
                             widget.name,
                             style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: negro
                             ),
@@ -157,7 +157,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                             widget.apellido,
                             style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -193,7 +193,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                                 children: [
                                   Icon(
                                     Icons.star,
-                                    color: negro,
+                                    color: Colors.orange,
                                     size: 16,
                                   ),
                                 ],
@@ -223,7 +223,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                 children: [
                   Column(
                     children: [
-                      const Text('Placa', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                      const Text('Placa', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black, fontSize: 12)),
                       Container(
                         padding: const EdgeInsets.all(5),
                         child: Stack(

@@ -226,22 +226,22 @@ class _MapClientPageState extends State<MapClientPage> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Estás aquí', style: TextStyle( fontSize: 12.r, fontWeight: FontWeight.w500, color: negro)),
+                  const Text('Estás aquí', style: TextStyle( fontSize: 11, fontWeight: FontWeight.w500, color: negro)),
                   Row(
                     children: [
                       Image.asset(
                         'assets/ubicacion_client.png', // La imagen original
-                        height: 16.r, // Ajusta la altura de la imagen
-                        width: 16.r, // Ajusta el ancho de la imagen
+                        height: 12, // Ajusta la altura de la imagen
+                        width: 12, // Ajusta el ancho de la imagen
                       ),
                       const SizedBox(width: 5),
                       Expanded(
                         child: Text(
                           _controller.from ?? '',
-                          style: TextStyle(
-                              fontSize: 12.r,
-                              fontWeight: FontWeight.w600,
-                              color: negroLetras
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
+                              color: negro
                           ),
                           maxLines: 2,
                         ),
@@ -337,53 +337,53 @@ class _MapClientPageState extends State<MapClientPage> {
         width: double.infinity,
         decoration: BoxDecoration(
           color: blancoCards,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30.r),
-            topRight: Radius.circular(30.r),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
           ),
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 5.r,
-              blurRadius: 7.r,
-              offset: Offset(0, 3.r), // changes position of shadow
+              spreadRadius: 5,
+              blurRadius: 7,
+              offset: const Offset(0, 3), // changes position of shadow
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(20.r),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
+              const Text(
                 'Buscando el lugar de destino en el mapa.',
                 style: TextStyle(
-                  fontSize: 18.r,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 20.r),
+              const SizedBox(height: 20),
               Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20.r),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on, // Cambia la imagen por el icono de bandera
                         color: Colors.green, // Color verde para el icono
-                        size: 18.r, // Ajusta el tamaño del icono al mismo que tenía la imagen
+                        size: 20, // Ajusta el tamaño del icono al mismo que tenía la imagen
                       ),
-                      SizedBox(width: 10.r),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _controller.to ?? '',
-                          style: TextStyle(
-                            fontSize: 14.r,
+                          style: const TextStyle(
+                            fontSize: 10,
                             color: Colors.black,
                             fontWeight: FontWeight.bold,
                           ),
@@ -395,7 +395,7 @@ class _MapClientPageState extends State<MapClientPage> {
                   )
 
               ),
-              SizedBox(height: 20.r),
+              SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -414,12 +414,12 @@ class _MapClientPageState extends State<MapClientPage> {
                         _controller.requestDriver();
                       });
                     },
-                    child:Text(
-                      'Confirmar el destino',
+                    child:const Text(
+                      'Confirmar',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: negro,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16.r,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -443,12 +443,12 @@ class _MapClientPageState extends State<MapClientPage> {
                         });
                       }
                     },
-                    child: Text(
+                    child: const Text(
                       'Cancelar',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: negro,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16.r,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -730,9 +730,9 @@ class _MapClientPageState extends State<MapClientPage> {
 
         child: Container(
           height:  ScreenUtil().setSp(40),
-          width: ScreenUtil().setSp(80),
-          margin: EdgeInsets.only(bottom: 350.r),
-          padding: EdgeInsets.all(8.r),
+          width: ScreenUtil().setSp(100),
+          margin: const EdgeInsets.only(bottom: 350),
+          padding: const EdgeInsets.all(8),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -750,10 +750,9 @@ class _MapClientPageState extends State<MapClientPage> {
           ),
 
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              Image.asset('assets/icono_buscar_posicion.png', width: 35.r, height: 35.r),
-              Text('Mapa', style: TextStyle(fontSize: 10.r, color: negro, fontWeight: FontWeight.w900, height: 1),)
+              Image.asset('assets/icono_buscar_posicion.png', width: 35, height: 35),
+              const Text('Mapa', style: TextStyle(fontSize: 10, color: negro, fontWeight: FontWeight.w900))
             ],
 
           ),
@@ -1171,10 +1170,3 @@ class _MapClientPageState extends State<MapClientPage> {
   }
 
 }
-
-
-
-
-
-
-

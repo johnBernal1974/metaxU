@@ -74,10 +74,13 @@ class TravelMapController{
   final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
-  late final AudioPlayer _player;
-  bool _audioYaReproducido = false;
 
+  //sounds
+  late AudioPlayer _playerTaxiHaLlegado;
+  bool _audioTaxiLlegadoYaReproducido = false;
 
+  late AudioPlayer _playerConductorHaCancelado;
+  bool _audioConductorHaCanceladoYaReproducido = false;
 
 
 
@@ -108,7 +111,8 @@ class TravelMapController{
         zoom: 20.0,
       );
     }
-    _player = AudioPlayer();
+    _playerTaxiHaLlegado = AudioPlayer();
+    _playerConductorHaCancelado = AudioPlayer();
   }
 
 
@@ -119,11 +123,6 @@ class TravelMapController{
       refresh();
     });
   }
-
-  // void _soundConductorHaCancelado() {
-  //   playAudio('assets/audio/el_conductor_cancelo_el_servicio.wav');
-  // }
-
 
 
   void checkTravelStatus() async {
@@ -143,9 +142,6 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
-          // Navigator.pushReplacementNamed(context, 'taxi_ha_llegado_page');
-          // _audioPlayer.stop(); nuevo
-
           cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
@@ -162,14 +158,14 @@ class TravelMapController{
           break;
         case 'cancelByDriverAfterAccepted':
           Navigator.pushReplacementNamed(context, 'map_client');
-          //_soundConductorHaCancelado();
+          _soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
 
           break;
         case 'cancelTimeIsOver':
           Navigator.pushReplacementNamed(context, 'map_client');
-          //_soundConductorHaCancelado();
+          _soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
           Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
           break;
@@ -185,22 +181,35 @@ class TravelMapController{
   }
 
 
-
-  void soundTaxiHaLlegado([
+  Future<void> soundTaxiHaLlegado([
     String audioPath = 'assets/audio/tu_taxi_ha_llegado.mp3',
   ]) async {
-    if (_audioYaReproducido) return;
-    _audioYaReproducido = true;
+    if (_audioTaxiLlegadoYaReproducido) return; // evita repetir
+    _audioTaxiLlegadoYaReproducido = true;
 
     try {
-      await _player.stop();
-      await _player.setAsset(audioPath);
-      await _player.play();
+      await _playerTaxiHaLlegado.stop();
+      await _playerTaxiHaLlegado.setAsset(audioPath);
+      await _playerTaxiHaLlegado.play();
     } catch (e) {
-      debugPrint('❌ Error audio: $e');
+      if (kDebugMode) print('sound error: $e');
     }
   }
 
+  Future<void> _soundConductorHaCancelado([
+    String audioPath = 'assets/audio/el_conductor_cancelo_el_servicio.wav',
+  ]) async {
+    if (_audioConductorHaCanceladoYaReproducido) return; // evita repetir
+    _audioConductorHaCanceladoYaReproducido = true;
+
+    try {
+      await _playerConductorHaCancelado.stop();
+      await _playerConductorHaCancelado.setAsset(audioPath);
+      await _playerConductorHaCancelado.play();
+    } catch (e) {
+      if (kDebugMode) print('sound error: $e');
+    }
+  }
 
 
 
@@ -210,13 +219,13 @@ class TravelMapController{
   }
 
   void dispose(){
-    print('Dispose llamado*************************///////////////////***********************');
     _statusSuscription.cancel();
     _driverInfoSuscription.cancel();
     _streamLocationController.cancel();
     _streamTravelController.cancel();
     _streamStatusController.cancel();
-    _player.dispose();
+    _playerTaxiHaLlegado.dispose();
+    _playerConductorHaCancelado.dispose();
   }
 
   void _getTravelInfo() async {

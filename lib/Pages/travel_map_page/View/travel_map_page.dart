@@ -191,11 +191,12 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
 
   Widget _cancelarViaje() {
+    final s = _controller.travelInfo?.status ?? '';
     return Visibility(
-      visible: _controller.status == 'accepted' ||
-          _controller.status == 'driver_on_the_way' ||
-          _controller.status == 'driver_is_waiting' ||
-          _controller.status == 'client_notificado',
+      visible: s == 'accepted' ||
+          s == 'driver_on_the_way' ||
+          s == 'driver_is_waiting' ||
+          s == 'client_notificado',
       child: Padding(
         padding: EdgeInsets.only(top: 5.r),
         child: Align(

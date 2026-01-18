@@ -31,7 +31,8 @@ class ClientMapController {
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
 
   Position? _position;
-  late StreamSubscription<Position> _positionStream;
+  //late StreamSubscription<Position> _positionStream; comentado prueba 1
+  StreamSubscription<Position>? _positionStream;
   late BitmapDescriptor markerClient;
   late BitmapDescriptor markerDriver;
   late GeofireProvider _geofireProvider;
@@ -41,9 +42,10 @@ class ClientMapController {
   late StreamSubscription<List<DocumentSnapshot>>? _driversSubscription;
   late PushNotificationsProvider _pushNotificationsProvider;
 
-  ClientMapController() {
-    _initializePositionStream();
-  }
+  // ClientMapController() {
+  //   _initializePositionStream();
+  // } comentado prueba 1
+  ClientMapController();
 
   Client? client;
   String? from;
@@ -63,26 +65,39 @@ class ClientMapController {
     });
   }
 
-  ///este es el master
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
+
     _geofireProvider = GeofireProvider();
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
     _pushNotificationsProvider = PushNotificationsProvider();
-    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
 
+    // markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
+    // markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png'); comenatdo prueba 1
+
+    // Carga marcadores en paralelo (más rápido)
+    final markersFuture = Future.wait([
+      createMarkerImageFromAssets('assets/ubicacion_client.png'),
+      createMarkerImageFromAssets('assets/marker_conductores.png'),
+    ]);
+
+    //checkGPS(); prueba 1
     checkGPS();
 
     await checkConnectionAndShowSnackbar();
+
+    final markersLoaded = await markersFuture;
+    markerClient = markersLoaded[0];
+    markerDriver = markersLoaded[1];
+    await obtenerDatos();
+
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       checkConnectionAndShowSnackbar();
       refresh();
     });
-   await obtenerDatos();
   }
 
   Future<void> obtenerDatos() async {
@@ -254,7 +269,7 @@ class ClientMapController {
 
 
   void dispose(){
-    _positionStream.cancel();
+    _positionStream?.cancel();
     _clientInfoSuscription.cancel();
     _driversSubscription?.cancel();
     _connectivitySubscription?.cancel();
@@ -268,7 +283,10 @@ class ClientMapController {
   void updateLocation() async {
     try {
       await _determinePosition();
-      _position = (await Geolocator.getLastKnownPosition())!;
+      //_position = (await Geolocator.getLastKnownPosition())!; comentado prueba 1
+      _position = await Geolocator.getLastKnownPosition();
+      _position ??= await Geolocator.getCurrentPosition();
+
       if (_position != null) {
         centerPosition();
 
@@ -280,7 +298,7 @@ class ClientMapController {
             markerClient
         );
 
-        getNearbyDrivers();
+        //getNearbyDrivers(); comentado prueba 1
       }
     } catch (error) {
       if (kDebugMode) {

@@ -166,7 +166,7 @@ class _MapClientPageState extends State<MapClientPage> {
               ),
 
               Visibility(
-                visible: isLoading || _controller.from == null || _controller.from!.isEmpty,
+                visible: isLoading,
                 child: Container(
                   color: Colors.white.withOpacity(0.8),
                   child: Center(
@@ -175,10 +175,8 @@ class _MapClientPageState extends State<MapClientPage> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const Text('Cargando...'),
-                        SizedBox(height: 10.r,),
-                        const CircularProgressIndicator(
-                          color: gris,
-                        ),
+                        SizedBox(height: 10.r),
+                        const CircularProgressIndicator(color: gris),
                       ],
                     ),
                   ),
@@ -471,16 +469,25 @@ class _MapClientPageState extends State<MapClientPage> {
       child: GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
-        onMapCreated: (GoogleMapController controller) async {
+        // onMapCreated: (GoogleMapController controller) async {
+        //   _controller.onMapCreated(controller);
+        //
+        //   // Espera a que el mapa se cargue
+        //   await Future.delayed(const Duration(seconds: 5));
+        //
+        //   // Oculta la capa de carga después del retraso
+        //   setState(() {
+        //     isLoading = false;
+        //   });
+        // }, comentado prueba 1
+        onMapCreated: (GoogleMapController controller) {
           _controller.onMapCreated(controller);
 
-          // Espera a que el mapa se cargue
-          await Future.delayed(const Duration(seconds: 5));
-
-          // Oculta la capa de carga después del retraso
-          setState(() {
-            isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              isLoading = false; // ✅ se quita apenas el mapa está listo
+            });
+          }
         },
         rotateGesturesEnabled: false,
         zoomControlsEnabled: false,

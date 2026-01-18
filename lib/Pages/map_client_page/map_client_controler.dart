@@ -106,7 +106,7 @@ class ClientMapController {
   }
 
   void mostrarMensajeError() {
-    Snackbar.showSnackbar(context, key, 'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
+    Snackbar.showSnackbar(context,  'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
   }
 
   Future<void> _obtenerDatosDeUbiucacion() async {
@@ -336,7 +336,7 @@ class ClientMapController {
       if (from == to) {
         // Mostrar un Snackbar informando que las coordenadas son iguales
         if (key.currentState != null) {
-          Snackbar.showSnackbar(context, key, 'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente');
+          Snackbar.showSnackbar(context, 'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente');
         }
       } else {
         // Si las coordenadas no son iguales, navega a la página de viaje
@@ -350,7 +350,7 @@ class ClientMapController {
     } else {
       // Si no se han seleccionado las coordenadas, mostrar un Snackbar
       if (key.currentState != null) {
-        Snackbar.showSnackbar(context, key, 'Debes seleccionar el lugar de origen y destino');
+        Snackbar.showSnackbar(context,  'Debes seleccionar el lugar de origen y destino');
       }
     }
   }

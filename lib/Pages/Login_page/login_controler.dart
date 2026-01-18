@@ -61,11 +61,11 @@ class LoginController{
     String password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      Snackbar.showSnackbar(context, key, 'Debes ingresar tus credenciales');
+      Snackbar.showSnackbar(context, 'Debes ingresar tus credenciales');
       return;
     }
     if (password.length < 6) {
-      Snackbar.showSnackbar(context, key, 'La contraseña debe tener mínimo 6 caracteres');
+      Snackbar.showSnackbar(context, 'La contraseña debe tener mínimo 6 caracteres');
       return;
     }
 
@@ -84,7 +84,6 @@ class LoginController{
             if (context.mounted) {
               Snackbar.showSnackbar(
                   context,
-                  key,
                   'Este usuario ya está logueado en otro dispositivo. Por favor, cierre sesión en el otro equipo para continuar.'
               );
             }
@@ -101,14 +100,14 @@ class LoginController{
         } else {
           // Manejo de cliente no válido
           if (context.mounted) {
-            Snackbar.showSnackbar(context, key, 'Este usuario no es válido');
+            Snackbar.showSnackbar(context, 'Este usuario no es válido');
           }
           await _authProvider.signOut();
         }
       }
     } catch (error) {
       if (context.mounted) {
-        Snackbar.showSnackbar(context, key, 'Error: $error');
+        Snackbar.showSnackbar(context, 'Error: $error');
       }
     } finally {
       if (context.mounted) {

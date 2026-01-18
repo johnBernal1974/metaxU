@@ -160,14 +160,14 @@ class TravelMapController{
           Navigator.pushReplacementNamed(context, 'map_client');
           _soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio');
+          Snackbar.showSnackbar(context, 'El conductor canceló el servicio');
 
           break;
         case 'cancelTimeIsOver':
           Navigator.pushReplacementNamed(context, 'map_client');
           _soundConductorHaCancelado();
           _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context, key, 'El conductor canceló el servicio por tiempo de espera cumplido');
+          Snackbar.showSnackbar(context,  'El conductor canceló el servicio por tiempo de espera cumplido');
           break;
         case 'finished':
           currentStatus = 'Viaje finalizado';

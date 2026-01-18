@@ -440,14 +440,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (error is FirebaseAuthException) {
         if (error.code == 'email-already-in-use') {
-          Snackbar.showSnackbar(key.currentContext!, key,
+          Snackbar.showSnackbar(key.currentContext!,
               'El correo electrónico ya está en uso por otra cuenta.');
         } else {
-          Snackbar.showSnackbar(key.currentContext!, key,
+          Snackbar.showSnackbar(key.currentContext!,
               'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
         }
       } else {
-        Snackbar.showSnackbar(key.currentContext!, key,
+        Snackbar.showSnackbar(key.currentContext!,
             'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
       }
     }

@@ -15,8 +15,6 @@ import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
-import 'dart:math' as Math;
-
 
 class ClientMapController {
   late BuildContext context;
@@ -33,8 +31,7 @@ class ClientMapController {
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
 
   Position? _position;
-  //late StreamSubscription<Position> _positionStream; comentado prueba 1
-  StreamSubscription<Position>? _positionStream;
+  late StreamSubscription<Position> _positionStream;
   late BitmapDescriptor markerClient;
   late BitmapDescriptor markerDriver;
   late GeofireProvider _geofireProvider;
@@ -44,10 +41,9 @@ class ClientMapController {
   late StreamSubscription<List<DocumentSnapshot>>? _driversSubscription;
   late PushNotificationsProvider _pushNotificationsProvider;
 
-  // ClientMapController() {
-  //   _initializePositionStream();
-  // } comentado prueba 1
-  ClientMapController();
+  ClientMapController() {
+    _initializePositionStream();
+  }
 
   Client? client;
   String? from;
@@ -67,87 +63,27 @@ class ClientMapController {
     });
   }
 
-  final Set<String> _visibleDriverIds = {};
-
-
+  ///este es el master
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
-
     _geofireProvider = GeofireProvider();
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
     _pushNotificationsProvider = PushNotificationsProvider();
+    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
+    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
 
-    // markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    // markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png'); comenatdo prueba 1
-
-    // Carga marcadores en paralelo (más rápido)
-    final markersFuture = Future.wait([
-      createMarkerImageFromAssets('assets/ubicacion_client.png'),
-      createMarkerImageFromAssets('assets/marker_taxi.png'),
-    ]);
-
-    //checkGPS(); prueba 1
     checkGPS();
 
     await checkConnectionAndShowSnackbar();
-
-    final markersLoaded = await markersFuture;
-    markerClient = markersLoaded[0];
-    markerDriver = markersLoaded[1];
-    await obtenerDatos();
-
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
       checkConnectionAndShowSnackbar();
       refresh();
     });
+    await obtenerDatos();
   }
-
-
-  //helpers movimiento carro
-
-  double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
-
-  double _distanceMeters(LatLng a, LatLng b) {
-    return Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
-  }
-
-  LatLng _moveTowards(LatLng current, LatLng target, double metersStep) {
-    final d = _distanceMeters(current, target);
-    if (d <= metersStep || d == 0) return target;
-
-    final t = metersStep / d;
-    return LatLng(
-      _lerpDouble(current.latitude, target.latitude, t),
-      _lerpDouble(current.longitude, target.longitude, t),
-    );
-  }
-
-  double _lerpHeading(double a, double b, double t) {
-    double diff = (b - a) % 360;
-    if (diff > 180) diff -= 360;
-    return (a + diff * t) % 360;
-  }
-
-  double _bearingBetween(LatLng a, LatLng b) {
-    final lat1 = a.latitude * (Math.pi / 180.0);
-    final lon1 = a.longitude * (Math.pi / 180.0);
-    final lat2 = b.latitude * (Math.pi / 180.0);
-    final lon2 = b.longitude * (Math.pi / 180.0);
-
-    final dLon = lon2 - lon1;
-
-    final y = Math.sin(dLon) * Math.cos(lat2);
-    final x = Math.cos(lat1) * Math.sin(lat2) -
-        Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-
-    var brng = Math.atan2(y, x) * (180.0 / Math.pi);
-    brng = (brng + 360.0) % 360.0;
-    return brng;
-  }
-
 
   Future<void> obtenerDatos() async {
     int reintentos = 0;
@@ -170,7 +106,7 @@ class ClientMapController {
   }
 
   void mostrarMensajeError() {
-    Snackbar.showSnackbar(context,  'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
+    Snackbar.showSnackbar(context, 'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
   }
 
   Future<void> _obtenerDatosDeUbiucacion() async {
@@ -260,15 +196,23 @@ class ClientMapController {
   void getNearbyDrivers() {
     if (_position == null) return;
 
-    final stream = _geofireProvider.getNearbyDrivers(
-      _position!.latitude,
-      _position!.longitude,
-      1,
-    );
+    Stream<List<DocumentSnapshot>> stream =
+    _geofireProvider.getNearbyDrivers(_position!.latitude, _position!.longitude, 1);
 
     _driversSubscription?.cancel();
     _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-      // ✅ 1) Mantener/actualizar marcador del cliente
+      // 1) Borrar markers anteriores de conductores (deja el del cliente)
+      final driverMarkersToRemove = <MarkerId>[];
+      for (final m in markers.keys) {
+        if (m.value != 'client') {
+          driverMarkersToRemove.add(m);
+        }
+      }
+      for (final m in driverMarkersToRemove) {
+        markers.remove(m);
+      }
+
+      // 2) Mantener marcador del cliente
       addMarker(
         'client',
         _position!.latitude,
@@ -278,13 +222,9 @@ class ClientMapController {
         markerClient,
       );
 
-      // ✅ 2) IDs que vienen en este snapshot
-      final idsEnStream = <String>{};
-
+      // 3) Pintar drivers con heading
       for (final d in documentList) {
-        idsEnStream.add(d.id);
-
-        final positionData = d.get('position') as Map<String, dynamic>?;
+        final positionData = d.get('position') as Map<String, dynamic>?; // ✅ cast seguro
         if (positionData == null) continue;
 
         final geoPoint = positionData['geopoint'] as GeoPoint?;
@@ -293,7 +233,6 @@ class ClientMapController {
         final headingRaw = positionData['heading'];
         final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
 
-        // ✅ Actualiza marker del driver (sin titileo)
         addMarkerDriver(
           d.id,
           geoPoint.latitude,
@@ -305,20 +244,7 @@ class ClientMapController {
         );
       }
 
-      // ✅ 3) Borrar del mapa los que ya NO están en el stream
-      final idsAnteriores = Set<String>.from(_visibleDriverIds);
-      for (final id in idsAnteriores) {
-        if (!idsEnStream.contains(id)) {
-          markers.remove(MarkerId(id));
-          _visibleDriverIds.remove(id);
-        }
-      }
-
-      // ✅ 4) Actualiza el set de visibles
-      _visibleDriverIds
-        ..clear()
-        ..addAll(idsEnStream);
-
+      // 4) Refrescar UNA vez
       refresh();
     });
   }
@@ -326,7 +252,7 @@ class ClientMapController {
 
 
   void dispose(){
-    _positionStream?.cancel();
+    _positionStream.cancel();
     _clientInfoSuscription.cancel();
     _driversSubscription?.cancel();
     _connectivitySubscription?.cancel();
@@ -340,10 +266,7 @@ class ClientMapController {
   void updateLocation() async {
     try {
       await _determinePosition();
-      //_position = (await Geolocator.getLastKnownPosition())!; comentado prueba 1
-      _position = await Geolocator.getLastKnownPosition();
-      _position ??= await Geolocator.getCurrentPosition();
-
+      _position = (await Geolocator.getLastKnownPosition())!;
       if (_position != null) {
         centerPosition();
 
@@ -355,7 +278,7 @@ class ClientMapController {
             markerClient
         );
 
-        //getNearbyDrivers(); comentado prueba 1
+        getNearbyDrivers();
       }
     } catch (error) {
       if (kDebugMode) {
@@ -501,29 +424,30 @@ class ClientMapController {
 
     markers[id] = marker;
   }
-  void addMarkerDriver(
-      String markerId,
-      double lat,
-      double lng,
-      String title,
-      String content,
-      BitmapDescriptor iconMarker, {
-        double heading = 0.0,
-      }) {
-    final id = MarkerId(markerId);
+      void addMarkerDriver(
+          String markerId,
+          double lat,
+          double lng,
+          String title,
+          String content,
+          BitmapDescriptor iconMarker, {
+            double heading = 0.0,
+          }) {
+        MarkerId id = MarkerId(markerId);
 
-    markers[id] = Marker(
-      markerId: id,
-      icon: iconMarker,
-      position: LatLng(lat, lng),
-      infoWindow: InfoWindow(title: title, snippet: content),
-      draggable: false,
-      zIndex: 2,
-      flat: true,
-      rotation: heading,
-      anchor: const Offset(0.5, 0.5),
-    );
-  }
+        Marker marker = Marker(
+            markerId: id,
+            icon: iconMarker,
+            position: LatLng(lat, lng),
+            infoWindow: InfoWindow(title: title, snippet: content),
+            draggable: false,
+            zIndex: 2,
+            flat: true,                    // ✅ necesario para rotación
+            rotation: heading,             // ✅ aquí gira
+            anchor: const Offset(0.5, 0.5) // ✅ centro (para taxi)
+        );
 
-}
+        markers[id] = marker;
+      }
+    }
 

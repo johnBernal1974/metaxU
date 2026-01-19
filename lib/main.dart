@@ -9,6 +9,7 @@ import 'Pages/Splash_page/splash.dart';
 import 'Pages/TakeFotoPerfil/take_foto_perfil_page.dart';
 import 'Pages/bloqueo_page/bloqueo_page.dart';
 import 'Pages/compartir_aplicacion_page/View/compartir_aplicacion_page.dart';
+import 'Pages/confirmar_otro_viaje/confirmar_otro_viaje.dart';
 import 'Pages/contactanos_page/View/contactanos_page.dart';
 import 'Pages/detail_history_page/detail_history_page.dart';
 import 'Pages/eliminar_Cuenta_page/eliminar_cuenta_page.dart';
@@ -91,6 +92,8 @@ class MyApp extends StatelessWidget {
         'travel_calification_page': (BuildContext context) => const TravelCalificationPage(),
         'detail_history_page': (BuildContext context) => const DetailHistoryPage(),
         'taxi_ha_llegado_page': (BuildContext context) => const TaxiHaLLegado(),
+        'after_calification_page': (context) => const AfterCalificationPage(),
+
 
       },
       theme: ThemeData(

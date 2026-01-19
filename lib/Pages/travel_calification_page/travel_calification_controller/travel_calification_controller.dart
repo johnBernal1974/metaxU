@@ -90,7 +90,11 @@ class TravelCalificationController{
 
     if(context.mounted){
       // Redirigir al mapa del cliente
-      Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        'after_calification_page',
+            (route) => false,
+      );
     }
   }
 

@@ -15,6 +15,8 @@ import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
+import 'dart:math' as Math;
+
 
 class ClientMapController {
   late BuildContext context;
@@ -65,6 +67,9 @@ class ClientMapController {
     });
   }
 
+  final Set<String> _visibleDriverIds = {};
+
+
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -81,7 +86,7 @@ class ClientMapController {
     // Carga marcadores en paralelo (más rápido)
     final markersFuture = Future.wait([
       createMarkerImageFromAssets('assets/ubicacion_client.png'),
-      createMarkerImageFromAssets('assets/marker_conductores.png'),
+      createMarkerImageFromAssets('assets/marker_taxi.png'),
     ]);
 
     //checkGPS(); prueba 1
@@ -99,6 +104,50 @@ class ClientMapController {
       refresh();
     });
   }
+
+
+  //helpers movimiento carro
+
+  double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
+
+  double _distanceMeters(LatLng a, LatLng b) {
+    return Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
+  }
+
+  LatLng _moveTowards(LatLng current, LatLng target, double metersStep) {
+    final d = _distanceMeters(current, target);
+    if (d <= metersStep || d == 0) return target;
+
+    final t = metersStep / d;
+    return LatLng(
+      _lerpDouble(current.latitude, target.latitude, t),
+      _lerpDouble(current.longitude, target.longitude, t),
+    );
+  }
+
+  double _lerpHeading(double a, double b, double t) {
+    double diff = (b - a) % 360;
+    if (diff > 180) diff -= 360;
+    return (a + diff * t) % 360;
+  }
+
+  double _bearingBetween(LatLng a, LatLng b) {
+    final lat1 = a.latitude * (Math.pi / 180.0);
+    final lon1 = a.longitude * (Math.pi / 180.0);
+    final lat2 = b.latitude * (Math.pi / 180.0);
+    final lon2 = b.longitude * (Math.pi / 180.0);
+
+    final dLon = lon2 - lon1;
+
+    final y = Math.sin(dLon) * Math.cos(lat2);
+    final x = Math.cos(lat1) * Math.sin(lat2) -
+        Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+    var brng = Math.atan2(y, x) * (180.0 / Math.pi);
+    brng = (brng + 360.0) % 360.0;
+    return brng;
+  }
+
 
   Future<void> obtenerDatos() async {
     int reintentos = 0;
@@ -209,63 +258,71 @@ class ClientMapController {
 
 
   void getNearbyDrivers() {
-    if (_position != null) {
-      Stream<List<DocumentSnapshot>> stream =
-      _geofireProvider.getNearbyDrivers(_position!.latitude, _position!.longitude, 1);
+    if (_position == null) return;
 
-      _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-        // Limpiar marcadores de conductores existentes
-        List<MarkerId> driverMarkersToRemove = [];
+    final stream = _geofireProvider.getNearbyDrivers(
+      _position!.latitude,
+      _position!.longitude,
+      1,
+    );
 
-        for (MarkerId m in markers.keys) {
-          if (m.value != 'client') {
-            driverMarkersToRemove.add(m);
-          }
+    _driversSubscription?.cancel();
+    _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
+      // ✅ 1) Mantener/actualizar marcador del cliente
+      addMarker(
+        'client',
+        _position!.latitude,
+        _position!.longitude,
+        'Tu posición',
+        '',
+        markerClient,
+      );
+
+      // ✅ 2) IDs que vienen en este snapshot
+      final idsEnStream = <String>{};
+
+      for (final d in documentList) {
+        idsEnStream.add(d.id);
+
+        final positionData = d.get('position') as Map<String, dynamic>?;
+        if (positionData == null) continue;
+
+        final geoPoint = positionData['geopoint'] as GeoPoint?;
+        if (geoPoint == null) continue;
+
+        final headingRaw = positionData['heading'];
+        final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
+
+        // ✅ Actualiza marker del driver (sin titileo)
+        addMarkerDriver(
+          d.id,
+          geoPoint.latitude,
+          geoPoint.longitude,
+          'Conductor disponible',
+          '',
+          markerDriver,
+          heading: heading,
+        );
+      }
+
+      // ✅ 3) Borrar del mapa los que ya NO están en el stream
+      final idsAnteriores = Set<String>.from(_visibleDriverIds);
+      for (final id in idsAnteriores) {
+        if (!idsEnStream.contains(id)) {
+          markers.remove(MarkerId(id));
+          _visibleDriverIds.remove(id);
         }
+      }
 
-        for (var m in driverMarkersToRemove) {
-          markers.remove(m);
-        }
+      // ✅ 4) Actualiza el set de visibles
+      _visibleDriverIds
+        ..clear()
+        ..addAll(idsEnStream);
 
-        // Mantener el marcador del cliente
-        if (_position != null) {
-          addMarker(
-            'client',
-            _position!.latitude,
-            _position!.longitude,
-            'Tu posición',
-            "",
-            markerClient,
-          );
-        }
-
-        for (DocumentSnapshot d in documentList) {
-          Map<String, dynamic> positionData = d.get('position');
-          if (positionData.containsKey('geopoint')) {
-            GeoPoint geoPoint = positionData['geopoint'];
-            double latitude = geoPoint.latitude;
-            double longitude = geoPoint.longitude;
-
-            addMarkerDriver(
-              d.id,
-              latitude,
-              longitude,
-              'Conductor disponible',
-              "",
-              markerDriver,
-            );
-          } else {
-            if (kDebugMode) {
-              print('GeoPoint is null or not found.');
-            }
-          }
-        }
-
-        // Actualizar el estado para reflejar los cambios en el mapa
-        refresh();
-      });
-    }
+      refresh();
+    });
   }
+
 
 
   void dispose(){
@@ -450,10 +507,12 @@ class ClientMapController {
       double lng,
       String title,
       String content,
-      BitmapDescriptor iconMarker
-      ) {
-    MarkerId id = MarkerId(markerId);
-    Marker marker = Marker(
+      BitmapDescriptor iconMarker, {
+        double heading = 0.0,
+      }) {
+    final id = MarkerId(markerId);
+
+    markers[id] = Marker(
       markerId: id,
       icon: iconMarker,
       position: LatLng(lat, lng),
@@ -461,11 +520,10 @@ class ClientMapController {
       draggable: false,
       zIndex: 2,
       flat: true,
-      anchor: const Offset(0.5, 1.0),
-      // rotation: _position?.heading ?? 0,
+      rotation: heading,
+      anchor: const Offset(0.5, 0.5),
     );
-
-    markers[id] = marker;
   }
+
 }
 

@@ -22,6 +22,8 @@ import '../../../models/driver.dart';
 import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
+import 'dart:math' as Math;
+
 
 class TravelMapController{
   late BuildContext context;
@@ -82,6 +84,30 @@ class TravelMapController{
   late AudioPlayer _playerConductorHaCancelado;
   bool _audioConductorHaCanceladoYaReproducido = false;
 
+  // movimiento de animacion carro
+  LatLng? _prevDriverLatLng;
+  double _prevHeading = 0.0;
+
+  Timer? _markerAnimTimer;
+  double _animT = 0.0;
+
+  static const int _animMs = 300;   // duración animación (ms)
+  static const int _tickMs = 16;    // ~60fps
+
+  LatLng? _smoothPos;
+  double _smoothHeading = 0.0;
+
+  LatLng? _targetPos;
+  double _targetHeading = 0.0;
+
+  Timer? _smoothTimer;
+  static const int _smoothTickMs = 120; // ~60fps
+  static const double _speedMetersPerSec = 14.0;
+  Marker? _driverMarkerBase;
+
+
+
+
 
 
   Future? init(BuildContext context, Function refresh) async {
@@ -92,7 +118,7 @@ class TravelMapController{
     _driverProvider = DriverProvider();
     _clientProvider = ClientProvider();
     _travelInfoProvider = TravelInfoProvider();
-    markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
+    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
     fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png');
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
@@ -115,7 +141,80 @@ class TravelMapController{
     _playerConductorHaCancelado = AudioPlayer();
   }
 
+  double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
 
+  LatLng _lerpLatLng(LatLng a, LatLng b, double t) {
+    return LatLng(
+      _lerpDouble(a.latitude, b.latitude, t),
+      _lerpDouble(a.longitude, b.longitude, t),
+    );
+  }
+
+// Para evitar que la rotación “salte” de 359 a 0
+  double _lerpHeading(double a, double b, double t) {
+    double diff = (b - a) % 360;
+    if (diff > 180) diff -= 360;
+    return (a + diff * t) % 360;
+  }
+
+  //helpers movimiento carro
+
+  double _distanceMeters(LatLng a, LatLng b) {
+    return Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
+  }
+
+  LatLng _moveTowards(LatLng current, LatLng target, double metersStep) {
+    final d = _distanceMeters(current, target);
+    if (d <= metersStep || d == 0) return target;
+
+    final t = metersStep / d;
+    return LatLng(
+      _lerpDouble(current.latitude, target.latitude, t),
+      _lerpDouble(current.longitude, target.longitude, t),
+    );
+  }
+
+  void _startSmoothLoop() {
+    _smoothTimer?.cancel();
+
+    _smoothTimer = Timer.periodic(const Duration(milliseconds: _smoothTickMs), (_) {
+      if (_smoothPos == null || _targetPos == null) return;
+
+      final stepMeters = _speedMetersPerSec * (_smoothTickMs / 1000.0);
+
+      final newPos = _moveTowards(_smoothPos!, _targetPos!, stepMeters);
+
+      // heading suave
+      double desiredHeading = _targetHeading;
+
+// ✅ si nos estamos moviendo, usamos bearing real del movimiento
+      if (_smoothPos != null && _targetPos != null) {
+        final dist = _distanceMeters(_smoothPos!, _targetPos!);
+        if (dist > 2) { // si hay movimiento real
+          desiredHeading = _bearingBetween(_smoothPos!, _targetPos!);
+        }
+      }
+
+// ✅ suavizamos hacia ese heading
+      final newHeading = _lerpHeading(_smoothHeading, desiredHeading, 0.25);
+
+
+      _smoothPos = newPos;
+      _smoothHeading = newHeading;
+
+      addMarkerDriver(
+        'driver',
+        newPos.latitude,
+        newPos.longitude,
+        'Tu conductor',
+        '',
+        markerDriver,
+        heading: newHeading,
+      );
+
+      refresh();
+    });
+  }
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
   Future<void> checkConnectionAndShowSnackbar() async {
@@ -148,7 +247,6 @@ class TravelMapController{
           break;
         case 'client_notificado':
           soundTaxiHaLlegado('assets/audio/tu_taxi_ha_llegado.mp3');
-          print("Se esta reprodiciendo el sonido de taxi ha llegado*******************************************");
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
@@ -226,6 +324,9 @@ class TravelMapController{
     _streamStatusController.cancel();
     _playerTaxiHaLlegado.dispose();
     _playerConductorHaCancelado.dispose();
+    _markerAnimTimer?.cancel();
+    _smoothTimer?.cancel();
+
   }
 
   void _getTravelInfo() async {
@@ -304,27 +405,97 @@ class TravelMapController{
     }
   }
 
+  // void getDriverLocation(String idDriver) {
+  //   Stream<DocumentSnapshot> stream = _geofireProvider.getLocationByIdStream(idDriver);
+  //   _streamLocationController = stream.listen((DocumentSnapshot document) {
+  //     Map<String, dynamic>? data = document.data() as Map<String, dynamic>?;
+  //     if (data != null && data.containsKey('position')) {
+  //       GeoPoint? geoPoint = data['position']['geopoint'];
+  //       if (geoPoint != null) {
+  //         double latitude = geoPoint.latitude;
+  //         double longitude = geoPoint.longitude;
+  //         _driverLatlng = LatLng(latitude, longitude);
+  //         addMarkerDriver('driver', _driverLatlng!.latitude, _driverLatlng!.longitude,'Tu conductor', '', markerDriver);
+  //         refresh();
+  //         if (!isRouteready) {
+  //           isRouteready = true;
+  //           checkTravelStatus ();
+  //           //updateTimeRemaining(_timeRemaining);
+  //         }
+  //       }
+  //     }
+  //   });
+  // } prueba para rotar marker
+
+
   void getDriverLocation(String idDriver) {
-    Stream<DocumentSnapshot> stream = _geofireProvider.getLocationByIdStream(idDriver);
+    final stream = _geofireProvider.getLocationByIdStream(idDriver);
+
     _streamLocationController = stream.listen((DocumentSnapshot document) {
-      Map<String, dynamic>? data = document.data() as Map<String, dynamic>?;
-      if (data != null && data.containsKey('position')) {
-        GeoPoint? geoPoint = data['position']['geopoint'];
-        if (geoPoint != null) {
-          double latitude = geoPoint.latitude;
-          double longitude = geoPoint.longitude;
-          _driverLatlng = LatLng(latitude, longitude);
-          addMarkerDriver('driver', _driverLatlng!.latitude, _driverLatlng!.longitude,'Tu conductor', '', markerDriver);
-          refresh();
-          if (!isRouteready) {
-            isRouteready = true;
-            checkTravelStatus ();
-            //updateTimeRemaining(_timeRemaining);
-          }
-        }
+      final data = document.data() as Map<String, dynamic>?;
+      if (data == null) return;
+
+      final pos = data['position'] as Map<String, dynamic>?;
+      if (pos == null) return;
+
+      final geoPoint = pos['geopoint'] as GeoPoint?;
+      if (geoPoint == null) return;
+
+      final headingRaw = pos['heading'];
+      final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
+
+      final newTarget = LatLng(geoPoint.latitude, geoPoint.longitude);
+      _driverLatlng = newTarget;
+
+      // ✅ actualiza SOLO el objetivo (target)
+      _targetPos = newTarget;
+      _targetHeading = heading;
+
+      // ✅ primera vez: coloca y arranca el loop suave
+      if (_smoothPos == null) {
+        _smoothPos = newTarget;
+        _smoothHeading = heading;
+
+        addMarkerDriver(
+          'driver',
+          newTarget.latitude,
+          newTarget.longitude,
+          'Tu conductor',
+          '',
+          markerDriver,
+          heading: heading,
+        );
+
+        _startSmoothLoop(); // 🔥 empieza el deslizamiento continuo
+        refresh();
+      }
+
+      if (!isRouteready) {
+        isRouteready = true;
+        checkTravelStatus();
       }
     });
   }
+
+  double _bearingBetween(LatLng a, LatLng b) {
+    final lat1 = a.latitude * (3.141592653589793 / 180.0);
+    final lon1 = a.longitude * (3.141592653589793 / 180.0);
+    final lat2 = b.latitude * (3.141592653589793 / 180.0);
+    final lon2 = b.longitude * (3.141592653589793 / 180.0);
+
+    final dLon = lon2 - lon1;
+
+    final y = Math.sin(dLon) * Math.cos(lat2);
+    final x = Math.cos(lat1) * Math.sin(lat2) -
+        Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+    var brng = Math.atan2(y, x) * (180.0 / 3.141592653589793);
+    brng = (brng + 360.0) % 360.0;
+    return brng;
+  }
+
+
+
 
   void pickupTravel () {
     if(!isPickUpTravel){
@@ -475,16 +646,41 @@ class TravelMapController{
     markers[id] = marker;
   }
 
+  // void addMarkerDriver(
+  //     String markerId,
+  //     double lat,
+  //     double lng,
+  //     String title,
+  //     String content,
+  //     BitmapDescriptor iconMarker,
+  //
+  //     ) {
+  //   MarkerId id = MarkerId(markerId);
+  //   Marker marker = Marker(
+  //     markerId: id,
+  //     icon: iconMarker,
+  //     position: LatLng(lat, lng),
+  //     infoWindow: InfoWindow(title: title, snippet: content),
+  //     draggable: false,
+  //     zIndex: 2,
+  //     flat: true,
+  //     anchor: const Offset(0.5, 1.0),
+  //   );
+  //
+  //   markers[id] = marker;
+  // } comentado prueba girar markers
+
   void addMarkerDriver(
       String markerId,
       double lat,
       double lng,
       String title,
       String content,
-      BitmapDescriptor iconMarker,
-
-      ) {
+      BitmapDescriptor iconMarker, {
+        double heading = 0.0, // ✅ nuevo
+      }) {
     MarkerId id = MarkerId(markerId);
+
     Marker marker = Marker(
       markerId: id,
       icon: iconMarker,
@@ -492,12 +688,14 @@ class TravelMapController{
       infoWindow: InfoWindow(title: title, snippet: content),
       draggable: false,
       zIndex: 2,
-      flat: true,
-      anchor: const Offset(0.5, 1.0),
+      flat: true,                  // ✅ necesario para rotación
+      rotation: heading,           // ✅ aquí gira
+      anchor: const Offset(0.5, 0.5), // ✅ centro para “carrito”
     );
 
     markers[id] = marker;
   }
+
 
   void openBottomSheetDiverInfo(){
     showModalBottomSheet(

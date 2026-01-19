@@ -73,7 +73,7 @@ class ClientMapController {
     _clientProvider = ClientProvider();
     _pushNotificationsProvider = PushNotificationsProvider();
     markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
+    markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
 
     checkGPS();
 
@@ -194,61 +194,63 @@ class ClientMapController {
 
 
   void getNearbyDrivers() {
-    if (_position == null) return;
+    if (_position != null) {
+      Stream<List<DocumentSnapshot>> stream =
+      _geofireProvider.getNearbyDrivers(_position!.latitude, _position!.longitude, 1);
 
-    Stream<List<DocumentSnapshot>> stream =
-    _geofireProvider.getNearbyDrivers(_position!.latitude, _position!.longitude, 1);
+      _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
+        // Limpiar marcadores de conductores existentes
+        List<MarkerId> driverMarkersToRemove = [];
 
-    _driversSubscription?.cancel();
-    _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-      // 1) Borrar markers anteriores de conductores (deja el del cliente)
-      final driverMarkersToRemove = <MarkerId>[];
-      for (final m in markers.keys) {
-        if (m.value != 'client') {
-          driverMarkersToRemove.add(m);
+        for (MarkerId m in markers.keys) {
+          if (m.value != 'client') {
+            driverMarkersToRemove.add(m);
+          }
         }
-      }
-      for (final m in driverMarkersToRemove) {
-        markers.remove(m);
-      }
 
-      // 2) Mantener marcador del cliente
-      addMarker(
-        'client',
-        _position!.latitude,
-        _position!.longitude,
-        'Tu posición',
-        '',
-        markerClient,
-      );
+        for (var m in driverMarkersToRemove) {
+          markers.remove(m);
+        }
 
-      // 3) Pintar drivers con heading
-      for (final d in documentList) {
-        final positionData = d.get('position') as Map<String, dynamic>?; // ✅ cast seguro
-        if (positionData == null) continue;
+        // Mantener el marcador del cliente
+        if (_position != null) {
+          addMarker(
+            'client',
+            _position!.latitude,
+            _position!.longitude,
+            'Tu posición',
+            "",
+            markerClient,
+          );
+        }
 
-        final geoPoint = positionData['geopoint'] as GeoPoint?;
-        if (geoPoint == null) continue;
+        for (DocumentSnapshot d in documentList) {
+          Map<String, dynamic> positionData = d.get('position');
+          if (positionData.containsKey('geopoint')) {
+            GeoPoint geoPoint = positionData['geopoint'];
+            double latitude = geoPoint.latitude;
+            double longitude = geoPoint.longitude;
 
-        final headingRaw = positionData['heading'];
-        final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
+            addMarkerDriver(
+              d.id,
+              latitude,
+              longitude,
+              'Conductor disponible',
+              "",
+              markerDriver,
+            );
+          } else {
+            if (kDebugMode) {
+              print('GeoPoint is null or not found.');
+            }
+          }
+        }
 
-        addMarkerDriver(
-          d.id,
-          geoPoint.latitude,
-          geoPoint.longitude,
-          'Conductor disponible',
-          '',
-          markerDriver,
-          heading: heading,
-        );
-      }
-
-      // 4) Refrescar UNA vez
-      refresh();
-    });
+        // Actualizar el estado para reflejar los cambios en el mapa
+        refresh();
+      });
+    }
   }
-
 
 
   void dispose(){
@@ -424,30 +426,28 @@ class ClientMapController {
 
     markers[id] = marker;
   }
-      void addMarkerDriver(
-          String markerId,
-          double lat,
-          double lng,
-          String title,
-          String content,
-          BitmapDescriptor iconMarker, {
-            double heading = 0.0,
-          }) {
-        MarkerId id = MarkerId(markerId);
+  void addMarkerDriver(
+      String markerId,
+      double lat,
+      double lng,
+      String title,
+      String content,
+      BitmapDescriptor iconMarker
+      ) {
+    MarkerId id = MarkerId(markerId);
+    Marker marker = Marker(
+      markerId: id,
+      icon: iconMarker,
+      position: LatLng(lat, lng),
+      infoWindow: InfoWindow(title: title, snippet: content),
+      draggable: false,
+      zIndex: 2,
+      flat: true,
+      anchor: const Offset(0.5, 1.0),
+      // rotation: _position?.heading ?? 0,
+    );
 
-        Marker marker = Marker(
-            markerId: id,
-            icon: iconMarker,
-            position: LatLng(lat, lng),
-            infoWindow: InfoWindow(title: title, snippet: content),
-            draggable: false,
-            zIndex: 2,
-            flat: true,                    // ✅ necesario para rotación
-            rotation: heading,             // ✅ aquí gira
-            anchor: const Offset(0.5, 0.5) // ✅ centro (para taxi)
-        );
-
-        markers[id] = marker;
-      }
-    }
+    markers[id] = marker;
+  }
+}
 

@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/customloadingDialog.dart';
+import '../../helpers/session_manager.dart';
 import '../../providers/client_provider.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
@@ -58,19 +59,58 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+  //     _controller.init(context, refresh);
+  //     _authProvider = MyAuthProvider();
+  //     _clientProvider = ClientProvider();
+  //     _checkConnection();
+  //     checkForUpdate();
+  //     _loadSearchHistory();
+  //
+  //   });
+  // } comentado prueba
+
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-      _controller.init(context, refresh);
+
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
       _authProvider = MyAuthProvider();
       _clientProvider = ClientProvider();
+
+      // 1) Primero valida sesión
+      try {
+        await SessionManager.loginGuard(collection: 'Clients');
+        SessionManager.startHeartbeat(collection: 'Clients');
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+
+        await _authProvider.signOut();
+
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+              (route) => false,
+        );
+        return; // 👈 importante
+      }
+
+      // 2) Si la sesión está OK, ahora sí carga el resto
+      _controller.init(context, refresh);
       _checkConnection();
       checkForUpdate();
       _loadSearchHistory();
-
     });
   }
+
 
   Future<void> _checkConnection() async {
     await connectionService.checkConnectionAndShowCard(context, () {
@@ -81,9 +121,11 @@ class _MapClientPageState extends State<MapClientPage> {
 
   @override
   void dispose() {
-    super.dispose();
+    SessionManager.stopHeartbeat();
     _controller.dispose();
+    super.dispose();
   }
+
 
   Future<void> checkForUpdate() async {
     try {
@@ -675,14 +717,16 @@ class _MapClientPageState extends State<MapClientPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      _clientProvider.updateLoginStatus(_authProvider.getUser()!.uid, false);
-                      _authProvider.signOut();
+                    onPressed: () async {
+                      await SessionManager.logout(collection: 'Clients');
+                      await _authProvider.signOut();
+
+                      if (!context.mounted) return;
 
                       Navigator.pushAndRemoveUntil(
                         context,
-                        PageRouteBuilder(pageBuilder: (_, __, ___) => const LoginPage()),
-                            (Route<dynamic> route) => false,
+                        MaterialPageRoute(builder: (_) => const LoginPage()),
+                            (route) => false,
                       );
                     },
                     child: Text('Sí', style: TextStyle(

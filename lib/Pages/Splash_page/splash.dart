@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../helpers/conectivity_service.dart';
+import '../../helpers/session_manager.dart';
 import '../../providers/auth_provider.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
@@ -37,25 +38,61 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     _checkConnectionAndAuthenticate();
   }
 
+  // void _checkConnectionAndAuthenticate() async {
+  //   // Verifica la conexión y muestra el Snackbar si no hay conexión
+  //   await connectionService.checkConnectionAndShowCard(context, () async {
+  //     // Esta función se ejecutará solo si hay conexión y el servicio está disponible
+  //
+  //     // Verifica si el usuario está logueado
+  //     bool isLoggedIn = await _authProvider.isUserLoggedIn();
+  //
+  //     if (isLoggedIn) {
+  //       if(context.mounted){
+  //         _authProvider.checkIfUserIsLogged(context);
+  //       }
+  //
+  //     } else {
+  //       // Si no está logueado, navega a la pantalla de login (LoginPage)
+  //       _navigateToLoginPage();
+  //     }
+  //   });
+  // } comentado prueba
+
   void _checkConnectionAndAuthenticate() async {
-    // Verifica la conexión y muestra el Snackbar si no hay conexión
     await connectionService.checkConnectionAndShowCard(context, () async {
-      // Esta función se ejecutará solo si hay conexión y el servicio está disponible
+      final isLoggedIn = await _authProvider.isUserLoggedIn();
 
-      // Verifica si el usuario está logueado
-      bool isLoggedIn = await _authProvider.isUserLoggedIn();
+      if (!isLoggedIn) {
+        _navigateToLoginPage();
+        return;
+      }
 
-      if (isLoggedIn) {
-        if(context.mounted){
-          _authProvider.checkIfUserIsLogged(context);
-        }
+      // ✅ Hay sesión en FirebaseAuth, ahora validamos “sesión única” en Firestore
+      try {
+        await SessionManager.loginGuard(collection: 'Clients');
+        SessionManager.startHeartbeat(collection: 'Clients');
 
-      } else {
-        // Si no está logueado, navega a la pantalla de login (LoginPage)
+        if (!mounted) return;
+
+        // Aquí envías al flujo normal de tu app (map_client o lo que uses)
+        // Si tu método checkIfUserIsLogged decide a dónde ir (cliente/driver), déjalo.
+        _authProvider.checkIfUserIsLogged(context);
+
+      } catch (e) {
+        // ❌ Hay sesión viva en otro dispositivo
+        await _authProvider.signOut();
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+
         _navigateToLoginPage();
       }
     });
   }
+
   void _navigateToLoginPage() {
     // Redirige a la página de login
     Future.delayed(const Duration(seconds: 2), () {

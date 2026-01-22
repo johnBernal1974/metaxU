@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -23,6 +22,8 @@ import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import 'dart:math' as Math;
+import 'package:cloud_functions/cloud_functions.dart';
+
 
 
 class TravelMapController{
@@ -31,7 +32,7 @@ class TravelMapController{
   bool isMoto = false;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
-  final String _yourGoogleAPIKey = dotenv.get('API_KEY');
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.3445324, -74.3639381),
     zoom: 12.0,
@@ -84,31 +85,15 @@ class TravelMapController{
   late AudioPlayer _playerConductorHaCancelado;
   bool _audioConductorHaCanceladoYaReproducido = false;
 
-  // movimiento de animacion carro
-  LatLng? _prevDriverLatLng;
-  double _prevHeading = 0.0;
-
   Timer? _markerAnimTimer;
-  double _animT = 0.0;
-
-  static const int _animMs = 300;   // duración animación (ms)
-  static const int _tickMs = 16;    // ~60fps
-
   LatLng? _smoothPos;
   double _smoothHeading = 0.0;
-
   LatLng? _targetPos;
   double _targetHeading = 0.0;
 
   Timer? _smoothTimer;
   static const int _smoothTickMs = 120; // ~60fps
   static const double _speedMetersPerSec = 14.0;
-  Marker? _driverMarkerBase;
-
-
-
-
-
 
   Future? init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -309,8 +294,6 @@ class TravelMapController{
     }
   }
 
-
-
   void cambiarestadoNotificado(){
     Map<String, dynamic> data = {'status': 'client_notificado'};
     _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
@@ -340,17 +323,6 @@ class TravelMapController{
     getDriverLocation(travelInfo!.idDriver);
 
   }
-
-  // void obtenerStatus() async {
-  //   Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
-  //   _streamStatusController = stream.listen((DocumentSnapshot document) {
-  //     if (document.data() == null) return;
-  //     travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
-  //     if (travelInfo == null) return;
-  //     status= travelInfo!.status;
-  //
-  //   });
-  // }
 
   void cancelTravelByClient() {
     Map<String, dynamic> data = {
@@ -404,29 +376,6 @@ class TravelMapController{
       animateCameraToPosition(_driverLatlng!.latitude, _driverLatlng!.longitude);
     }
   }
-
-  // void getDriverLocation(String idDriver) {
-  //   Stream<DocumentSnapshot> stream = _geofireProvider.getLocationByIdStream(idDriver);
-  //   _streamLocationController = stream.listen((DocumentSnapshot document) {
-  //     Map<String, dynamic>? data = document.data() as Map<String, dynamic>?;
-  //     if (data != null && data.containsKey('position')) {
-  //       GeoPoint? geoPoint = data['position']['geopoint'];
-  //       if (geoPoint != null) {
-  //         double latitude = geoPoint.latitude;
-  //         double longitude = geoPoint.longitude;
-  //         _driverLatlng = LatLng(latitude, longitude);
-  //         addMarkerDriver('driver', _driverLatlng!.latitude, _driverLatlng!.longitude,'Tu conductor', '', markerDriver);
-  //         refresh();
-  //         if (!isRouteready) {
-  //           isRouteready = true;
-  //           checkTravelStatus ();
-  //           //updateTimeRemaining(_timeRemaining);
-  //         }
-  //       }
-  //     }
-  //   });
-  // } prueba para rotar marker
-
 
   void getDriverLocation(String idDriver) {
     final stream = _geofireProvider.getLocationByIdStream(idDriver);
@@ -495,8 +444,6 @@ class TravelMapController{
   }
 
 
-
-
   void pickupTravel () {
     if(!isPickUpTravel){
       isPickUpTravel = true;
@@ -553,32 +500,46 @@ class TravelMapController{
   }
 
   Future<void> setPolylines(LatLng from, LatLng to) async {
-    points = List.from([]);
-    PointLatLng pointFromLatlng = PointLatLng(from.latitude, from.longitude);
-    PointLatLng pointToLatlng = PointLatLng(to.latitude, to.longitude);
+    try {
+      points = List.from([]);
 
-    PolylineResult result = await PolylinePoints().getRouteBetweenCoordinates(
-      _yourGoogleAPIKey,
-      pointFromLatlng,
-      pointToLatlng,
-    );
+      final res = await _functions.httpsCallable('getDirections').call({
+        'fromLat': from.latitude,
+        'fromLng': from.longitude,
+        'toLat': to.latitude,
+        'toLng': to.longitude,
+        'mode': 'driving',
+      });
 
-    for(PointLatLng point in result.points){
-      points.add(LatLng(point.latitude, point.longitude));
+      final data = Map<String, dynamic>.from(res.data);
+
+      if (data['ok'] != true) {
+        if (kDebugMode) print('getDirections failed: $data');
+        return;
+      }
+
+      final encoded = (data['polyline'] ?? '').toString();
+      if (encoded.isEmpty) return;
+
+      // ✅ Decodificar polyline
+      final decoded = PolylinePoints().decodePolyline(encoded);
+      points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+      // ✅ Reemplazar polylines (para evitar que se acumulen)
+      polylines = {
+        Polyline(
+          polylineId: const PolylineId('poly'),
+          color: Colors.black87,
+          points: points,
+          width: 4,
+        )
+      };
+
+      refresh();
+    } catch (e) {
+      if (kDebugMode) print('setPolylines (function) error: $e');
     }
-
-    Polyline polyline = Polyline(
-      polylineId: const PolylineId('poly'),
-      color: Colors.black87,
-      points: points,
-      width: 4,
-    );
-
-    polylines.add(polyline);
-    refresh();
   }
-
-
 
   void onMapCreated(GoogleMapController controller){
     controller.setMapStyle(utilsMap.mapStyle);
@@ -645,30 +606,6 @@ class TravelMapController{
 
     markers[id] = marker;
   }
-
-  // void addMarkerDriver(
-  //     String markerId,
-  //     double lat,
-  //     double lng,
-  //     String title,
-  //     String content,
-  //     BitmapDescriptor iconMarker,
-  //
-  //     ) {
-  //   MarkerId id = MarkerId(markerId);
-  //   Marker marker = Marker(
-  //     markerId: id,
-  //     icon: iconMarker,
-  //     position: LatLng(lat, lng),
-  //     infoWindow: InfoWindow(title: title, snippet: content),
-  //     draggable: false,
-  //     zIndex: 2,
-  //     flat: true,
-  //     anchor: const Offset(0.5, 1.0),
-  //   );
-  //
-  //   markers[id] = marker;
-  // } comentado prueba girar markers
 
   void addMarkerDriver(
       String markerId,

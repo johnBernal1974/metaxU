@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -13,25 +12,22 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
 import '../../../../providers/geofire_provider.dart';
 import '../../../../providers/push_notifications_provider.dart';
-import '../../../models/directions.dart';
 import '../../../models/driver.dart';
-import '../../../models/place.dart';
 import '../../../models/price.dart';
 import '../../../models/travel_info.dart';
 import '../../../providers/driver_provider.dart';
-import '../../../providers/google_provider.dart';
 import '../../../providers/price_provider.dart';
 import '../../../providers/travel_info_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-
-import '../../../src/colors/colors.dart';
 import '../../travel_map_page/View/travel_map_page.dart';
+
+import 'package:cloud_functions/cloud_functions.dart';
+
 
 class TravelInfoController{
   late BuildContext context;
-  late GoogleProvider _googleProvider;
   late PricesProvider _pricesProvider;
   late TravelInfoProvider _travelInfoProvider;
   late MyAuthProvider _authProvider;
@@ -44,7 +40,6 @@ class TravelInfoController{
   late Function refresh;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   late Completer<GoogleMapController> _mapController = Completer();
-  final String _yourGoogleAPIKey = dotenv.get('API_KEY');
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.1461765, -73.641138),
     zoom: 12.0,
@@ -59,14 +54,11 @@ class TravelInfoController{
   List<LatLng> points = List.from([]);
   late BitmapDescriptor fromMarker;
   late BitmapDescriptor toMarker;
-  late Direction _directions;
   String? min;
   String? km;
   double? total;
-  Place? place;
   int? totalInt;
   double? radioDeBusqueda;
-  String rolUsuario = "";
   int distancia = 0;
   String distanciaString = '';
   int duracion = 0;
@@ -84,11 +76,14 @@ class TravelInfoController{
   bool serviceAccepted = false; // Bandera global para detener notificaciones
   final AudioPlayer _audioPlayer = AudioPlayer();
 
+  // Cambio a Api desde el backend
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
+
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
-    _googleProvider = GoogleProvider();
     _pricesProvider = PricesProvider();
     _travelInfoProvider = TravelInfoProvider();
     _driverProvider = DriverProvider();
@@ -315,87 +310,164 @@ class TravelInfoController{
   }
 
 
-  void getGoogleMapsDirections(LatLng from, LatLng to) async {
-    _directions = await _googleProvider.getGoogleMapsDirections(
-      from.latitude,
-      from.longitude,
-      to.latitude,
-      to.longitude,
-    );
+  // void getGoogleMapsDirections(LatLng from, LatLng to) async {
+  //   _directions = await _googleProvider.getGoogleMapsDirections(
+  //     from.latitude,
+  //     from.longitude,
+  //     to.latitude,
+  //     to.longitude,
+  //   );
+  //
+  //   // Verifica que las direcciones se hayan recibido correctamente
+  //   String fromCity = extractCity(_directions.startAddress) ?? 'Ciudad de Origen Desconocida';
+  //   String toCity = extractCity(_directions.endAddress) ?? 'Ciudad de Destino Desconocida';
+  //   if (kDebugMode) {
+  //     print('Ciudad de Origen: $fromCity');
+  //   }
+  //   if (kDebugMode) {
+  //     print('Ciudad de Destino: $toCity');
+  //   }
+  //   // Actualiza las variables de distancia y duración
+  //   distancia = _directions.distance?.value ?? 0;
+  //   distanciaString = _directions.distance?.text ?? '';
+  //   duracion = _directions.duration?.value ?? 0;
+  //   tiempoEnMinutos = duracion / 60;
+  //   duracionString = _directions.duration?.text ?? '';
+  //   // Formatea y actualiza las variables para la duración y la distancia
+  //   min = formatDuration(_directions.duration?.text ?? '');
+  //   km = _directions.distance?.text ?? '';
+  //   // Llama a los métodos para calcular el precio, obtener el radio de búsqueda y el rol del usuario
+  //   calcularPrecio();
+  //   obtenerRadiodeBusqueda();
+  //
+  //   setPolylines();
+  //   } comentado cambio api backend
 
-    // Verifica que las direcciones se hayan recibido correctamente
-    String fromCity = extractCity(_directions.startAddress) ?? 'Ciudad de Origen Desconocida';
-    String toCity = extractCity(_directions.endAddress) ?? 'Ciudad de Destino Desconocida';
-    if (kDebugMode) {
-      print('Ciudad de Origen: $fromCity');
-    }
-    if (kDebugMode) {
-      print('Ciudad de Destino: $toCity');
-    }
-    // Actualiza las variables de distancia y duración
-    distancia = _directions.distance?.value ?? 0;
-    distanciaString = _directions.distance?.text ?? '';
-    duracion = _directions.duration?.value ?? 0;
-    tiempoEnMinutos = duracion / 60;
-    duracionString = _directions.duration?.text ?? '';
-    // Formatea y actualiza las variables para la duración y la distancia
-    min = formatDuration(_directions.duration?.text ?? '');
-    km = _directions.distance?.text ?? '';
-    // Llama a los métodos para calcular el precio, obtener el radio de búsqueda y el rol del usuario
-    calcularPrecio();
-    obtenerRadiodeBusqueda();
 
-    setPolylines();
-    }
+  Future<void> getGoogleMapsDirections(LatLng from, LatLng to) async {
+    try {
+      final res = await _functions.httpsCallable('getDirections').call({
+        'fromLat': from.latitude,
+        'fromLng': from.longitude,
+        'toLat': to.latitude,
+        'toLng': to.longitude,
+        'mode': 'driving',
+      });
 
-  Future<void> setPolylines() async {
-    clearMap(); // Limpia el mapa antes de establecer nuevas rutas y marcadores
+      final data = Map<String, dynamic>.from(res.data);
 
-    PointLatLng pointFromLatlng = PointLatLng(fromLatlng.latitude, fromLatlng.longitude);
-    PointLatLng pointToLatlng = PointLatLng(toLatlng.latitude, toLatlng.longitude);
-
-    // Obtenemos la ruta entre los puntos
-    PolylineResult result = await PolylinePoints().getRouteBetweenCoordinates(
-      _yourGoogleAPIKey,
-      pointFromLatlng,
-      pointToLatlng,
-    );
-
-    if (result.points.isNotEmpty) {
-      // Limpia la lista de puntos para la nueva ruta
-      points.clear();
-
-      // Agrega los puntos obtenidos de la API
-      for (PointLatLng point in result.points) {
-        points.add(LatLng(point.latitude, point.longitude));
+      if (data['ok'] != true) {
+        if (kDebugMode) print('getDirections failed: $data');
+        return;
       }
 
-      // Limpiar las polilíneas anteriores
-      polylines.clear();
+      final String polylineEncoded = (data['polyline'] ?? '').toString();
+      final int distanceMeters = (data['distanceMeters'] ?? 0) as int;
+      final int durationSeconds = (data['durationSeconds'] ?? 0) as int;
 
-      // Crear la nueva polyline
-      Polyline polyline = Polyline(
-        polylineId: const PolylineId('route'),
-        color: Colors.black, // Asegúrate de definir el color correctamente
-        points: points,
-        width: 5,
-      );
+      // ✅ Actualiza variables que ya usas
+      distancia = distanceMeters;
+      duracion = durationSeconds;
+      tiempoEnMinutos = durationSeconds / 60.0;
 
-      // Añadir la nueva polyline a la lista de polilíneas
-      polylines.add(polyline);
+      // Formatos tipo “X km” y “Y min”
+      final double kmValue = distanceMeters / 1000.0;
+      km = '${kmValue.toStringAsFixed(1)} km';
 
-      // Añadir los marcadores de origen y destino
-      addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
-      addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
+      final int minsValue = (durationSeconds / 60).round();
+      min = '$minsValue min';
 
-      // Llama a refresh para actualizar la vista
-      refresh();
-    } else {
-      if (kDebugMode) {
-        print("No se encontraron puntos de ruta entre los puntos especificados.");
-      }
+      distanciaString = km ?? '';
+      duracionString = min ?? '';
+
+      // ✅ Calcula tarifa y radio (igual que hoy)
+      calcularPrecio();
+      obtenerRadiodeBusqueda();
+
+      // ✅ Dibuja polyline usando el encoded
+      await setPolylinesFromEncoded(polylineEncoded);
+
+    } catch (e) {
+      if (kDebugMode) print('getGoogleMapsDirections (via function) error: $e');
     }
   }
+
+
+
+  // Future<void> setPolylines() async {
+  //   clearMap(); // Limpia el mapa antes de establecer nuevas rutas y marcadores
+  //
+  //   PointLatLng pointFromLatlng = PointLatLng(fromLatlng.latitude, fromLatlng.longitude);
+  //   PointLatLng pointToLatlng = PointLatLng(toLatlng.latitude, toLatlng.longitude);
+  //
+  //   // Obtenemos la ruta entre los puntos
+  //   PolylineResult result = await PolylinePoints().getRouteBetweenCoordinates(
+  //     _yourGoogleAPIKey,
+  //     pointFromLatlng,
+  //     pointToLatlng,
+  //   );
+  //
+  //   if (result.points.isNotEmpty) {
+  //     // Limpia la lista de puntos para la nueva ruta
+  //     points.clear();
+  //
+  //     // Agrega los puntos obtenidos de la API
+  //     for (PointLatLng point in result.points) {
+  //       points.add(LatLng(point.latitude, point.longitude));
+  //     }
+  //
+  //     // Limpiar las polilíneas anteriores
+  //     polylines.clear();
+  //
+  //     // Crear la nueva polyline
+  //     Polyline polyline = Polyline(
+  //       polylineId: const PolylineId('route'),
+  //       color: Colors.black, // Asegúrate de definir el color correctamente
+  //       points: points,
+  //       width: 5,
+  //     );
+  //
+  //     // Añadir la nueva polyline a la lista de polilíneas
+  //     polylines.add(polyline);
+  //
+  //     // Añadir los marcadores de origen y destino
+  //     addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
+  //     addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
+  //
+  //     // Llama a refresh para actualizar la vista
+  //     refresh();
+  //   } else {
+  //     if (kDebugMode) {
+  //       print("No se encontraron puntos de ruta entre los puntos especificados.");
+  //     }
+  //   }
+  // } comentado metodo cambiado por otro
+
+  Future<void> setPolylinesFromEncoded(String encodedPolyline) async {
+    clearMap();
+
+    // Decodifica la polyline
+    final decoded = PolylinePoints().decodePolyline(encodedPolyline);
+
+    points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
+
+    polylines.clear();
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        color: Colors.black,
+        points: points,
+        width: 5,
+      ),
+    );
+
+    // Marcadores
+    addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
+    addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
+
+    refresh();
+  }
+
 
 
   void calcularPrecio() async {

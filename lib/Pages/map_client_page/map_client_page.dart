@@ -1,4 +1,6 @@
 
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,8 +8,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:google_places_autocomplete_text_field/google_places_autocomplete_text_field.dart';
-import 'package:google_places_autocomplete_text_field/model/prediction.dart';
 import 'package:in_app_update/in_app_update.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,11 +16,15 @@ import '../../helpers/conectivity_service.dart';
 import '../../helpers/customloadingDialog.dart';
 import '../../helpers/session_manager.dart';
 import '../../providers/client_provider.dart';
+import '../../service/places_functions_service.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
 import 'map_client_controler.dart';
 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'dart:async';
+import 'package:cloud_functions/cloud_functions.dart';
+
 
 
 class MapClientPage extends StatefulWidget {
@@ -55,6 +59,38 @@ class _MapClientPageState extends State<MapClientPage> {
   double bottomMaps= 270;
   final ConnectionService connectionService = ConnectionService();
   LatLng? _ubicacionActual;
+
+  //new autocomplete backend
+  Timer? _debounce;
+  List<Map<String, String>> _predictions = [];
+  bool _loadingPreds = false;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
+  //StateSetter? _sheetSetState; // para repintar SOLO el bottomsheet
+  final FocusNode _destinoFocus = FocusNode();
+
+
+  void Function(void Function())? _sheetSetState;
+  bool _isSheetOpen = false;
+  bool _navigatingAfterPick = false;
+
+
+
+
+  void _safeSheetRepaint() {
+    if (!_isSheetOpen) return;
+    final s = _sheetSetState;
+    if (s == null) return;
+
+    try {
+      s(() {});
+    } catch (_) {
+      // Si el sheet ya murió, cortamos la referencia
+      _sheetSetState = null;
+      _isSheetOpen = false;
+    }
+  }
+
 
 
 
@@ -122,6 +158,7 @@ class _MapClientPageState extends State<MapClientPage> {
   @override
   void dispose() {
     SessionManager.stopHeartbeat();
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -198,6 +235,7 @@ class _MapClientPageState extends State<MapClientPage> {
                   ],
                 ),
               ),
+
               Align(
                 alignment: Alignment.center,
                 child: _iconBuscarEnElMapaDestino(),
@@ -230,11 +268,6 @@ class _MapClientPageState extends State<MapClientPage> {
     );
   }
 
-  void _onBottomSheetOpened() {
-    setState(() {
-      _textController.clear();
-    });
-  }
 
   Widget _letrerosADondeVamos () {
     return Visibility(
@@ -849,231 +882,460 @@ class _MapClientPageState extends State<MapClientPage> {
     );
   }
 
-  Future<void> _mostrarCajonDeBusqueda(BuildContext context, Function(String) onAddressSelected) async {
-    String? selectedAddress = await showModalBottomSheet(
+  Future<void> _mostrarCajonDeBusqueda(
+      BuildContext context,
+      Function(String) onAddressSelected,
+      ) async {
+    _onBottomSheetOpened(); // limpia antes de abrir
+
+    await showModalBottomSheet(
       isScrollControlled: true,
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
-      builder: (context) => Container(
-        child: _cajonDebusqueda(onAddressSelected),
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
-    );
-    if (selectedAddress != null) {
-      _textController.text = selectedAddress;
-      onAddressSelected(selectedAddress);
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            _sheetSetState = setModalState;
+            _isSheetOpen = true;
+
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 150),
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.85,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: _cajonDebusqueda(onAddressSelected),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _debounce?.cancel();
+      _sheetSetState = null;
+      _isSheetOpen = false;
+
+      // Limpia lo visual para que al abrir NO salga lo anterior
+      if (mounted) {
+        setState(() {
+          _predictions = [];
+          _loadingPreds = false;
+        });
+      }
+    });
+  }
+
+  void _onBottomSheetOpened() {
+    _debounce?.cancel();
+    _textController.clear();
+
+    if (!mounted) return;
+    setState(() {
+      _predictions = [];
+      _loadingPreds = false;
+    });
+  }
+
+  void _cerrarBottomSheet(BuildContext context) {
+    _saveSearchHistory();
+    _debounce?.cancel();
+
+    if (mounted) {
+      setState(() {
+        _textController.clear();
+        _predictions = [];
+        _loadingPreds = false;
+      });
+    }
+
+    // repinta si está abierto (seguro)
+    _safeSheetRepaint();
+
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
-  Widget _cajonDebusqueda (Function(String) onSelectAddress){
-    bool isLoading = false; // Para controlar el indicador de carga
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [
-        SizedBox(height: 50.r),
 
-        Text(
-          'Escribe el sitio a donde vamos',
-          style: TextStyle(
-            fontSize: 18.r,
-            fontWeight: FontWeight.w900,
-            color: negroLetras,
+  Widget _cajonDebusqueda(Function(String) onSelectAddress) {
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          SizedBox(height: 50.r),
+
+          Text(
+            'Escribe el sitio a donde vamos',
+            style: TextStyle(
+              fontSize: 18.r,
+              fontWeight: FontWeight.w900,
+              color: negroLetras,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
 
-        SizedBox(height: 10.r),
+          SizedBox(height: 10.r),
 
-        Container(
-          padding: EdgeInsets.all(5.r),
-          margin: EdgeInsets.only(left: 10.r, right: 10.r),
-          decoration: BoxDecoration(
-            color: blancoCards,
-            borderRadius: const BorderRadius.all(Radius.circular(1)),
-            boxShadow: [
-              BoxShadow(
-                color: gris,
-                offset: Offset(1, 1.r),
-                blurRadius: 6.r,
-              )
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      //imagen de posicion inicial y linea vertical
-                      Visibility(
-                        visible: isVisibleiconoLineaVertical,
-                        child: Column(
-                          children: [
-                            Image.asset('assets/ubicacion_client.png', height: 25.r, width: 15.r,),
-                            Container(
-                              color: negroLetras,
-                              width: 1, height: 65,
-                            ),
-                          ],
-                        ),
-                      ),
-                      Image.asset('assets/marker_destino.png', height: 25.r, width: 20.r),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                      Container(
-                        margin: EdgeInsets.only(left: 5.r, right: 10.r),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            const SizedBox(width: 5),
-                            Visibility(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Text('Origen', style: TextStyle(color: negroLetras,fontSize: 12.r, fontWeight: FontWeight.bold)),
-                                  Container(
-                                    margin: EdgeInsets.only( top: 10.r),
-                                    width: MediaQuery.of(context).size.width.round() * 0.80,
-                                    child:GestureDetector(
-                                      onTap: () {},
-                                      child: Container(
-                                        padding: EdgeInsets.only(left: 8.r, top: 10.r, bottom: 10.r),
-                                        decoration: BoxDecoration(
-                                          color: blanco,
-                                          borderRadius: BorderRadius.circular(24),
-                                          border:Border.all(color: primary),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: primary.withOpacity(0.3), // Color de la sombra
-                                              offset: const Offset(0, 2),
-                                              blurRadius: 4,
-                                            ),
-                                          ],
-                                        ),
-                                        child: Text(_controller.from ?? '',
-                                          style: TextStyle(color: negroLetras,fontSize: 13.r, fontWeight: FontWeight.w600,), maxLines: 1,),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+          Container(
+            padding: EdgeInsets.all(5.r),
+            margin: EdgeInsets.only(left: 10.r, right: 10.r),
+            decoration: BoxDecoration(
+              color: blancoCards,
+              borderRadius: const BorderRadius.all(Radius.circular(1)),
+              boxShadow: [
+                BoxShadow(
+                  color: gris,
+                  offset: Offset(1, 1.r),
+                  blurRadius: 6.r,
+                )
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    Column(
+                      children: [
+                        Visibility(
+                          visible: isVisibleiconoLineaVertical,
+                          child: Column(
+                            children: [
+                              Image.asset(
+                                'assets/ubicacion_client.png',
+                                height: 25.r,
+                                width: 15.r,
                               ),
-                            ),
-                          ],
+                              Container(
+                                color: negroLetras,
+                                width: 1,
+                                height: 65,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Visibility(
-                          visible: isVisibleEspacio,
-                          child: SizedBox(height: 10.r)),
-                      Container(
-                        margin:EdgeInsets.only(left: 5.r, right: 10.r,bottom: 10.r),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            const SizedBox(width: 5),
-                            Text('Destino', style: TextStyle(color: negroLetras,fontSize: 12.r, fontWeight: FontWeight.bold)),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width.round() * 0.80,
-                              child: GestureDetector(
-                                onTap: () {},
-                                child: Container(
-                                  height: 50.r,
-                                  margin: EdgeInsets.only(top: 10.r),
-                                  padding: EdgeInsets.only(bottom: 10.r),
-                                  decoration: BoxDecoration(
-                                    color: grisClaro,
-                                    borderRadius: BorderRadius.circular(24),
-                                    border:Border.all(color: grisMedio),
+                        Image.asset(
+                          'assets/marker_destino.png',
+                          height: 25.r,
+                          width: 20.r,
+                        ),
+                      ],
+                    ),
+
+                    // ✅ Columna derecha (Origen/Destino)
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            margin: EdgeInsets.only(left: 5.r, right: 10.r),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(width: 5),
+
+                                // ORIGEN
+                                Text(
+                                  'Origen',
+                                  style: TextStyle(
+                                    color: negroLetras,
+                                    fontSize: 12.r,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  child: Form(
-                                    child: GooglePlacesAutoCompleteTextFormField(
-                                      autofocus: true,
-                                      textCapitalization: TextCapitalization.sentences,
-                                      cursorColor: Colors.black,
-                                      textEditingController: _textController,
-                                      googleAPIKey: _yourGoogleAPIKey,
-                                      countries: const ["co"],
-                                      decoration: InputDecoration(
-                                        labelStyle: TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12.r,
-                                        ),
-                                        border: const OutlineInputBorder(
-                                          borderRadius: BorderRadius.all(Radius.circular(30)),
-                                          borderSide: BorderSide.none,
-                                        ),
+                                ),
+                                Container(
+                                  margin: EdgeInsets.only(top: 10.r),
+                                  width: MediaQuery.of(context).size.width.round() * 0.80,
+                                  child: GestureDetector(
+                                    onTap: () {},
+                                    child: Container(
+                                      padding: EdgeInsets.only(
+                                        left: 8.r,
+                                        top: 10.r,
+                                        bottom: 10.r,
                                       ),
-                                      maxLines: 1,
-                                      itmClick: (Prediction prediction) async {
-                                        setState(() {
-                                          isLoading = true;
-                                          _textController.text = prediction.description ?? '';
-                                          _guardarEnHistorial(prediction.description!);
-
-                                          // Actualizar el controlador con la dirección seleccionada
-                                          _controller.to = prediction.description!;
-                                        });
-                                        // Obtener las coordenadas de la dirección seleccionada
-                                        LatLng? selectedLatLng = await getLatLngFromAddress(prediction.description!);
-                                        if (selectedLatLng != null) {
-                                          setState(() {
-                                            _controller.to = prediction.description!;
-                                            _controller.tolatlng = selectedLatLng;
-                                          });
-                                        }
-                                        if(context.mounted){
-                                          _cerrarBottomSheet(context);
-                                        }
-                                        _controller.requestDriver();
-
-                                        setState(() {
-                                          isLoading = false; // Ocultar el indicador de carga
-                                        });
-                                      },
+                                      decoration: BoxDecoration(
+                                        color: blanco,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(color: primary),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: primary.withOpacity(0.3),
+                                            offset: const Offset(0, 2),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        _controller.from ?? '',
+                                        style: TextStyle(
+                                          color: negroLetras,
+                                          fontSize: 13.r,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+
+                          if (isVisibleEspacio) SizedBox(height: 10.r),
+
+                          // DESTINO
+                          Container(
+                            margin: EdgeInsets.only(left: 5.r, right: 10.r, bottom: 10.r),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Destino',
+                                  style: TextStyle(
+                                    color: negroLetras,
+                                    fontSize: 12.r,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+
+                                SizedBox(
+                                  width: MediaQuery.of(context).size.width.round() * 0.80,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // ✅ 1) TextField en caja de 50.r (SOLO el input)
+                                      Container(
+                                        height: 50.r,
+                                        margin: EdgeInsets.only(top: 10.r),
+                                        decoration: BoxDecoration(
+                                          color: grisClaro,
+                                          borderRadius: BorderRadius.circular(24),
+                                          border: Border.all(color: grisMedio),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: TextField(
+                                          autofocus: true,
+                                          controller: _textController,
+                                          textCapitalization: TextCapitalization.sentences,
+                                          cursorColor: Colors.black,
+                                          maxLines: 1,
+                                          decoration: InputDecoration(
+                                            hintText: 'Escribe el destino…',
+                                            hintStyle: TextStyle(fontSize: 12.r),
+                                            border: InputBorder.none,
+                                            contentPadding: EdgeInsets.symmetric(
+                                              horizontal: 12.r,
+                                            ),
+                                          ),
+                                          onChanged: _onDestinoChanged,
+                                        ),
+                                      ),
+
+                                      // ✅ 2) Loader debajo
+                                      if (_loadingPreds)
+                                        Padding(
+                                          padding: EdgeInsets.only(top: 8.r),
+                                          child: const SizedBox(
+                                            height: 18,
+                                            width: 18,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          ),
+                                        ),
+
+                                      // ✅ 3) Lista debajo (YA con espacio)
+                                      if (_predictions.isNotEmpty)
+                                        Container(
+                                          margin: EdgeInsets.only(top: 8.r),
+                                          height: 220.r,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: grisMedio),
+                                          ),
+                                          child: ListView.separated(
+                                            itemCount: _predictions.length,
+                                            separatorBuilder: (_, __) => const Divider(height: 1),
+                                            itemBuilder: (_, i) {
+                                              final p = _predictions[i];
+                                              return ListTile(
+                                                dense: true,
+                                                title: Text(
+                                                  p['description']!,
+                                                  style: TextStyle(fontSize: 12.r),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                onTap: () => _selectPrediction(
+                                                  placeId: p['placeId']!,
+                                                  description: p['description']!,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  )
-                ],
-              ),
-            ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-        Container(
-          margin: EdgeInsets.only(top: 10.r, bottom: 10.r, right: 15.r),
-          alignment: Alignment.topRight,
-          child: GestureDetector(
-            onTap: () {
-              _cerrarBottomSheet(context);
-            },
-            child: Container(
-              margin: EdgeInsets.only(top: 15.r, right: 10.r),
-              width: 80.r,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(Icons.cancel_rounded,size: 20.r,),
-                  const Text('Cerrar',style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                ],
+
+          // CERRAR
+          Container(
+            margin: EdgeInsets.only(top: 10.r, bottom: 10.r, right: 15.r),
+            alignment: Alignment.topRight,
+            child: GestureDetector(
+              onTap: () => _cerrarBottomSheet(context),
+              child: Container(
+                margin: EdgeInsets.only(top: 15.r, right: 10.r),
+                width: 80.r,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(Icons.cancel_rounded, size: 20.r),
+                    const Text(
+                      'Cerrar',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+  Future<void> _selectPrediction({
+    required String placeId,
+    required String description,
+  }) async {
+    // 🔒 evita doble tap
+    if (_navigatingAfterPick) return;
+    _navigatingAfterPick = true;
+
+    try {
+      // 1) Trae details (mientras el bottomsheet sigue abierto)
+      final res = await _functions.httpsCallable('placeDetails').call({
+        'placeId': placeId,
+      });
+
+      final data = Map<String, dynamic>.from(res.data);
+      if (data['ok'] != true) return;
+
+      final address = (data['formattedAddress'] ?? description).toString();
+      final lat = (data['lat'] as num).toDouble();
+      final lng = (data['lng'] as num).toDouble();
+      final latLng = LatLng(lat, lng);
+
+      if (!mounted) return;
+
+      // 2) Actualiza estado
+      setState(() {
+        _textController.text = address;
+        _controller.to = address;
+        _controller.tolatlng = latLng;
+        _predictions = [];
+        _loadingPreds = false;
+      });
+
+      await _guardarEnHistorial(address);
+
+      // 3) ✅ AHORA sí cerramos el bottomsheet
+      // (usa rootNavigator true para asegurarte de cerrar el sheet aunque estés dentro del builder)
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // 4) ✅ Dispara tu flujo normal
+      // (si requestDriver navega, ya no verás el mapa “solo” porque el pop y el request van pegados)
+      _controller.requestDriver();
+    } catch (e) {
+      if (kDebugMode) print('selectPrediction error: $e');
+    } finally {
+      _navigatingAfterPick = false;
+    }
+  }
+
+
+  Future<void> _onDestinoChanged(String value) async {
+    _debounce?.cancel();
+    final q = value.trim();
+
+    if (q.length < 3) {
+      if (!mounted) return;
+      setState(() {
+        _predictions = [];
+        _loadingPreds = false;
+      });
+      _safeSheetRepaint();
+      return;
+    }
+
+    // muestra loader rápido
+    if (mounted) {
+      setState(() => _loadingPreds = true);
+    }
+    _safeSheetRepaint();
+
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final lat = _controller.currentLocation?.latitude;
+        final lng = _controller.currentLocation?.longitude;
+
+        final res = await _functions.httpsCallable('placesAutocomplete').call({
+          'input': q,
+          'country': 'co',
+          'lat': lat,
+          'lng': lng,
+          'radiusMeters': 30000, // 12 km (ajústalo si quieres)
+        });
+
+
+        final data = Map<String, dynamic>.from(res.data);
+        final list = (data['predictions'] as List? ?? []);
+
+        final preds = list.map((e) {
+          final m = Map<String, dynamic>.from(e as Map);
+          return {
+            'placeId': (m['placeId'] ?? '').toString(),
+            'description': (m['description'] ?? '').toString(),
+          };
+        }).where((p) => p['placeId']!.isNotEmpty && p['description']!.isNotEmpty).toList();
+
+        if (!mounted) return;
+        setState(() => _predictions = preds);
+        _safeSheetRepaint();
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _predictions = []);
+        _safeSheetRepaint();
+      } finally {
+        if (!mounted) return;
+        setState(() => _loadingPreds = false);
+        _safeSheetRepaint();
+      }
+    });
+  }
+
 
   Widget _vistaHistorialBusquedas() {
     return Expanded(
@@ -1143,12 +1405,6 @@ class _MapClientPageState extends State<MapClientPage> {
         ),
       ),
     );
-  }
-
-  void _cerrarBottomSheet(BuildContext context) {
-    _saveSearchHistory();// Guardar historial antes de cerrar
-    _textController.clear();
-    Navigator.of(context).pop();
   }
 
   Future<void> _guardarEnHistorial(String searchTerm) async {

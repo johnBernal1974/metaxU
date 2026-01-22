@@ -113,6 +113,7 @@ class ClientMapController {
     // Obtener la posición actual y establecerla como posición inicial
     _position = await Geolocator.getCurrentPosition();
     if (_position != null) {
+      currentLocation = LatLng(_position!.latitude, _position!.longitude);
       initialPosition = CameraPosition(
         target: LatLng(_position!.latitude, _position!.longitude),
         zoom: 20.0,
@@ -270,6 +271,7 @@ class ClientMapController {
       await _determinePosition();
       _position = (await Geolocator.getLastKnownPosition())!;
       if (_position != null) {
+        currentLocation = LatLng(_position!.latitude, _position!.longitude);
         centerPosition();
 
         addMarker(

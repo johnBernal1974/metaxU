@@ -24,14 +24,10 @@ import 'Pages/travel_map_page/View/travel_map_page.dart';
 import 'firebase_options.dart';
 import 'src/colors/colors.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 Future<void> main() async {
   // Asegura que Flutter esté inicializado antes de cargar otros recursos
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Cargar variables de entorno del archivo .env
-  await dotenv.load(fileName: ".env");
 
   // Establecer la orientación preferida
   await _setPreferredOrientations();

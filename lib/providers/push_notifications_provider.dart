@@ -4,8 +4,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
-import '../src/colors/api/acces_firebase_token.dart';
 import 'client_provider.dart';
 
 class PushNotificationsProvider {
@@ -83,66 +81,30 @@ class PushNotificationsProvider {
     clientProvider.update(data, idUser!);
   }
 
+
   Future<void> sendMessage(String to, Map<String, dynamic> data) async {
-    AccessTokenFirebase accessTokenFirebase = AccessTokenFirebase();
-    String token = await accessTokenFirebase.getAccessToken();
-
-    String tarifaFormateada = NumberFormat.currency(
-      locale: 'es',
-      symbol: '',  // Para que no agregue ningún símbolo automáticamente
-      decimalDigits: 0,  // Sin decimales
-    ).format(int.parse(data['tarifa']));
-
-    // Definir el contenido de la notificación
-    final notification = {
-      'title': 'Metax',
-      //'body': 'Destino: ${data['destination']}, Tarifa: \$${tarifaFormateada}',
-      'body': 'Nueva solicitud de servicio',
-    };
-
-    // Enviar la notificación a través de Firebase Cloud Messaging
     final response = await http.post(
-      Uri.parse('https://fcm.googleapis.com/v1/projects/apptaxi-e641d/messages:send'),
+      Uri.parse('https://us-central1-apptaxi-e641d.cloudfunctions.net/sendPushToDriver'),
       headers: <String, String>{
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
+        'x-metax-secret': 'para_enviar_notificaciones_2026_metax_user', // ✅ misma clave que en la function
       },
-      body: jsonEncode(<String, dynamic>{
-        'message': {
-          'token': to,
-          'notification': notification, // Notificación con título y cuerpo
-          'data': data, // Datos adicionales
-          'android': {
-            'ttl': '25s',
-            'notification': {
-              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-              'icon': 'logo_compartir_zafiro', // Icono solo para Android
-              'sound': 'notification_sound', // Sonido personalizado
-            },
-          },
-          'apns': {
-            'headers': {
-              'apns-expiration': '25',
-            },
-            'payload': {
-              'aps': {
-                'sound': 'default', // O usa un sonido personalizado aquí también
-              },
-            },
-          },
+      body: jsonEncode({
+        "token": to,
+        "notification": {
+          "title": "Metax",
+          "body": "Nueva solicitud de servicio",
         },
+        // 🔥 FCM data debe ser string-string
+        "data": data.map((k, v) => MapEntry(k, v.toString())),
+        "ttlSeconds": 25,
       }),
     );
 
     if (response.statusCode == 200) {
-      if (kDebugMode) {
-        print('Mensaje enviado exitosamente.');
-      }
+      if (kDebugMode) print('✅ Mensaje enviado: ${response.body}');
     } else {
-      if (kDebugMode) {
-        print('Error al enviar el mensaje: ${response.body}');
-      }
+      if (kDebugMode) print('❌ Error ${response.statusCode}: ${response.body}');
     }
   }
-
 }

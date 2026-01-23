@@ -740,10 +740,6 @@ class TravelInfoController{
                 (route) => false,
           );
         }
-      } else {
-        if (kDebugMode) {
-          print('El documento no existe o está vacío');
-        }
       }
     });
   }

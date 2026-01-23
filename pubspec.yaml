@@ -41,7 +41,6 @@ dependencies:
   google_maps_flutter: ^2.5.0
   geolocator: ^10.1.0
   geocoding: ^2.1.1
-  flutter_dotenv: ^5.1.0
   #flutter_google_places: ^0.3.0
   google_maps_webservice: ^0.0.19
   shared_preferences: ^2.2.2
@@ -123,7 +122,6 @@ flutter:
     - assets/
     - assets/audio/
     - assets/audio/te_has_desconectado.mp3
-    - .env
 
 
   #   - images/a_dot_ham.jpeg

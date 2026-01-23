@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:in_app_update/in_app_update.dart';
@@ -16,7 +15,6 @@ import '../../helpers/conectivity_service.dart';
 import '../../helpers/customloadingDialog.dart';
 import '../../helpers/session_manager.dart';
 import '../../providers/client_provider.dart';
-import '../../service/places_functions_service.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
 import 'map_client_controler.dart';
@@ -50,7 +48,6 @@ class _MapClientPageState extends State<MapClientPage> {
   late bool isVisibleTextoEligetuViaje = true;
   late bool fromVisible = true;
   late bool isLoading = true;
-  final String _yourGoogleAPIKey = dotenv.get('API_KEY');
   LatLng? selectedToLatLng;
   double iconTop = 0.0;
   final _textController = TextEditingController();
@@ -65,11 +62,6 @@ class _MapClientPageState extends State<MapClientPage> {
   List<Map<String, String>> _predictions = [];
   bool _loadingPreds = false;
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
-
-  //StateSetter? _sheetSetState; // para repintar SOLO el bottomsheet
-  final FocusNode _destinoFocus = FocusNode();
-
-
   void Function(void Function())? _sheetSetState;
   bool _isSheetOpen = false;
   bool _navigatingAfterPick = false;

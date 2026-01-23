@@ -87,7 +87,7 @@ class PushNotificationsProvider {
       Uri.parse('https://us-central1-apptaxi-e641d.cloudfunctions.net/sendPushToDriver'),
       headers: <String, String>{
         'Content-Type': 'application/json',
-        'x-metax-secret': 'para_enviar_notificaciones_2026_metax_user', // ✅ misma clave que en la function
+        'x-metax-secret': 'para_enviar_notificaciones_2026_metax_user',
       },
       body: jsonEncode({
         "token": to,

@@ -12,7 +12,6 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../helpers/conectivity_service.dart';
-import '../../helpers/customloadingDialog.dart';
 import '../../helpers/session_manager.dart';
 import '../../providers/client_provider.dart';
 import '../../src/colors/colors.dart';
@@ -70,6 +69,12 @@ class _MapClientPageState extends State<MapClientPage> {
   bool _navigatingAfterPick = false;
   bool _pickingPlace = false;
 
+  List<FavoritePlace> favoritePlaces = [];
+  static const String _favKey = 'favorite_places_v1';
+  SearchHistoryItem? _lastPickedPlace;
+
+
+
 
 
   void _safeSheetRepaint() {
@@ -122,6 +127,7 @@ class _MapClientPageState extends State<MapClientPage> {
       _checkConnection();
       checkForUpdate();
       _loadSearchHistory();
+      _loadFavorites();
     });
   }
 
@@ -302,53 +308,103 @@ class _MapClientPageState extends State<MapClientPage> {
                 ],
               ),
             ),
-            GestureDetector(
-              onTap: () {
-                // Verificar conexión a Internet antes de ejecutar la acción
-                connectionService.hasInternetConnection().then((hasConnection) {
-                  if (hasConnection) {
-                    _onBottomSheetOpened();
-                    // Llama a _mostrarCajonDeBusqueda inmediatamente
-                    _mostrarCajonDeBusqueda(context, (selectedAddress) {});
-                  } else {
-                    // Llama a alertSinInternet inmediatamente si no hay conexión
-                    alertSinInternet();
-                  }
-                });
-              },
-              child: Container(
-                margin: EdgeInsets.symmetric(vertical: 10.r, horizontal: 15.r),
-                decoration: BoxDecoration(
-                  color: Colors.white, // Color de fondo del contenedor
-                  borderRadius: BorderRadius.circular(24), // Esquinas redondeadas
-                  border: Border.all(color: primary, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primary.withOpacity(0.8), // Color de la sombra
-                      offset: Offset(0, 2.r),
-                      blurRadius: 7.r,
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(10.r), // Espaciado interno
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: negro), // Icono de búsqueda
-                      SizedBox(width: 10.r), // Espacio entre el icono y el texto
-                      const Expanded(
-                        child: Text(
-                          '¿A dónde vamos?', // Texto predeterminado
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
+            Container(
+              margin: EdgeInsets.symmetric(vertical: 10.r, horizontal: 15.r),
+              child: Row(
+                children: [
+                  // 🔍 A DÓNDE VAMOS (más angosto)
+                  Expanded(
+                    flex: 3,
+                    child: GestureDetector(
+                      onTap: () {
+                        connectionService.hasInternetConnection().then((hasConnection) {
+                          if (hasConnection) {
+                            _onBottomSheetOpened();
+                            _mostrarCajonDeBusqueda(context, (selectedAddress) {});
+                          } else {
+                            alertSinInternet();
+                          }
+                        });
+                      },
+                      child: Container(
+                        height: 52.r,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: primary, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: primary.withOpacity(0.6),
+                              offset: Offset(0, 2.r),
+                              blurRadius: 6.r,
+                            ),
+                          ],
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 12.r),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search, color: negro),
+                            SizedBox(width: 8.r),
+                            const Expanded(
+                              child: Text(
+                                '¿A dónde vamos?',
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+
+                  SizedBox(width: 10.r),
+
+                  // ⭐ FAVORITOS (container independiente)
+                  GestureDetector(
+                    onTap: _showFavoritesSheet,
+                    child: Container(
+                      height: 52.r,
+                      width: 80.r,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.black87, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.4),
+                            offset: Offset(0, 2.r),
+                            blurRadius: 6.r,
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Favoritos',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Icon(
+                            Icons.favorite,
+                            color: Colors.red,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 6),
@@ -359,6 +415,58 @@ class _MapClientPageState extends State<MapClientPage> {
       ),
     );
   }
+
+  void _showFavoritesSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Destinos frecuentes',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 10),
+
+              if (favoritePlaces.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Aún no tienes favoritos guardados.'),
+                )
+              else
+                ...favoritePlaces.map((f) => ListTile(
+                  leading: const Icon(Icons.star_rounded, color: Colors.amber),
+                  title: Text(f.label, style: const TextStyle(fontWeight: FontWeight.w900)),
+                  subtitle: Text(
+                    f.subtitle.isNotEmpty ? '${f.title}, ${f.subtitle}' : f.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onTap: () {
+                    final latLng = LatLng(f.lat, f.lng);
+                    setState(() {
+                      _controller.to = f.subtitle.isNotEmpty ? '${f.title}, ${f.subtitle}' : f.title;
+                      _controller.tolatlng = latLng;
+                    });
+                    Navigator.pop(context);
+                    _controller.requestDriver();
+                  },
+                )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 
   Future alertSinInternet (){
     return showDialog(
@@ -1244,7 +1352,6 @@ class _MapClientPageState extends State<MapClientPage> {
 
       final data = Map<String, dynamic>.from(res.data);
 
-      // ✅ si backend responde que no está ok, avisamos y salimos
       if (data['ok'] != true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1264,25 +1371,29 @@ class _MapClientPageState extends State<MapClientPage> {
 
       if (!mounted) return;
 
-      // ✅ Actualiza UI + controller con lo que el usuario vio (description)
+      // ✅ construimos el item UNA SOLA VEZ
+      final pickedItem = SearchHistoryItem(
+        placeId: placeId,
+        title: title,
+        subtitle: subtitle,
+        lat: latLng.latitude,
+        lng: latLng.longitude,
+      );
+
+      // ✅ Actualiza UI + controller con lo que el usuario vio
       setState(() {
         _textController.text = description;
         _controller.to = description;
         _controller.tolatlng = latLng;
         _predictions = [];
         _loadingPreds = false;
+
+        // ✅ IMPORTANTE: guardamos "último destino seleccionado"
+        _lastPickedPlace = pickedItem;
       });
 
-      // ✅ Guarda historial con title/subtitle + lat/lng
-      await _guardarEnHistorialItem(
-        SearchHistoryItem(
-          placeId: placeId,
-          title: title,
-          subtitle: subtitle,
-          lat: latLng.latitude,
-          lng: latLng.longitude,
-        ),
-      );
+      // ✅ Guarda historial
+      await _guardarEnHistorialItem(pickedItem);
 
       if (!mounted) return;
 
@@ -1300,12 +1411,40 @@ class _MapClientPageState extends State<MapClientPage> {
         );
       }
     } finally {
-      // ✅ siempre apagar loader + desbloquear taps
       if (mounted) setState(() => _pickingPlace = false);
       _safeSheetRepaint();
       _navigatingAfterPick = false;
     }
   }
+
+
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawAny = prefs.get(_favKey);
+
+    List<FavoritePlace> items = [];
+    try {
+      if (rawAny is String && rawAny.isNotEmpty) {
+        final decoded = jsonDecode(rawAny) as List<dynamic>;
+        items = decoded.map((e) => FavoritePlace.fromJson(Map<String, dynamic>.from(e))).toList();
+      } else {
+        items = [];
+      }
+    } catch (_) {
+      await prefs.remove(_favKey);
+      items = [];
+    }
+
+    if (!mounted) return;
+    setState(() => favoritePlaces = items);
+  }
+
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = favoritePlaces.map((e) => e.toJson()).toList();
+    await prefs.setString(_favKey, jsonEncode(jsonList));
+  }
+
 
 
 
@@ -1438,6 +1577,13 @@ class _MapClientPageState extends State<MapClientPage> {
           final index = entry.key;
           final item = entry.value;
 
+          // ✅ para pintar el ícono diferente si ya está en favoritos
+          final yaEsFavorito = favoritePlaces.any((f) =>
+          f.title == item.title &&
+              f.subtitle == item.subtitle &&
+              f.lat == item.lat &&
+              f.lng == item.lng);
+
           return Column(
             children: [
               GestureDetector(
@@ -1448,7 +1594,6 @@ class _MapClientPageState extends State<MapClientPage> {
                     return;
                   }
 
-                  // ✅ ya NO geocodificamos, usamos lat/lng guardados
                   final latLng = LatLng(item.lat, item.lng);
 
                   setState(() {
@@ -1463,10 +1608,11 @@ class _MapClientPageState extends State<MapClientPage> {
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 3.r, horizontal: 6.r),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Icon(Icons.location_on, size: 16, color: Colors.green),
                       const SizedBox(width: 6),
+
                       Expanded(
                         child: RichText(
                           maxLines: 1,
@@ -1477,7 +1623,7 @@ class _MapClientPageState extends State<MapClientPage> {
                                 text: item.title,
                                 style: TextStyle(
                                   fontSize: 11.r,
-                                  fontWeight: FontWeight.w900, // ✅ negrilla SOLO nombre
+                                  fontWeight: FontWeight.w900,
                                   color: negro,
                                 ),
                               ),
@@ -1494,6 +1640,20 @@ class _MapClientPageState extends State<MapClientPage> {
                           ),
                         ),
                       ),
+
+                      // ⭐ botón favorito (NO debe navegar)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _guardarFavoritoDesdeHistorial(item),
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 8.r),
+                          child: Icon(
+                            yaEsFavorito ? Icons.star_rounded : Icons.star_border_rounded,
+                            color: Colors.amber,
+                            size: 20.r,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1507,6 +1667,78 @@ class _MapClientPageState extends State<MapClientPage> {
       ],
     );
   }
+
+  Future<void> _guardarFavoritoDesdeHistorial(SearchHistoryItem item) async {
+    final labelController = TextEditingController(text: item.title);
+
+    final label = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Guardar en favoritos', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Colócale un nombre',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: labelController,
+              decoration: InputDecoration(
+                hintText: 'Ej: Casa, Oficina, Tía Julia',
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.grey),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, labelController.text.trim()),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (label == null || label.isEmpty) return;
+
+    final fav = FavoritePlace(
+      label: label,
+      title: item.title,
+      subtitle: item.subtitle,
+      lat: item.lat,
+      lng: item.lng,
+    );
+
+    setState(() {
+      favoritePlaces.removeWhere((f) => f.label.toLowerCase() == label.toLowerCase());
+      favoritePlaces.insert(0, fav);
+    });
+
+    await _saveFavorites();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Guardado como "$label" ⭐')),
+    );
+  }
+
 
 
   Future<void> _guardarEnHistorialItem(SearchHistoryItem item) async {
@@ -1642,4 +1874,39 @@ class SearchHistoryItem {
     );
   }
 }
+
+class FavoritePlace {
+  final String label;     // Casa / Oficina / Tía Julia
+  final String title;     // nombre en negrilla
+  final String subtitle;  // dirección
+  final double lat;
+  final double lng;
+
+  FavoritePlace({
+    required this.label,
+    required this.title,
+    required this.subtitle,
+    required this.lat,
+    required this.lng,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'label': label,
+    'title': title,
+    'subtitle': subtitle,
+    'lat': lat,
+    'lng': lng,
+  };
+
+  factory FavoritePlace.fromJson(Map<String, dynamic> json) {
+    return FavoritePlace(
+      label: (json['label'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      subtitle: (json['subtitle'] ?? '').toString(),
+      lat: (json['lat'] as num).toDouble(),
+      lng: (json['lng'] as num).toDouble(),
+    );
+  }
+}
+
 

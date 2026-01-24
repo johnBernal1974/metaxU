@@ -20,8 +20,9 @@ import '../Login_page/login_page.dart';
 import 'map_client_controler.dart';
 
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:convert';
+
 
 
 
@@ -51,7 +52,9 @@ class _MapClientPageState extends State<MapClientPage> {
   LatLng? selectedToLatLng;
   double iconTop = 0.0;
   final _textController = TextEditingController();
-  List<String> searchHistory = [];
+  List<SearchHistoryItem> searchHistory = [];
+  bool _historyLoaded = false;
+
   LatLng? tolatlng;
   double bottomMaps= 270;
   final ConnectionService connectionService = ConnectionService();
@@ -65,7 +68,7 @@ class _MapClientPageState extends State<MapClientPage> {
   void Function(void Function())? _sheetSetState;
   bool _isSheetOpen = false;
   bool _navigatingAfterPick = false;
-
+  bool _pickingPlace = false;
 
 
 
@@ -83,23 +86,6 @@ class _MapClientPageState extends State<MapClientPage> {
     }
   }
 
-
-
-
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-  //     _controller.init(context, refresh);
-  //     _authProvider = MyAuthProvider();
-  //     _clientProvider = ClientProvider();
-  //     _checkConnection();
-  //     checkForUpdate();
-  //     _loadSearchHistory();
-  //
-  //   });
-  // } comentado prueba
 
   @override
   void initState() {
@@ -536,17 +522,7 @@ class _MapClientPageState extends State<MapClientPage> {
       child: GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
-        // onMapCreated: (GoogleMapController controller) async {
-        //   _controller.onMapCreated(controller);
-        //
-        //   // Espera a que el mapa se cargue
-        //   await Future.delayed(const Duration(seconds: 5));
-        //
-        //   // Oculta la capa de carga después del retraso
-        //   setState(() {
-        //     isLoading = false;
-        //   });
-        // }, comentado prueba 1
+
         onMapCreated: (GoogleMapController controller) {
           _controller.onMapCreated(controller);
 
@@ -958,314 +934,379 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
   Widget _cajonDebusqueda(Function(String) onSelectAddress) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          SizedBox(height: 50.r),
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              SizedBox(height: 50.r),
 
-          Text(
-            'Escribe el sitio a donde vamos',
-            style: TextStyle(
-              fontSize: 18.r,
-              fontWeight: FontWeight.w900,
-              color: negroLetras,
-            ),
-            textAlign: TextAlign.center,
-          ),
+              Text(
+                'Escribe el sitio a donde vamos',
+                style: TextStyle(
+                  fontSize: 18.r,
+                  fontWeight: FontWeight.w900,
+                  color: negroLetras,
+                ),
+                textAlign: TextAlign.center,
+              ),
 
-          SizedBox(height: 10.r),
+              SizedBox(height: 10.r),
 
-          Container(
-            padding: EdgeInsets.all(5.r),
-            margin: EdgeInsets.only(left: 10.r, right: 10.r),
-            decoration: BoxDecoration(
-              color: blancoCards,
-              borderRadius: const BorderRadius.all(Radius.circular(1)),
-              boxShadow: [
-                BoxShadow(
-                  color: gris,
-                  offset: Offset(1, 1.r),
-                  blurRadius: 6.r,
-                )
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
+              Container(
+                padding: EdgeInsets.all(5.r),
+                margin: EdgeInsets.only(left: 10.r, right: 10.r),
+                decoration: BoxDecoration(
+                  color: blancoCards,
+                  borderRadius: const BorderRadius.all(Radius.circular(1)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gris,
+                      offset: Offset(1, 1.r),
+                      blurRadius: 6.r,
+                    )
+                  ],
+                ),
+                child: Column(
                   children: [
-                    Column(
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        Visibility(
-                          visible: isVisibleiconoLineaVertical,
+                        Column(
+                          children: [
+                            Visibility(
+                              visible: isVisibleiconoLineaVertical,
+                              child: Column(
+                                children: [
+                                  Image.asset(
+                                    'assets/ubicacion_client.png',
+                                    height: 25.r,
+                                    width: 15.r,
+                                  ),
+                                  Container(
+                                    color: negroLetras,
+                                    width: 1,
+                                    height: 65,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Image.asset(
+                              'assets/marker_destino.png',
+                              height: 25.r,
+                              width: 20.r,
+                            ),
+                          ],
+                        ),
+
+                        Expanded(
                           child: Column(
                             children: [
-                              Image.asset(
-                                'assets/ubicacion_client.png',
-                                height: 25.r,
-                                width: 15.r,
-                              ),
                               Container(
-                                color: negroLetras,
-                                width: 1,
-                                height: 65,
+                                margin: EdgeInsets.only(left: 5.r, right: 10.r),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(width: 5),
+
+                                    Text(
+                                      'Origen',
+                                      style: TextStyle(
+                                        color: negroLetras,
+                                        fontSize: 12.r,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    Container(
+                                      margin: EdgeInsets.only(top: 10.r),
+                                      width: MediaQuery.of(context).size.width.round() * 0.80,
+                                      child: GestureDetector(
+                                        onTap: () {},
+                                        child: Container(
+                                          padding: EdgeInsets.only(
+                                            left: 8.r,
+                                            top: 10.r,
+                                            bottom: 10.r,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: blanco,
+                                            borderRadius: BorderRadius.circular(24),
+                                            border: Border.all(color: primary),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: primary.withOpacity(0.3),
+                                                offset: const Offset(0, 2),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
+                                          ),
+                                          child: Text(
+                                            _controller.from ?? '',
+                                            style: TextStyle(
+                                              color: negroLetras,
+                                              fontSize: 13.r,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              if (isVisibleEspacio) SizedBox(height: 10.r),
+
+                              Container(
+                                margin: EdgeInsets.only(left: 5.r, right: 10.r, bottom: 10.r),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Destino',
+                                      style: TextStyle(
+                                        color: negroLetras,
+                                        fontSize: 12.r,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    SizedBox(
+                                      width: MediaQuery.of(context).size.width.round() * 0.80,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            height: 50.r,
+                                            margin: EdgeInsets.only(top: 10.r),
+                                            decoration: BoxDecoration(
+                                              color: grisClaro,
+                                              borderRadius: BorderRadius.circular(24),
+                                              border: Border.all(color: grisMedio),
+                                            ),
+                                            alignment: Alignment.center,
+                                            child: TextField(
+                                              autofocus: true,
+                                              controller: _textController,
+                                              textCapitalization: TextCapitalization.sentences,
+                                              cursorColor: Colors.black,
+                                              maxLines: 1,
+                                              decoration: InputDecoration(
+                                                hintText: 'Escribe el destino…',
+                                                hintStyle: TextStyle(fontSize: 12.r),
+                                                border: InputBorder.none,
+                                                contentPadding: EdgeInsets.symmetric(
+                                                  horizontal: 12.r,
+                                                ),
+                                              ),
+                                              onChanged: _onDestinoChanged,
+                                            ),
+                                          ),
+
+                                          if (_loadingPreds)
+                                            Padding(
+                                              padding: EdgeInsets.only(top: 8.r),
+                                              child: const SizedBox(
+                                                height: 18,
+                                                width: 18,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              ),
+                                            ),
+
+                                          if (_predictions.isNotEmpty)
+                                            Container(
+                                              margin: EdgeInsets.only(top: 8.r),
+                                              height: 220.r,
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius: BorderRadius.circular(12),
+                                                border: Border.all(color: grisMedio),
+                                              ),
+                                              child: ListView.separated(
+                                                itemCount: _predictions.length,
+                                                separatorBuilder: (_, __) => const Divider(height: 1),
+                                                itemBuilder: (_, i) {
+                                                  final p = _predictions[i];
+
+                                                  return ListTile(
+                                                    dense: true,
+                                                    title: Text(
+                                                      p['description']!,
+                                                      style: TextStyle(fontSize: 12.r),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+
+                                                    // ✅ Bloquear taps mientras está procesando selección
+                                                    enabled: !_pickingPlace,
+                                                    onTap: _pickingPlace
+                                                        ? null
+                                                        : () => _selectPrediction(
+                                                      placeId: p['placeId']!,
+                                                      description: p['description']!,
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        Image.asset(
-                          'assets/marker_destino.png',
-                          height: 25.r,
-                          width: 20.r,
-                        ),
                       ],
-                    ),
-
-                    // ✅ Columna derecha (Origen/Destino)
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Container(
-                            margin: EdgeInsets.only(left: 5.r, right: 10.r),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(width: 5),
-
-                                // ORIGEN
-                                Text(
-                                  'Origen',
-                                  style: TextStyle(
-                                    color: negroLetras,
-                                    fontSize: 12.r,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Container(
-                                  margin: EdgeInsets.only(top: 10.r),
-                                  width: MediaQuery.of(context).size.width.round() * 0.80,
-                                  child: GestureDetector(
-                                    onTap: () {},
-                                    child: Container(
-                                      padding: EdgeInsets.only(
-                                        left: 8.r,
-                                        top: 10.r,
-                                        bottom: 10.r,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: blanco,
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(color: primary),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: primary.withOpacity(0.3),
-                                            offset: const Offset(0, 2),
-                                            blurRadius: 4,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Text(
-                                        _controller.from ?? '',
-                                        style: TextStyle(
-                                          color: negroLetras,
-                                          fontSize: 13.r,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          if (isVisibleEspacio) SizedBox(height: 10.r),
-
-                          // DESTINO
-                          Container(
-                            margin: EdgeInsets.only(left: 5.r, right: 10.r, bottom: 10.r),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(width: 5),
-                                Text(
-                                  'Destino',
-                                  style: TextStyle(
-                                    color: negroLetras,
-                                    fontSize: 12.r,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-
-                                SizedBox(
-                                  width: MediaQuery.of(context).size.width.round() * 0.80,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // ✅ 1) TextField en caja de 50.r (SOLO el input)
-                                      Container(
-                                        height: 50.r,
-                                        margin: EdgeInsets.only(top: 10.r),
-                                        decoration: BoxDecoration(
-                                          color: grisClaro,
-                                          borderRadius: BorderRadius.circular(24),
-                                          border: Border.all(color: grisMedio),
-                                        ),
-                                        alignment: Alignment.center,
-                                        child: TextField(
-                                          autofocus: true,
-                                          controller: _textController,
-                                          textCapitalization: TextCapitalization.sentences,
-                                          cursorColor: Colors.black,
-                                          maxLines: 1,
-                                          decoration: InputDecoration(
-                                            hintText: 'Escribe el destino…',
-                                            hintStyle: TextStyle(fontSize: 12.r),
-                                            border: InputBorder.none,
-                                            contentPadding: EdgeInsets.symmetric(
-                                              horizontal: 12.r,
-                                            ),
-                                          ),
-                                          onChanged: _onDestinoChanged,
-                                        ),
-                                      ),
-
-                                      // ✅ 2) Loader debajo
-                                      if (_loadingPreds)
-                                        Padding(
-                                          padding: EdgeInsets.only(top: 8.r),
-                                          child: const SizedBox(
-                                            height: 18,
-                                            width: 18,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                        ),
-
-                                      // ✅ 3) Lista debajo (YA con espacio)
-                                      if (_predictions.isNotEmpty)
-                                        Container(
-                                          margin: EdgeInsets.only(top: 8.r),
-                                          height: 220.r,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: grisMedio),
-                                          ),
-                                          child: ListView.separated(
-                                            itemCount: _predictions.length,
-                                            separatorBuilder: (_, __) => const Divider(height: 1),
-                                            itemBuilder: (_, i) {
-                                              final p = _predictions[i];
-                                              return ListTile(
-                                                dense: true,
-                                                title: Text(
-                                                  p['description']!,
-                                                  style: TextStyle(fontSize: 12.r),
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                                onTap: () => _selectPrediction(
-                                                  placeId: p['placeId']!,
-                                                  description: p['description']!,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // CERRAR
-          Container(
-            margin: EdgeInsets.only(top: 10.r, bottom: 10.r, right: 15.r),
-            alignment: Alignment.topRight,
-            child: GestureDetector(
-              onTap: () => _cerrarBottomSheet(context),
-              child: Container(
-                margin: EdgeInsets.only(top: 15.r, right: 10.r),
-                width: 80.r,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+              Container(
+                margin: EdgeInsets.only(top: 10.r, bottom: 10.r, right: 15.r),
+                alignment: Alignment.topRight,
+                child: GestureDetector(
+                  onTap: _pickingPlace ? null : () => _cerrarBottomSheet(context),
+                  child: Container(
+                    margin: EdgeInsets.only(top: 15.r, right: 10.r),
+                    width: 80.r,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Icon(Icons.cancel_rounded, size: 20.r),
+                        const Text(
+                          'Cerrar',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ✅ OVERLAY de carga al seleccionar un lugar (bloquea interacción)
+        if (_pickingPlace)
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withOpacity(0.65),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cancel_rounded, size: 20.r),
-                    const Text(
-                      'Cerrar',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    const CircularProgressIndicator(),
+                    SizedBox(height: 10.r),
+                    Text(
+                      'Cargando destino…',
+                      style: TextStyle(
+                        fontSize: 13.r,
+                        fontWeight: FontWeight.w700,
+                        color: negroLetras,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
+
+
 
   Future<void> _selectPrediction({
     required String placeId,
     required String description,
   }) async {
-    // 🔒 evita doble tap
     if (_navigatingAfterPick) return;
     _navigatingAfterPick = true;
 
+    if (mounted) {
+      setState(() => _pickingPlace = true);
+    }
+    _safeSheetRepaint();
+
     try {
-      // 1) Trae details (mientras el bottomsheet sigue abierto)
       final res = await _functions.httpsCallable('placeDetails').call({
         'placeId': placeId,
       });
 
       final data = Map<String, dynamic>.from(res.data);
-      if (data['ok'] != true) return;
 
-      final address = (data['formattedAddress'] ?? description).toString();
+      // ✅ si backend responde que no está ok, avisamos y salimos
+      if (data['ok'] != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No pude obtener la ubicación. Intenta de nuevo.')),
+          );
+        }
+        return;
+      }
+
       final lat = (data['lat'] as num).toDouble();
       final lng = (data['lng'] as num).toDouble();
       final latLng = LatLng(lat, lng);
 
+      final split = _splitNameAndAddress(description);
+      final title = split['title']!;
+      final subtitle = split['subtitle']!;
+
       if (!mounted) return;
 
-      // 2) Actualiza estado
+      // ✅ Actualiza UI + controller con lo que el usuario vio (description)
       setState(() {
-        _textController.text = address;
-        _controller.to = address;
+        _textController.text = description;
+        _controller.to = description;
         _controller.tolatlng = latLng;
         _predictions = [];
         _loadingPreds = false;
       });
 
-      await _guardarEnHistorial(address);
+      // ✅ Guarda historial con title/subtitle + lat/lng
+      await _guardarEnHistorialItem(
+        SearchHistoryItem(
+          placeId: placeId,
+          title: title,
+          subtitle: subtitle,
+          lat: latLng.latitude,
+          lng: latLng.longitude,
+        ),
+      );
 
-      // 3) ✅ AHORA sí cerramos el bottomsheet
-      // (usa rootNavigator true para asegurarte de cerrar el sheet aunque estés dentro del builder)
+      if (!mounted) return;
+
+      // ✅ Cierra el bottomsheet
       Navigator.of(context, rootNavigator: true).pop();
 
-      // 4) ✅ Dispara tu flujo normal
-      // (si requestDriver navega, ya no verás el mapa “solo” porque el pop y el request van pegados)
+      // ✅ Navega al flujo normal
       _controller.requestDriver();
     } catch (e) {
       if (kDebugMode) print('selectPrediction error: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hubo un error cargando el destino.')),
+        );
+      }
     } finally {
+      // ✅ siempre apagar loader + desbloquear taps
+      if (mounted) setState(() => _pickingPlace = false);
+      _safeSheetRepaint();
       _navigatingAfterPick = false;
     }
   }
+
 
 
   Future<void> _onDestinoChanged(String value) async {
@@ -1332,99 +1373,163 @@ class _MapClientPageState extends State<MapClientPage> {
   Widget _vistaHistorialBusquedas() {
     return Expanded(
       child: Container(
-        margin: EdgeInsets.only(bottom: 15.r, top: 10.r),
-        child: searchHistory.isEmpty
-            ? Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: EdgeInsets.only(bottom: 20.r), // Ajusta el padding según sea necesario
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.history, size: 60.r, color: negroLetras), // Icono para indicar que no hay historial
-                SizedBox(height: 10.r),
-                Text(
-                  "Aún no tienes un historial de viajes recientes.",
-                  style: TextStyle(fontSize: 14.r, color: negro),
-                ),
-              ],
-            ),
-          ),
-        )
-            : SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: searchHistory
-                .map((historyItem) => GestureDetector(
-              onTap: () async {
-                String selectedAddress = historyItem;
-                CustomLoadingDialog.show(context); // Mostrar el diálogo de carga
-                _textController.text = historyItem;
-                LatLng? selectedLatLng = await getLatLngFromAddress(selectedAddress);
-
-                if (selectedLatLng != null) {
-                  setState(() {
-                    _controller.to = selectedAddress;
-                    _controller.tolatlng = selectedLatLng;
-                  });
-                  if(context.mounted){
-                    CustomLoadingDialog.hide(context);
-                  }
-                  _controller.requestDriver();
-                }
-              },
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 6.r, horizontal: 6.r),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.history, color: negroLetras, size: 16,),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        historyItem,
-                        style: TextStyle(color: negro, fontSize: 10.r, fontWeight: FontWeight.w500),
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ))
-                .toList(),
-          ),
-        ),
+        margin: EdgeInsets.only(bottom: 15.r),
+        child: !_historyLoaded
+            ? const SizedBox.shrink() // ✅ mientras carga, no muestres nada (sin “flash”)
+            : (searchHistory.isEmpty
+            ? _estadoSinHistorial()
+            : SingleChildScrollView(child: _listaHistorial())),
       ),
     );
   }
 
-  Future<void> _guardarEnHistorial(String searchTerm) async {
-    if (!searchHistory.contains(searchTerm)) {
-      // Limitar la cantidad de elementos en el historial a 3
-      if (searchHistory.length >= 3) {
-        setState(() {
-          // Invertir el orden de la lista antes de agregar la búsqueda
-          searchHistory = [searchTerm, ...searchHistory.sublist(0, 2)];
-        });
-      } else {
-        setState(() {
-          // Agregar la búsqueda al principio de la lista
-          searchHistory.insert(0, searchTerm);
-        });
-      }
-      // Obtener las coordenadas de la dirección seleccionada
-      List<Location> locations = await locationFromAddress(searchTerm);
-      if (locations.isNotEmpty) {
-        setState(() {
-          _controller.tolatlng = LatLng(locations[0].latitude, locations[0].longitude);
-          _controller.to = searchTerm;  // Asegúrate de actualizar también la dirección
-          refresh();
-        });
-      }
-      onSelectAddress(searchTerm); // Llamar a onSelectAddress con la nueva búsqueda
-    }
+
+  Widget _estadoSinHistorial() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            size: 50.r,
+            color: gris,
+          ),
+          SizedBox(height: 10.r),
+          Text(
+            "Aún no tienes un\nhistorial de viajes recientes.",
+            style: TextStyle(
+              fontSize: 14.r,
+              color: gris,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
+
+  Map<String, String> _splitNameAndAddress(String description) {
+    final parts = description.split(',');
+    final title = parts.isNotEmpty ? parts.first.trim() : description.trim();
+    final subtitle = parts.length > 1 ? parts.sublist(1).join(',').trim() : '';
+    return {'title': title, 'subtitle': subtitle};
+  }
+
+
+
+
+  Widget _listaHistorial() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(left: 10.r, bottom: 18.r),
+          child: Text(
+            'Tus últimas búsquedas',
+            style: TextStyle(
+              fontSize: 12.r,
+              fontWeight: FontWeight.w900,
+              color: negroLetras,
+            ),
+          ),
+        ),
+
+        ...searchHistory.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+
+          return Column(
+            children: [
+              GestureDetector(
+                onTap: () async {
+                  final hasConnection = await connectionService.hasInternetConnection();
+                  if (!hasConnection) {
+                    alertSinInternet();
+                    return;
+                  }
+
+                  // ✅ ya NO geocodificamos, usamos lat/lng guardados
+                  final latLng = LatLng(item.lat, item.lng);
+
+                  setState(() {
+                    _controller.to = item.subtitle.isNotEmpty
+                        ? '${item.title}, ${item.subtitle}'
+                        : item.title;
+                    _controller.tolatlng = latLng;
+                  });
+
+                  _controller.requestDriver();
+                },
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 3.r, horizontal: 6.r),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Colors.green),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: RichText(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: item.title,
+                                style: TextStyle(
+                                  fontSize: 11.r,
+                                  fontWeight: FontWeight.w900, // ✅ negrilla SOLO nombre
+                                  color: negro,
+                                ),
+                              ),
+                              if (item.subtitle.isNotEmpty)
+                                TextSpan(
+                                  text: ', ${item.subtitle}',
+                                  style: TextStyle(
+                                    fontSize: 11.r,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              if (index != searchHistory.length - 1)
+                const Divider(color: grisMedio),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+
+  Future<void> _guardarEnHistorialItem(SearchHistoryItem item) async {
+    // Evitar duplicados por placeId (si viene)
+    final exists = item.placeId.isNotEmpty
+        ? searchHistory.any((e) => e.placeId == item.placeId)
+        : searchHistory.any((e) => e.title == item.title && e.subtitle == item.subtitle);
+
+    if (exists) return;
+
+    setState(() {
+      // Insertar primero
+      searchHistory.insert(0, item);
+
+      // Limitar a 3
+      if (searchHistory.length > 3) {
+        searchHistory = searchHistory.take(3).toList();
+      }
+    });
+
+    await _saveSearchHistory();
+  }
+
 
   void onSelectAddress(String address) async{
     // Obtener las coordenadas (LatLng) correspondientes a la dirección seleccionada
@@ -1458,14 +1563,83 @@ class _MapClientPageState extends State<MapClientPage> {
 
   Future<void> _loadSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // 👇 leemos el valor en bruto (puede ser String o List<String>)
+    final rawAny = prefs.get('search_history_v2');
+
+    List<SearchHistoryItem> items = [];
+
+    try {
+      if (rawAny is String && rawAny.isNotEmpty) {
+        final decoded = jsonDecode(rawAny) as List<dynamic>;
+        items = decoded
+            .map((e) => SearchHistoryItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      } else if (rawAny is List) {
+        // 🚨 Esto es el formato viejo/incorrecto que te está rompiendo.
+        // Lo borramos para que ya no vuelva a dar rojo.
+        await prefs.remove('search_history_v2');
+        items = [];
+      } else {
+        items = [];
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error cargando historial v2: $e');
+      await prefs.remove('search_history_v2'); // limpia por si quedó corrupto
+      items = [];
+    }
+
+    // ✅ Opcional: borra también el historial viejo para evitar mezclas
+    await prefs.remove('search_history');
+
+    if (!mounted) return;
     setState(() {
-      searchHistory = prefs.getStringList('search_history') ?? [];
+      searchHistory = items;
+      _historyLoaded = true;
     });
   }
 
+
   Future<void> _saveSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('search_history', searchHistory);
+    final jsonList = searchHistory.map((e) => e.toJson()).toList();
+    await prefs.setString('search_history_v2', jsonEncode(jsonList));
   }
 
+
 }
+
+class SearchHistoryItem {
+  final String placeId;
+  final String title;      // nombre (negrilla)
+  final String subtitle;   // dirección (gris)
+  final double lat;
+  final double lng;
+
+  SearchHistoryItem({
+    required this.placeId,
+    required this.title,
+    required this.subtitle,
+    required this.lat,
+    required this.lng,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'placeId': placeId,
+    'title': title,
+    'subtitle': subtitle,
+    'lat': lat,
+    'lng': lng,
+  };
+
+  factory SearchHistoryItem.fromJson(Map<String, dynamic> json) {
+    return SearchHistoryItem(
+      placeId: (json['placeId'] ?? '').toString(),
+      title: (json['title'] ?? '').toString(),
+      subtitle: (json['subtitle'] ?? '').toString(),
+      lat: (json['lat'] as num).toDouble(),
+      lng: (json['lng'] as num).toDouble(),
+    );
+  }
+}
+

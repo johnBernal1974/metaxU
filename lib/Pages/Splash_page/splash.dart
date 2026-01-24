@@ -148,28 +148,31 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
           // 👇 Texto en la esquina inferior derecha
           const Positioned(
-            bottom: 26,
-            right: 26,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'En alianza con',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black54,
+            bottom: 28, // ⬆️ sube 2 px (antes 26)
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Column(
+                children: [
+                  Text(
+                    'En alianza con',
+                    style: TextStyle(
+                      fontSize: 13, // ⬆️ +2 px
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black54,
+                    ),
                   ),
-                ),
-                Text(
-                  'ASPRO',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
+                  SizedBox(height: 2),
+                  Text(
+                    'ASPROVESPULMETA',
+                    style: TextStyle(
+                      fontSize: 15, // ⬆️ +2 px
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

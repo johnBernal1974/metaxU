@@ -310,40 +310,6 @@ class TravelInfoController{
   }
 
 
-  // void getGoogleMapsDirections(LatLng from, LatLng to) async {
-  //   _directions = await _googleProvider.getGoogleMapsDirections(
-  //     from.latitude,
-  //     from.longitude,
-  //     to.latitude,
-  //     to.longitude,
-  //   );
-  //
-  //   // Verifica que las direcciones se hayan recibido correctamente
-  //   String fromCity = extractCity(_directions.startAddress) ?? 'Ciudad de Origen Desconocida';
-  //   String toCity = extractCity(_directions.endAddress) ?? 'Ciudad de Destino Desconocida';
-  //   if (kDebugMode) {
-  //     print('Ciudad de Origen: $fromCity');
-  //   }
-  //   if (kDebugMode) {
-  //     print('Ciudad de Destino: $toCity');
-  //   }
-  //   // Actualiza las variables de distancia y duración
-  //   distancia = _directions.distance?.value ?? 0;
-  //   distanciaString = _directions.distance?.text ?? '';
-  //   duracion = _directions.duration?.value ?? 0;
-  //   tiempoEnMinutos = duracion / 60;
-  //   duracionString = _directions.duration?.text ?? '';
-  //   // Formatea y actualiza las variables para la duración y la distancia
-  //   min = formatDuration(_directions.duration?.text ?? '');
-  //   km = _directions.distance?.text ?? '';
-  //   // Llama a los métodos para calcular el precio, obtener el radio de búsqueda y el rol del usuario
-  //   calcularPrecio();
-  //   obtenerRadiodeBusqueda();
-  //
-  //   setPolylines();
-  //   } comentado cambio api backend
-
-
   Future<void> getGoogleMapsDirections(LatLng from, LatLng to) async {
     try {
       final res = await _functions.httpsCallable('getDirections').call({
@@ -392,57 +358,6 @@ class TravelInfoController{
     }
   }
 
-
-
-  // Future<void> setPolylines() async {
-  //   clearMap(); // Limpia el mapa antes de establecer nuevas rutas y marcadores
-  //
-  //   PointLatLng pointFromLatlng = PointLatLng(fromLatlng.latitude, fromLatlng.longitude);
-  //   PointLatLng pointToLatlng = PointLatLng(toLatlng.latitude, toLatlng.longitude);
-  //
-  //   // Obtenemos la ruta entre los puntos
-  //   PolylineResult result = await PolylinePoints().getRouteBetweenCoordinates(
-  //     _yourGoogleAPIKey,
-  //     pointFromLatlng,
-  //     pointToLatlng,
-  //   );
-  //
-  //   if (result.points.isNotEmpty) {
-  //     // Limpia la lista de puntos para la nueva ruta
-  //     points.clear();
-  //
-  //     // Agrega los puntos obtenidos de la API
-  //     for (PointLatLng point in result.points) {
-  //       points.add(LatLng(point.latitude, point.longitude));
-  //     }
-  //
-  //     // Limpiar las polilíneas anteriores
-  //     polylines.clear();
-  //
-  //     // Crear la nueva polyline
-  //     Polyline polyline = Polyline(
-  //       polylineId: const PolylineId('route'),
-  //       color: Colors.black, // Asegúrate de definir el color correctamente
-  //       points: points,
-  //       width: 5,
-  //     );
-  //
-  //     // Añadir la nueva polyline a la lista de polilíneas
-  //     polylines.add(polyline);
-  //
-  //     // Añadir los marcadores de origen y destino
-  //     addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
-  //     addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
-  //
-  //     // Llama a refresh para actualizar la vista
-  //     refresh();
-  //   } else {
-  //     if (kDebugMode) {
-  //       print("No se encontraron puntos de ruta entre los puntos especificados.");
-  //     }
-  //   }
-  // } comentado metodo cambiado por otro
-
   Future<void> setPolylinesFromEncoded(String encodedPolyline) async {
     clearMap();
 
@@ -470,69 +385,151 @@ class TravelInfoController{
 
 
 
+  // void calcularPrecio() async {
+  //   try {
+  //     // Obtener precios desde el proveedor
+  //     Price price = await _pricesProvider.getAll();
+  //     double? valorKilometro;
+  //     double? valorMinuto;
+  //
+  //     // Validar y calcular el costo por kilómetros
+  //     if (km != null) {
+  //       // Extraer y convertir la distancia en kilómetros
+  //       double distanciaKm = double.parse(km!.split(" ")[0].replaceAll(',', ''));
+  //
+  //       // Cálculo base del costo por kilómetros
+  //       valorKilometro = distanciaKm * price.theValorKmRegular.toDouble();
+  //
+  //       // Aplicar incrementos según la distancia
+  //       if (distanciaKm > 100) {
+  //         valorKilometro *= 2.00; // Incremento del 100%
+  //       } else if (distanciaKm > 80) {
+  //         valorKilometro *= 1.80; // Incremento del 80%
+  //       } else if (distanciaKm > 50) {
+  //         valorKilometro *= 1.50; // Incremento del 50%
+  //       } else if (distanciaKm > 40) {
+  //         valorKilometro *= 1.40; // Incremento del 40%
+  //       } else if (distanciaKm > 30) {
+  //         valorKilometro *= 1.30; // Incremento del 30%
+  //       } else if (distanciaKm > 20) {
+  //         valorKilometro *= 1.20; // Incremento del 20%
+  //       }
+  //     } else {
+  //       valorKilometro = 0.0; // Si no hay kilómetros, asignar 0
+  //     }
+  //
+  //     // Validar y calcular el costo por minutos
+  //     if (min != null) {
+  //       double minutos = double.parse(min!.split(" ")[0].replaceAll(',', ''));
+  //       valorMinuto = minutos * price.theValorMinRegular.toDouble();
+  //     } else {
+  //       valorMinuto = 0.0; // Si no hay minutos, asignar 0
+  //     }
+  //
+  //     // Verificar que ambos valores no sean nulos antes de sumar
+  //     if (valorKilometro != null && valorMinuto != null) {
+  //       // Cálculo del total con dinámica
+  //       total = (valorMinuto + valorKilometro) * price.theDinamica.toDouble();
+  //
+  //       // Redondear a la centena más cercana
+  //       total = redondearACentena(total);
+  //
+  //       // Obtener la tarifa mínima según el rol
+  //       double tarifaMinima = price.theTarifaMinimaRegular.toDouble();
+  //
+  //       // Asegurar que el total no sea menor a la tarifa mínima
+  //       total = total?.clamp(tarifaMinima, double.infinity);
+  //
+  //       // Convertir el total a entero para su representación
+  //       totalInt = total?.toInt();
+  //
+  //       // Actualizar la interfaz
+  //       refresh();
+  //     } else {
+  //       throw Exception('Valores de cálculo no válidos');
+  //     }
+  //   } catch (e) {
+  //     if (kDebugMode) {
+  //       print('Error al calcular el precio: $e');
+  //     }
+  //   }
+  // }comentado prueba tarifaspor roll
+
+
   void calcularPrecio() async {
     try {
-      // Obtener precios desde el proveedor
-      Price price = await _pricesProvider.getAll();
-      double? valorKilometro;
-      double? valorMinuto;
+      final Price price = await _pricesProvider.getAll();
 
-      // Validar y calcular el costo por kilómetros
+      // ✅ Rol del usuario (por defecto regular)
+      final rol = (client?.the20Rol ?? 'regular').toLowerCase().trim();
+
+      // ✅ Valores según rol
+      final double valorKm = (rol == 'hotel')
+          ? price.theValorKmHotel
+          : (rol == 'turismo')
+          ? price.theValorKmTurismo
+          : price.theValorKmRegular;
+
+      final double valorMin = (rol == 'hotel')
+          ? price.theValorMinHotel
+          : (rol == 'turismo')
+          ? price.theValorMinTurismo
+          : price.theValorMinRegular;
+
+      final double tarifaMinima = (rol == 'hotel')
+          ? price.theTarifaMinimaHotel.toDouble()
+          : (rol == 'turismo')
+          ? price.theTarifaMinimaTurismo.toDouble()
+          : price.theTarifaMinimaRegular.toDouble();
+
+      // ✅ Declara estas variables (antes no estaban y por eso fallaba)
+      double valorKilometro = 0.0;
+      double valorMinuto = 0.0;
+
+      // --------- KM ---------
       if (km != null) {
-        // Extraer y convertir la distancia en kilómetros
-        double distanciaKm = double.parse(km!.split(" ")[0].replaceAll(',', ''));
+        final double distanciaKm =
+        double.parse(km!.split(" ")[0].replaceAll(',', ''));
 
-        // Cálculo base del costo por kilómetros
-        valorKilometro = distanciaKm * price.theValorKmRegular.toDouble();
+        // 👇 aquí usas el valorKm del rol (NO el regular)
+        valorKilometro = distanciaKm * valorKm;
 
-        // Aplicar incrementos según la distancia
+        // Incrementos según distancia (se aplican igual)
         if (distanciaKm > 100) {
-          valorKilometro *= 2.00; // Incremento del 100%
+          valorKilometro *= 2.00;
         } else if (distanciaKm > 80) {
-          valorKilometro *= 1.80; // Incremento del 80%
+          valorKilometro *= 1.80;
         } else if (distanciaKm > 50) {
-          valorKilometro *= 1.50; // Incremento del 50%
+          valorKilometro *= 1.50;
         } else if (distanciaKm > 40) {
-          valorKilometro *= 1.40; // Incremento del 40%
+          valorKilometro *= 1.40;
         } else if (distanciaKm > 30) {
-          valorKilometro *= 1.30; // Incremento del 30%
+          valorKilometro *= 1.30;
         } else if (distanciaKm > 20) {
-          valorKilometro *= 1.20; // Incremento del 20%
+          valorKilometro *= 1.20;
         }
-      } else {
-        valorKilometro = 0.0; // Si no hay kilómetros, asignar 0
       }
 
-      // Validar y calcular el costo por minutos
+      // --------- MIN ---------
       if (min != null) {
-        double minutos = double.parse(min!.split(" ")[0].replaceAll(',', ''));
-        valorMinuto = minutos * price.theValorMinRegular.toDouble();
-      } else {
-        valorMinuto = 0.0; // Si no hay minutos, asignar 0
+        final double minutos =
+        double.parse(min!.split(" ")[0].replaceAll(',', ''));
+
+        // 👇 aquí usas el valorMin del rol (NO el regular)
+        valorMinuto = minutos * valorMin;
       }
 
-      // Verificar que ambos valores no sean nulos antes de sumar
-      if (valorKilometro != null && valorMinuto != null) {
-        // Cálculo del total con dinámica
-        total = (valorMinuto + valorKilometro) * price.theDinamica.toDouble();
+      // ✅ Total con dinámica
+      total = (valorMinuto + valorKilometro) * price.theDinamica;
 
-        // Redondear a la centena más cercana
-        total = redondearACentena(total);
+      // ✅ Redondeo
+      total = redondearACentena(total);
 
-        // Obtener la tarifa mínima según el rol
-        double tarifaMinima = price.theTarifaMinimaRegular.toDouble();
+      // ✅ Mínima según rol (NO redeclarar)
+      total = total?.clamp(tarifaMinima, double.infinity);
 
-        // Asegurar que el total no sea menor a la tarifa mínima
-        total = total?.clamp(tarifaMinima, double.infinity);
-
-        // Convertir el total a entero para su representación
-        totalInt = total?.toInt();
-
-        // Actualizar la interfaz
-        refresh();
-      } else {
-        throw Exception('Valores de cálculo no válidos');
-      }
+      totalInt = total?.toInt();
+      refresh();
     } catch (e) {
       if (kDebugMode) {
         print('Error al calcular el precio: $e');
@@ -541,6 +538,44 @@ class TravelInfoController{
   }
 
 
+  // new para ajustar roles y tarifas del rol del usuario
+
+  String _rolUsuario() {
+    return (client?.the20Rol ?? 'regular').toLowerCase();
+  }
+
+  double _valorKmPorRol(Price price) {
+    switch (_rolUsuario()) {
+      case 'hotel':
+        return price.theValorKmHotel;
+      case 'turismo':
+        return price.theValorKmTurismo;
+      default:
+        return price.theValorKmRegular;
+    }
+  }
+
+  double _valorMinPorRol(Price price) {
+    switch (_rolUsuario()) {
+      case 'hotel':
+        return price.theValorMinHotel;
+      case 'turismo':
+        return price.theValorMinTurismo;
+      default:
+        return price.theValorMinRegular;
+    }
+  }
+
+  double _tarifaMinimaPorRol(Price price) {
+    switch (_rolUsuario()) {
+      case 'hotel':
+        return price.theTarifaMinimaHotel.toDouble();
+      case 'turismo':
+        return price.theTarifaMinimaTurismo.toDouble();
+      default:
+        return price.theTarifaMinimaRegular.toDouble();
+    }
+  }
 
   void obtenerRadiodeBusqueda() async {
     try {

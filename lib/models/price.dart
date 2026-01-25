@@ -19,9 +19,20 @@ class Price {
   double theRadioDeBusqueda;
   int theTarifaAeropuerto;
   int theTarifaMinimaRegular;
+  //nuevas
+  int theTarifaMinimaHotel;
+  int theTarifaMinimaTurismo;
+
   int theTiempoDeBloqueo;
   double theValorKmRegular;
   double theValorMinRegular;
+
+  double theValorKmHotel;
+  double theValorMinHotel;
+
+  double theValorKmTurismo;
+  double theValorMinTurismo;
+
   double theDinamica;
   String theLinkDescargaClient;
   String theLinkDescargaDriver;
@@ -39,9 +50,15 @@ class Price {
     required this.theRadioDeBusqueda,
     required this.theTarifaAeropuerto,
     required this.theTarifaMinimaRegular,
+    required this.theTarifaMinimaHotel,
+    required this.theTarifaMinimaTurismo,
     required this.theTiempoDeBloqueo,
     required this.theValorKmRegular,
     required this.theValorMinRegular,
+    required this.theValorKmHotel,
+    required this.theValorMinHotel,
+    required this.theValorKmTurismo,
+    required this.theValorMinTurismo,
     required this.theDinamica,
     required this.theLinkDescargaClient,
     required this.theLinkDescargaDriver,
@@ -60,9 +77,20 @@ class Price {
     theRadioDeBusqueda: json["radio_de_busqueda"]?.toDouble() ?? 0.0,
     theTarifaAeropuerto: json["tarifa_aeropuerto"]  ?? '',
     theTarifaMinimaRegular: json["tarifa_minima_regular"]?? '',
+    theTarifaMinimaHotel: json["tarifa_minima_hotel"]?? '',
+    theTarifaMinimaTurismo: json["tarifa_minima_turismo"]?? '',
     theTiempoDeBloqueo: json["tiempo_de_bloqueo"]  ?? '',
-    theValorKmRegular: json["valor_km_regular"]?.toDouble() ?? 0.0,
-    theValorMinRegular: json["valor_min_regular"]?.toDouble() ?? 0.0,
+
+    theValorKmRegular: (json["valor_km_regular"] ?? 0).toDouble(),
+    theValorMinRegular: (json["valor_min_regular"] ?? 0).toDouble(),
+
+    theValorKmHotel: (json["valor_km_hotel"] ?? 0).toDouble(),
+    theValorMinHotel: (json["valor_min_hotel"] ?? 0).toDouble(),
+
+    theValorKmTurismo: (json["valor_km_turismo"] ?? 0).toDouble(),
+    theValorMinTurismo: (json["valor_min_turismo"] ?? 0).toDouble(),
+
+
     theDinamica: json["dinamica"]?.toDouble() ?? 0.0,
     theLinkDescargaClient: json["link_descarga_client"]?? '',
     theLinkDescargaDriver: json["link_descarga_driver"]?? '',
@@ -80,9 +108,18 @@ class Price {
     "radio_de_busqueda": theRadioDeBusqueda,
     "tarifa_aeropuerto": theTarifaAeropuerto,
     "tarifa_minima_regular": theTarifaMinimaRegular,
+    "tarifa_minima_hotel": theTarifaMinimaHotel,
+    "tarifa_minima_turismo": theTarifaMinimaTurismo,
     "tiempo_de_bloqueo": theTiempoDeBloqueo,
     "valor_km_regular": theValorKmRegular,
     "valor_min_regular": theValorMinRegular,
+
+    "valor_km_hotel": theValorKmHotel,
+    "valor_min_hotel": theValorMinHotel,
+
+    "valor_km_turismo": theValorKmTurismo,
+    "valor_min_turismo": theValorMinTurismo,
+
     "dinamica": theDinamica,
     "link_descarga_client": theLinkDescargaClient,
     "link_descarga_driver": theLinkDescargaDriver,

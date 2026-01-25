@@ -412,7 +412,7 @@ class _RegisterPageState extends State<RegisterPage> {
             the17Bono: 0,
             the18Calificacion: 0,
             the19Viajes: 0,
-            the20Rol: "basico",
+            the20Rol: "regular",
             the21FechaDeRegistro: DateHelpers.getStartDate(),
             token: "",
             image: "",

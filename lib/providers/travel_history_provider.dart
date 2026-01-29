@@ -77,7 +77,7 @@ class TravelHistoryProvider{
       Driver? driver =  await driverProvider.getById(travelHistory.idDriver);
       travelHistory.nameDriver = driver?.the01Nombres ?? '';
       travelHistory.apellidosDriver = driver?.the02Apellidos ?? '';
-      travelHistory.placa = driver?.the18Placa ?? '';
+      travelHistory.placaShow = driver?.the18Placa ?? '';
     }
 
     return travelHistoryList;

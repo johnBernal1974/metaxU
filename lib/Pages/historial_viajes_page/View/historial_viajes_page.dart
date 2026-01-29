@@ -98,7 +98,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                     snapshot.data![index].to,
                     snapshot.data![index].nameDriver,
                     snapshot.data![index].apellidosDriver,
-                    snapshot.data![index].placa,
+                    snapshot.data![index].placaShow,
                     fechaFormateada,
                     snapshot.data![index].tarifa,
                     snapshot.data![index].id,

@@ -15,7 +15,8 @@ class TravelHistory {
   String to;
   String nameDriver;
   String apellidosDriver;
-  String placa;
+  String placaShow;
+  String placaNorm;
   Timestamp? solicitudViaje;
   Timestamp? inicioViaje;
   Timestamp? finalViaje;
@@ -33,7 +34,8 @@ class TravelHistory {
     required this.to,
     required this.nameDriver,
     required this.apellidosDriver,
-    required this.placa,
+    required this.placaShow,
+    required this.placaNorm,
     required this.solicitudViaje,
     required this.inicioViaje,
     required this.finalViaje,
@@ -45,23 +47,32 @@ class TravelHistory {
   });
 
   factory TravelHistory.fromJson(Map<String, dynamic> json) => TravelHistory(
-    id: json["id"],
-    idClient: json["idClient"],
-    idDriver: json["idDriver"],
-    from: json["from"],
-    to: json["to"],
-    nameDriver: json["nameDriver"],
-    apellidosDriver: json["apellidosDriver"],
-    placa: json["placa"],
-    solicitudViaje: json["solicitudViaje"],
-    inicioViaje: json["inicioViaje"],
-    finalViaje: json["finalViaje"],
-    tarifa: json["tarifa"]?.toDouble(),
-    tarifaDescuento: json["tarifaDescuento"]?.toDouble() ?? 0,
-    tarifaInicial: json["tarifaInicial"]?.toDouble() ?? 0,
-    calificacionAlConductor: json["calificacionAlConductor"]?.toDouble() ?? 0,
-    calificacionAlCliente: json["calificacionAlCliente"]?.toDouble() ?? 0,
+    id: (json["id"] ?? "") as String,
+    idClient: (json["idClient"] ?? "") as String,
+    idDriver: (json["idDriver"] ?? "") as String,
+    from: (json["from"] ?? "") as String,
+    to: (json["to"] ?? "") as String,
+
+    // ✅ estos dos eran los null
+    nameDriver: (json["nameDriver"] ?? "") as String,
+    apellidosDriver: (json["apellidosDriver"] ?? "") as String,
+
+    placaShow: (json["placaShow"] ?? json["placa"] ?? "") as String,
+    placaNorm: (json["placaNorm"] ??
+        ((json["placaShow"] ?? json["placa"] ?? "") as String)
+            .replaceAll("-", "")) as String,
+
+    solicitudViaje: json["solicitudViaje"] as Timestamp?,
+    inicioViaje: json["inicioViaje"] as Timestamp?,
+    finalViaje: json["finalViaje"] as Timestamp?,
+
+    tarifa: (json["tarifa"] ?? 0).toDouble(),
+    tarifaDescuento: (json["tarifaDescuento"] ?? 0).toDouble(),
+    tarifaInicial: (json["tarifaInicial"] ?? 0).toDouble(),
+    calificacionAlConductor: (json["calificacionAlConductor"] ?? 0).toDouble(),
+    calificacionAlCliente: (json["calificacionAlCliente"] ?? 0).toDouble(),
   );
+
 
   Map<String, dynamic> toJson() => {
     "id": id,
@@ -69,9 +80,10 @@ class TravelHistory {
     "idDriver": idDriver,
     "from": from,
     "to": to,
-    "nameDriver": nameDriver,
-    "apellidosDriver": apellidosDriver,
-    "placa": placa,
+    // "nameDriver": nameDriver,
+    // "apellidosDriver": apellidosDriver,
+    "placaShow": placaShow,
+    "placaNorm": placaNorm,
     "solicitudViaje": solicitudViaje,
     "inicioViaje": inicioViaje,
     "finalViaje": finalViaje,

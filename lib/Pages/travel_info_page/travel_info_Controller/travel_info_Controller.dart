@@ -80,6 +80,17 @@ class TravelInfoController{
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
 
+  // ✅ listo solo si ya hay ruta y tarifa
+  bool get canConfirmTrip {
+    final hasRoute = (points.length > 1) || polylines.isNotEmpty;
+    final hasFare = (total != null) && (total! > 0);
+    return hasRoute && hasFare;
+  }
+
+  bool get isCalculatingTrip => !canConfirmTrip;
+
+
+
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -382,79 +393,6 @@ class TravelInfoController{
 
     refresh();
   }
-
-
-
-  // void calcularPrecio() async {
-  //   try {
-  //     // Obtener precios desde el proveedor
-  //     Price price = await _pricesProvider.getAll();
-  //     double? valorKilometro;
-  //     double? valorMinuto;
-  //
-  //     // Validar y calcular el costo por kilómetros
-  //     if (km != null) {
-  //       // Extraer y convertir la distancia en kilómetros
-  //       double distanciaKm = double.parse(km!.split(" ")[0].replaceAll(',', ''));
-  //
-  //       // Cálculo base del costo por kilómetros
-  //       valorKilometro = distanciaKm * price.theValorKmRegular.toDouble();
-  //
-  //       // Aplicar incrementos según la distancia
-  //       if (distanciaKm > 100) {
-  //         valorKilometro *= 2.00; // Incremento del 100%
-  //       } else if (distanciaKm > 80) {
-  //         valorKilometro *= 1.80; // Incremento del 80%
-  //       } else if (distanciaKm > 50) {
-  //         valorKilometro *= 1.50; // Incremento del 50%
-  //       } else if (distanciaKm > 40) {
-  //         valorKilometro *= 1.40; // Incremento del 40%
-  //       } else if (distanciaKm > 30) {
-  //         valorKilometro *= 1.30; // Incremento del 30%
-  //       } else if (distanciaKm > 20) {
-  //         valorKilometro *= 1.20; // Incremento del 20%
-  //       }
-  //     } else {
-  //       valorKilometro = 0.0; // Si no hay kilómetros, asignar 0
-  //     }
-  //
-  //     // Validar y calcular el costo por minutos
-  //     if (min != null) {
-  //       double minutos = double.parse(min!.split(" ")[0].replaceAll(',', ''));
-  //       valorMinuto = minutos * price.theValorMinRegular.toDouble();
-  //     } else {
-  //       valorMinuto = 0.0; // Si no hay minutos, asignar 0
-  //     }
-  //
-  //     // Verificar que ambos valores no sean nulos antes de sumar
-  //     if (valorKilometro != null && valorMinuto != null) {
-  //       // Cálculo del total con dinámica
-  //       total = (valorMinuto + valorKilometro) * price.theDinamica.toDouble();
-  //
-  //       // Redondear a la centena más cercana
-  //       total = redondearACentena(total);
-  //
-  //       // Obtener la tarifa mínima según el rol
-  //       double tarifaMinima = price.theTarifaMinimaRegular.toDouble();
-  //
-  //       // Asegurar que el total no sea menor a la tarifa mínima
-  //       total = total?.clamp(tarifaMinima, double.infinity);
-  //
-  //       // Convertir el total a entero para su representación
-  //       totalInt = total?.toInt();
-  //
-  //       // Actualizar la interfaz
-  //       refresh();
-  //     } else {
-  //       throw Exception('Valores de cálculo no válidos');
-  //     }
-  //   } catch (e) {
-  //     if (kDebugMode) {
-  //       print('Error al calcular el precio: $e');
-  //     }
-  //   }
-  // }comentado prueba tarifaspor roll
-
 
   void calcularPrecio() async {
     try {

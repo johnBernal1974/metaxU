@@ -312,25 +312,64 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             width: double.infinity,
             height: 40.r,
             margin: EdgeInsets.only(left: 25.r, right: 25.r, bottom: 30.r),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1EBE71)),
-              onPressed: () async {
-                bool hasConnection = await connectionService.hasInternetConnection();
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1EBE71),
+                disabledBackgroundColor:
+                const Color(0xFF1EBE71).withOpacity(0.4),
+              ),
+              onPressed: _controller.canConfirmTrip
+                  ? () async {
+                bool hasConnection =
+                await connectionService.hasInternetConnection();
 
                 if (hasConnection) {
-                  // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
                   verificarCedulaInicial();
                 } else {
-                  // Si no hay conexión, muestra un AlertDialog
                   alertSinInternet();
                 }
-
-
-              },
-              icon: Icon(Icons.check_circle, size: 30.r, color: Colors.white,),
-              label: Text(
-                'Confirmar Viaje',
-                style: TextStyle(color: Colors.white, fontSize: 16.r, fontWeight: FontWeight.bold),
+              }
+                  : null,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // ⏳ Loader cuando aún no está listo
+                  if (_controller.isCalculatingTrip) ...[
+                    SizedBox(
+                      width: 16.r,
+                      height: 16.r,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: 10.r),
+                    Text(
+                      'Calculando ruta…',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.r,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ] else ...[
+                    // ✅ Botón normal
+                    Icon(
+                      Icons.check_circle,
+                      size: 28.r,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 10.r),
+                    Text(
+                      'Confirmar Viaje',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.r,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ]
+                ],
               ),
             ),
           ),

@@ -542,6 +542,10 @@ class _RegisterPageState extends State<RegisterPage> {
         fotoPerfilTomada: false,
         palabraClave: (answer ?? "").trim(),
         preguntaPalabraClave: selectedQuestion ?? "",
+        the16CedulaFrontalUsuario: "",
+        cedulaFrontalTomada: false,
+        the23CedulaReversoUsuario: "",
+        cedulaReversoTomada: false
       );
 
       try {

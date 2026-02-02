@@ -6,6 +6,7 @@ import 'Pages/Forgot_PasswordPage/forgot_password_page.dart';
 import 'Pages/Login_page/login_page.dart';
 import 'Pages/Register_page/register_page.dart';
 import 'Pages/Splash_page/splash.dart';
+import 'Pages/TakeFotoCedula/upload_cedula_page.dart';
 import 'Pages/TakeFotoPerfil/take_foto_perfil_page.dart';
 import 'Pages/bloqueo_page/bloqueo_page.dart';
 import 'Pages/compartir_aplicacion_page/View/compartir_aplicacion_page.dart';
@@ -91,7 +92,7 @@ class MyApp extends StatelessWidget {
         'taxi_ha_llegado_page': (BuildContext context) => const TaxiHaLLegado(),
         'after_calification_page': (context) => const AfterCalificationPage(),
         'complete_security': (context) => const CompleteSecurityPage(),
-
+        'upload_cedula': (context) => const UploadCedulaPage(),
 
 
       },

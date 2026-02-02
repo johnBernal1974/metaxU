@@ -30,6 +30,12 @@ class Client {
   String palabraClave;
   String preguntaPalabraClave;
 
+  // ✅ Cédula (nuevo)
+  String the16CedulaFrontalUsuario;     // "16_Cedula_frontal_usuario"
+  bool cedulaFrontalTomada;             // "cedula_frontal_tomada"
+  String the23CedulaReversoUsuario;     // "23_Cedula_reverso_usuario"
+  bool cedulaReversoTomada;             // "cedula_reverso_tomada"
+
 
   Client({
     required this.id,
@@ -52,7 +58,12 @@ class Client {
     required this.the41SuspendidoPorCancelaciones,
     required this.fotoPerfilTomada,
     required this.palabraClave,
-    required this.preguntaPalabraClave
+    required this.preguntaPalabraClave,
+    required this.the16CedulaFrontalUsuario,
+    required this.cedulaFrontalTomada,
+    required this.the23CedulaReversoUsuario,
+    required this.cedulaReversoTomada,
+
 
   });
 
@@ -78,6 +89,11 @@ class Client {
     fotoPerfilTomada: json["foto_perfil_tomada"]  ?? '',
     palabraClave: json["palabra_clave"]  ?? '',
     preguntaPalabraClave: json["pregunta_palabra_clave"]  ?? '',
+    the16CedulaFrontalUsuario: json["16_Cedula_frontal_usuario"] ?? '',
+    cedulaFrontalTomada: json["cedula_frontal_tomada"] ?? false,
+    the23CedulaReversoUsuario: json["23_Cedula_reverso_usuario"] ?? '',
+    cedulaReversoTomada: json["cedula_reverso_tomada"] ?? false,
+
   );
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +118,10 @@ class Client {
     "foto_perfil_tomada": fotoPerfilTomada,
     "palabra_clave": palabraClave,
     "pregunta_palabra_clave": preguntaPalabraClave,
+    "16_Cedula_frontal_usuario": the16CedulaFrontalUsuario,
+    "cedula_frontal_tomada": cedulaFrontalTomada,
+    "23_Cedula_reverso_usuario": the23CedulaReversoUsuario,
+    "cedula_reverso_tomada": cedulaReversoTomada,
 
   };
 }

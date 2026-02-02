@@ -361,53 +361,116 @@ class ClientMapController {
 
   void requestDriver() async {
 
-    // ✅ 0) Traer el cliente actualizado (para leer foto_perfil_tomada)
     final user = _authProvider.getUser();
     if (user == null) return;
 
     final c = await _clientProvider.getById(user.uid);
     if (c == null) {
-      Snackbar.showSnackbar(context, 'No pudimos validar tu cuenta. Intenta de nuevo.');
+      if (context.mounted) {
+        Snackbar.showSnackbar(context, 'No pudimos validar tu cuenta. Intenta de nuevo.');
+      }
       return;
     }
 
-    final bool fotoTomada = c.fotoPerfilTomada == true; // ajusta si tu campo se llama distinto
-    final String estadoFoto = (c.the15FotoPerfilUsuario ?? '').toString().trim().toLowerCase();
-    // En tu BD real: 15_Foto_perfil_usuario = "" | "aceptada" | "rechazada"
+    // ✅ NUEVA REGLA: primer viaje libre, desde el segundo exige cédula ACEPTADA
+    final int viajes = c.the19Viajes; // 19_Viajes
 
-    // ❌ 1) Si NO ha tomado foto → no puede solicitar
+    if (viajes >= 1) {
+      final String estadoFront = (c.the16CedulaFrontalUsuario).toString().trim().toLowerCase();
+      final String estadoBack  = (c.the23CedulaReversoUsuario).toString().trim().toLowerCase();
+
+      final bool frontTomada = c.cedulaFrontalTomada == true;
+      final bool backTomada  = c.cedulaReversoTomada == true;
+
+      // ❌ Si falta alguna foto → pedir subir
+      if (!frontTomada || !backTomada) {
+        if (context.mounted) {
+          Snackbar.showSnackbar(context, 'Para continuar debes subir tu cédula (frontal y reverso).');
+          Navigator.pushNamed(context, 'upload_cedula');
+        }
+        return;
+      }
+
+      // ✅ Mejorado: Si alguna fue rechazada → decir cuál (frontal/reverso/ambas)
+      final bool frontRechazada = estadoFront == 'rechazada';
+      final bool backRechazada  = estadoBack == 'rechazada';
+
+      if (frontRechazada || backRechazada) {
+        if (context.mounted) {
+
+          // 👉 Definimos qué debe subir
+          final String tipoCedula =
+          frontRechazada && backRechazada
+              ? 'ambas'
+              : frontRechazada
+              ? 'frontal'
+              : 'reverso';
+
+          final String mensaje =
+          tipoCedula == 'ambas'
+              ? 'Necesitamos que repitas las fotos de tu cédula (por ambas caras).'
+              : tipoCedula == 'frontal'
+              ? 'Necesitamos que repitas la foto FRONTAL de tu cédula.'
+              : 'Necesitamos que repitas la foto REVERSO de tu cédula.';
+
+          Snackbar.showSnackbar(
+            context,
+            '$mensaje Asegúrate de que se vea completa, sin reflejos y con buena luz.',
+          );
+
+          Navigator.pushNamed(
+            context,
+            'upload_cedula',
+            arguments: {
+              'tipo': tipoCedula, // 👈 clave
+            },
+          );
+        }
+        return;
+      }
+      // ❌ Si NO están aceptadas (o sea: "" pendiente), no deja solicitar
+      if (estadoFront != 'aceptada' || estadoBack != 'aceptada') {
+        if (context.mounted) {
+          Snackbar.showSnackbar(
+            context,
+            'Estamos validando tu cédula para habilitar nuevas solicitudes. '
+                'Intenta de nuevo en unos minutos.',
+          );
+        }
+        return;
+      }
+    }
+    // ✅ Foto de perfil (como lo tienes)
+    final bool fotoTomada = c.fotoPerfilTomada == true;
+    final String estadoFoto = (c.the15FotoPerfilUsuario ?? '').toString().trim().toLowerCase();
+
     if (!fotoTomada) {
-      if(context.mounted){
+      if (context.mounted) {
         Snackbar.showSnackbar(context, 'Debes tomar tu foto de perfil para poder solicitar un viaje.');
         Navigator.pushNamed(context, 'take_foto_perfil');
-        return;
       }
+      return;
     }
 
-    // ❌ 2) Si fue rechazada → debe repetir foto
     if (estadoFoto == 'rechazada') {
-      if(context.mounted){
+      if (context.mounted) {
         Snackbar.showSnackbar(context, 'Tu foto fue rechazada. Por favor sube una nueva para continuar.');
         Navigator.pushNamed(context, 'take_foto_perfil');
-        return;
       }
+      return;
     }
 
-    // ✅ 3) Si está vacía o aceptada: permite solicitar
-    // "" => en revisión (permitido)
-    // "aceptada" => permitido
-
-    // ✅ 4) Tu lógica original
+    // ✅ Tu lógica original
     if (fromlatlng != null && tolatlng != null) {
       if (from == to) {
-        if(context.mounted){
+        if (context.mounted) {
           Snackbar.showSnackbar(
             context,
             'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente',
           );
         }
       } else {
-        if(context.mounted){
+        if (context.mounted) {
           Navigator.pushNamed(context, "travel_info_page", arguments: {
             'from': from,
             'to': to,
@@ -417,9 +480,12 @@ class ClientMapController {
         }
       }
     } else {
-      Snackbar.showSnackbar(context, 'Debes seleccionar el lugar de origen y destino');
+      if (context.mounted) {
+        Snackbar.showSnackbar(context, 'Debes seleccionar el lugar de origen y destino');
+      }
     }
   }
+
 
 
 

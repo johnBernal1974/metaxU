@@ -61,34 +61,105 @@ class MyAuthProvider{
     return _firebaseAuth.currentUser;
   }
 
+  // void checkIfUserIsLogged(BuildContext? context) {
+  //   if (context != null) {
+  //     FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+  //       if (user != null) {
+  //         // Verificar si el correo electrónico está verificado
+  //         if (!user.emailVerified) {
+  //           // Si no está verificado, redirigir a la página de verificación de correo electrónico
+  //           Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
+  //           return;
+  //         }
+  //
+  //         ClientProvider clientProvider = ClientProvider();
+  //         String? status = await clientProvider.getStatus();
+  //
+  //
+  //         if (status == 'bloqueado') {
+  //           if(context.mounted){
+  //             Navigator.pushNamedAndRemoveUntil(context, 'bloqueo_page', (route) => false);
+  //           }
+  //           return;
+  //         }
+  //
+  //         // Verificar las fotos en el orden especificado
+  //         String? fotoPerfilUsuario = await clientProvider.verificarFotoPerfil();
+  //
+  //         if (fotoPerfilUsuario == "" || fotoPerfilUsuario == "rechazada") {
+  //           if(context.mounted){
+  //             Navigator.pushNamedAndRemoveUntil(context, 'take_foto_perfil', (route) => false);
+  //           }
+  //           return;
+  //         }
+  //
+  //         // Si todas las fotos están verificadas, verificar si el usuario está viajando
+  //         String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  //         Client? client = await clientProvider.getById(userId);
+  //         if (client != null) {
+  //           bool isTraveling = client.the00isTraveling;
+  //           if (isTraveling) {
+  //             if(context.mounted){
+  //               Navigator.pushNamedAndRemoveUntil(context, 'travel_map_page', (route) => false);
+  //             }
+  //           } else {
+  //             if(context.mounted){
+  //               Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+  //             }
+  //           }
+  //         } else {
+  //           // Si no se encuentra el cliente, redirigir a 'map_client'
+  //           if(context.mounted){
+  //             Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+  //           }
+  //         }
+  //       } else {
+  //         if(context.mounted){
+  //           Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
+  //         }
+  //       }
+  //     });
+  //   }
+  // } para barrera en caso de que no ahyan ingresado la pregunta y respuesta de seguridad
+
   void checkIfUserIsLogged(BuildContext? context) {
     if (context != null) {
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         if (user != null) {
           // Verificar si el correo electrónico está verificado
           if (!user.emailVerified) {
-            // Si no está verificado, redirigir a la página de verificación de correo electrónico
-            Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              'email_verification',
+                  (route) => false,
+            );
             return;
           }
 
           ClientProvider clientProvider = ClientProvider();
           String? status = await clientProvider.getStatus();
 
-
           if (status == 'bloqueado') {
-            if(context.mounted){
-              Navigator.pushNamedAndRemoveUntil(context, 'bloqueo_page', (route) => false);
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                'bloqueo_page',
+                    (route) => false,
+              );
             }
             return;
           }
 
-          // Verificar las fotos en el orden especificado
+          // Verificar foto perfil
           String? fotoPerfilUsuario = await clientProvider.verificarFotoPerfil();
 
           if (fotoPerfilUsuario == "" || fotoPerfilUsuario == "rechazada") {
-            if(context.mounted){
-              Navigator.pushNamedAndRemoveUntil(context, 'take_foto_perfil', (route) => false);
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                'take_foto_perfil',
+                    (route) => false,
+              );
             }
             return;
           }
@@ -96,31 +167,67 @@ class MyAuthProvider{
           // Si todas las fotos están verificadas, verificar si el usuario está viajando
           String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
           Client? client = await clientProvider.getById(userId);
+
           if (client != null) {
+
+            // ✅ NUEVO: Validación obligatoria de pregunta y respuesta
+            final pregunta = (client.preguntaPalabraClave ?? '').trim();
+            final respuesta = (client.palabraClave ?? '').trim();
+
+            if (pregunta.isEmpty || respuesta.isEmpty) {
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  'complete_security',
+                      (route) => false,
+                );
+              }
+              return;
+            }
+
+            // ✅ Tu lógica normal
             bool isTraveling = client.the00isTraveling;
+
             if (isTraveling) {
-              if(context.mounted){
-                Navigator.pushNamedAndRemoveUntil(context, 'travel_map_page', (route) => false);
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  'travel_map_page',
+                      (route) => false,
+                );
               }
             } else {
-              if(context.mounted){
-                Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  'map_client',
+                      (route) => false,
+                );
               }
             }
           } else {
-            // Si no se encuentra el cliente, redirigir a 'map_client'
-            if(context.mounted){
-              Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+            // Si no se encuentra el cliente, redirigir a login (mejor que map_client)
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                'login',
+                    (route) => false,
+              );
             }
           }
         } else {
-          if(context.mounted){
-            Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
+          if (context.mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              'login',
+                  (route) => false,
+            );
           }
         }
       });
     }
   }
+
 
 
   Future<bool> signUp(String email, String password) async {

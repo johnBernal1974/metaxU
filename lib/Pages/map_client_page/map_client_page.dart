@@ -108,7 +108,13 @@ class _MapClientPageState extends State<MapClientPage> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(
+            content: Text(
+              e.toString().contains('Ya hay una sesión activa')
+                  ? 'Tu cuenta ya está abierta en otro dispositivo. Cierra sesión allá o espera 1 minuto e intenta de nuevo.'
+                  : 'No se pudo validar tu sesión. Intenta nuevamente.',
+            ),
+          ),
         );
 
         await _authProvider.signOut();
@@ -827,11 +833,21 @@ class _MapClientPageState extends State<MapClientPage> {
                 children: [
                   TextButton(
                     onPressed: () async {
-                      await SessionManager.logout(collection: 'Clients');
+                      // 1) Cierra el diálogo
+                      Navigator.of(context).pop();
+
+                      // 2) Detén heartbeat + logout Firestore
+                      try {
+                        SessionManager.stopHeartbeat();
+                        await SessionManager.logout(collection: 'Clients');
+                      } catch (_) {}
+
+                      // 3) Cierra sesión en Auth
                       await _authProvider.signOut();
 
-                      if (!context.mounted) return;
+                      if (!mounted) return;
 
+                      // 4) Ir al login
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginPage()),

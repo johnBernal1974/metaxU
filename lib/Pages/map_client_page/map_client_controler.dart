@@ -14,6 +14,7 @@ import '../../../../providers/push_notifications_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/conectivity_service.dart';
+import '../../helpers/session_manager.dart';
 import '../../helpers/snackbar.dart';
 
 class ClientMapController {
@@ -72,6 +73,7 @@ class ClientMapController {
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
     _pushNotificationsProvider = PushNotificationsProvider();
+
     markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
     markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
 
@@ -253,7 +255,6 @@ class ClientMapController {
     }
   }
 
-
   void dispose(){
     _positionStream.cancel();
     _clientInfoSuscription.cancel();
@@ -332,28 +333,91 @@ class ClientMapController {
     Navigator.pushNamed(context, "eliminar_cuenta");
   }
 
-  void requestDriver() {
+  // void requestDriver() {
+  //   if (fromlatlng != null && tolatlng != null) {
+  //     // Verificar si las coordenadas de origen y destino son iguales
+  //     if (from == to) {
+  //       // Mostrar un Snackbar informando que las coordenadas son iguales
+  //       if (key.currentState != null) {
+  //         Snackbar.showSnackbar(context, 'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente');
+  //       }
+  //     } else {
+  //       // Si las coordenadas no son iguales, navega a la página de viaje
+  //       Navigator.pushNamed(context, "travel_info_page", arguments: {
+  //         'from': from,
+  //         'to': to,
+  //         'fromlatlng': fromlatlng,
+  //         'tolatlng': tolatlng,
+  //       });
+  //     }
+  //   } else {
+  //     // Si no se han seleccionado las coordenadas, mostrar un Snackbar
+  //     if (key.currentState != null) {
+  //       Snackbar.showSnackbar(context,  'Debes seleccionar el lugar de origen y destino');
+  //     }
+  //   }
+  // }para validar la foto en caso de que no la tenga
+
+
+  void requestDriver() async {
+
+    // ✅ 0) Traer el cliente actualizado (para leer foto_perfil_tomada)
+    final user = _authProvider.getUser();
+    if (user == null) return;
+
+    final c = await _clientProvider.getById(user.uid);
+    if (c == null) {
+      Snackbar.showSnackbar(context, 'No pudimos validar tu cuenta. Intenta de nuevo.');
+      return;
+    }
+
+    final bool fotoTomada = c.fotoPerfilTomada == true; // ajusta si tu campo se llama distinto
+    final String estadoFoto = (c.the15FotoPerfilUsuario ?? '').toString().trim().toLowerCase();
+    // En tu BD real: 15_Foto_perfil_usuario = "" | "aceptada" | "rechazada"
+
+    // ❌ 1) Si NO ha tomado foto → no puede solicitar
+    if (!fotoTomada) {
+      if(context.mounted){
+        Snackbar.showSnackbar(context, 'Debes tomar tu foto de perfil para poder solicitar un viaje.');
+        Navigator.pushNamed(context, 'take_foto_perfil');
+        return;
+      }
+    }
+
+    // ❌ 2) Si fue rechazada → debe repetir foto
+    if (estadoFoto == 'rechazada') {
+      if(context.mounted){
+        Snackbar.showSnackbar(context, 'Tu foto fue rechazada. Por favor sube una nueva para continuar.');
+        Navigator.pushNamed(context, 'take_foto_perfil');
+        return;
+      }
+    }
+
+    // ✅ 3) Si está vacía o aceptada: permite solicitar
+    // "" => en revisión (permitido)
+    // "aceptada" => permitido
+
+    // ✅ 4) Tu lógica original
     if (fromlatlng != null && tolatlng != null) {
-      // Verificar si las coordenadas de origen y destino son iguales
       if (from == to) {
-        // Mostrar un Snackbar informando que las coordenadas son iguales
-        if (key.currentState != null) {
-          Snackbar.showSnackbar(context, 'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente');
+        if(context.mounted){
+          Snackbar.showSnackbar(
+            context,
+            'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente',
+          );
         }
       } else {
-        // Si las coordenadas no son iguales, navega a la página de viaje
-        Navigator.pushNamed(context, "travel_info_page", arguments: {
-          'from': from,
-          'to': to,
-          'fromlatlng': fromlatlng,
-          'tolatlng': tolatlng,
-        });
+        if(context.mounted){
+          Navigator.pushNamed(context, "travel_info_page", arguments: {
+            'from': from,
+            'to': to,
+            'fromlatlng': fromlatlng,
+            'tolatlng': tolatlng,
+          });
+        }
       }
     } else {
-      // Si no se han seleccionado las coordenadas, mostrar un Snackbar
-      if (key.currentState != null) {
-        Snackbar.showSnackbar(context,  'Debes seleccionar el lugar de origen y destino');
-      }
+      Snackbar.showSnackbar(context, 'Debes seleccionar el lugar de origen y destino');
     }
   }
 

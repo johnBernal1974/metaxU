@@ -139,24 +139,7 @@ class LoginController{
         return;
       }
 
-      // ✅ 1) Validar + registrar sesión por dispositivo (CLIENTS)
-      try {
-        await SessionManager.loginGuard(collection: 'Clients');
-      } catch (e) {
-        // Bloqueado por sesión activa en otro dispositivo
-        if (context.mounted) {
-          closeSimpleProgressDialog(context);
-          Snackbar.showSnackbar(
-            context,
-            'Este usuario ya está logueado en otro dispositivo. '
-                'Por favor, cierre sesión allá o espere unos minutos.',
-          );
-        }
-        await _authProvider.signOut();
-        return;
-      }
-
-      // ✅ 2) (Opcional) validar que exista el Client en tu colección
+      // ✅ 1) Validar primero que exista el perfil Client en Firestore
       final uid = _authProvider.getUser()!.uid;
       Client? client = await _clientProvider.getById(uid);
 
@@ -169,7 +152,26 @@ class LoginController{
         return;
       }
 
-      // ✅ 3) Navegar como ya lo haces
+      // ✅ 2) Registrar sesión por dispositivo (CLIENTS)
+      try {
+        await SessionManager.loginGuard(collection: 'Clients');
+      } catch (e) {
+        if (context.mounted) {
+          closeSimpleProgressDialog(context);
+          Snackbar.showSnackbar(
+            context,
+            'Este usuario ya está logueado en otro dispositivo. '
+                'Por favor, cierre sesión allá o espere unos minutos.',
+          );
+        }
+        await _authProvider.signOut();
+        return;
+      }
+
+      // ✅ 3) Iniciar heartbeat para mantener lastSeen actualizado
+      SessionManager.startHeartbeat(collection: 'Clients');
+
+      // ✅ 4) Navegar como ya lo haces
       if (context.mounted) {
         closeSimpleProgressDialog(context);
         _authProvider.checkIfUserIsLogged(context);
@@ -181,8 +183,6 @@ class LoginController{
       }
     }
   }
-
-
 
 }
 

@@ -61,6 +61,8 @@ class _RegisterPageState extends State<RegisterPage> {
   String? passwordError;
   String? passwordConfirmError;
   String? answerError;
+  String? questionError;
+
 
 
   // Controladores para los campos de texto
@@ -136,6 +138,8 @@ class _RegisterPageState extends State<RegisterPage> {
       passwordError = null;
       passwordConfirmError = null;
       answerError = null;
+      questionError = null;
+
 
       // Validaciones
       if (_currentPage == 0 && (name == null || name!.isEmpty)) {
@@ -202,7 +206,12 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      if (_currentPage == 7 && (answer == null)) {
+      if (_currentPage == 7 && selectedQuestion == null) {
+        questionError = "Debes seleccionar una pregunta.";
+        return;
+      }
+
+      if (_currentPage == 7 && (answer == null || answer!.trim().isEmpty)) {
         answerError = "Debes escribir tu respuesta.";
         return;
       }
@@ -336,14 +345,11 @@ class _RegisterPageState extends State<RegisterPage> {
                 ElevatedButton(
                   onPressed: () async {
                     if (_currentPage == 7) {
-                      // Verificar conexión a Internet antes de ejecutar la acción
                       bool hasConnection = await connectionService.hasInternetConnection();
 
                       if (hasConnection) {
-                        // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
-                        _register();
+                        _nextPage();   // ✅ ahora sí valida pregunta/respuesta
                       } else {
-                        // Si no hay conexión, muestra un AlertDialog
                         alertSinInternet();
                       }
                     } else {
@@ -366,8 +372,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     ],
                   ),
                 ),
-
-
               ],
             ),
           ),
@@ -396,63 +400,190 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  void _register() async {
-    _progressDialog.show();
-    try{
-      bool isSignUp =  await _authProvider.signUp(email!, password!);
-      if(isSignUp){
-        Client client = Client(
-            id: _authProvider.getUser()!.uid,
-            the01Nombres: name ?? "",
-            the02Apellidos: apellidos ?? "",
-            the06Email: email ?? "",
-            the07Celular: celular ?? "",
-            the09Genero: "",
-            the15FotoPerfilUsuario: "",
-            the17Bono: 0,
-            the18Calificacion: 0,
-            the19Viajes: 0,
-            the20Rol: "regular",
-            the21FechaDeRegistro: DateHelpers.getStartDate(),
-            token: "",
-            image: "",
-            status: "registrado",
-            the00isTraveling: false,
-            the22Cancelaciones: 0,
-            the41SuspendidoPorCancelaciones: false,
-            fotoPerfilTomada: false,
-            palabraClave: answer ?? "",
-            preguntaPalabraClave: selectedQuestion ?? ""
-        );
+  // void _register() async {
+  //   _progressDialog.show();
+  //   try{
+  //     bool isSignUp =  await _authProvider.signUp(email!, password!);
+  //     if(isSignUp){
+  //       Client client = Client(
+  //           id: _authProvider.getUser()!.uid,
+  //           the01Nombres: name ?? "",
+  //           the02Apellidos: apellidos ?? "",
+  //           the06Email: email ?? "",
+  //           the07Celular: celular ?? "",
+  //           the09Genero: "",
+  //           the15FotoPerfilUsuario: "",
+  //           the17Bono: 0,
+  //           the18Calificacion: 0,
+  //           the19Viajes: 0,
+  //           the20Rol: "regular",
+  //           the21FechaDeRegistro: DateHelpers.getStartDate(),
+  //           token: "",
+  //           image: "",
+  //           status: "registrado",
+  //           the00isTraveling: false,
+  //           the22Cancelaciones: 0,
+  //           the41SuspendidoPorCancelaciones: false,
+  //           fotoPerfilTomada: false,
+  //           palabraClave: answer ?? "",
+  //           preguntaPalabraClave: selectedQuestion ?? ""
+  //       );
+  //
+  //       await _clientProvider.create(client);
+  //       _progressDialog.hide();
+  //       _goTakeFotoPerfil();
+  //     }
+  //     else{
+  //       _progressDialog.hide();
+  //     }
+  //   }catch (error) {
+  //     _progressDialog.hide();
+  //     if (kDebugMode) {
+  //       print('Error durante el registro: $error');
+  //     }
+  //
+  //     if (error is FirebaseAuthException) {
+  //       if (error.code == 'email-already-in-use') {
+  //         Snackbar.showSnackbar(key.currentContext!,
+  //             'El correo electrónico ya está en uso por otra cuenta.');
+  //       } else {
+  //         Snackbar.showSnackbar(key.currentContext!,
+  //             'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
+  //       }
+  //     } else {
+  //       Snackbar.showSnackbar(key.currentContext!,
+  //           'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
+  //     }
+  //   }
+  //
+  // } para mejorar el registro y no se vree un auth pero no el registro en firestore
 
+
+  void _register() async {
+
+    // ✅ SEGURO: valida aquí también (por si alguien llama _register() directo)
+    setState(() {
+      questionError = null;
+      answerError = null;
+
+      if (selectedQuestion == null) {
+        questionError = "Debes seleccionar una pregunta.";
+      }
+
+      final a = (answer ?? "").trim();
+      if (a.isEmpty) {
+        answerError = "Debes escribir tu respuesta.";
+      }
+    });
+
+    // ✅ Si hay errores, NO muestra loading y NO registra
+    if (questionError != null || answerError != null) {
+      return;
+    }
+
+    _progressDialog.show();
+
+    try {
+      // ✅ Normaliza celular (solo números)
+      final celNormalizado = (celular ?? "").replaceAll(RegExp(r'\D'), '');
+
+      if (celNormalizado.length != 10) {
+        _progressDialog.hide();
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'El número de celular no es válido.',
+        );
+        return;
+      }
+
+      // ✅ 1) Verificar si el celular ya existe
+      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
+
+      if (existeCelular) {
+        _progressDialog.hide();
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Este número de celular ya está registrado. '
+              'Intenta iniciar sesión o recuperar tu cuenta.',
+        );
+        return;
+      }
+
+      // ✅ 2) Crear usuario en Firebase Auth
+      bool isSignUp = await _authProvider.signUp(email!, password!);
+
+      if (!isSignUp) {
+        _progressDialog.hide();
+        return;
+      }
+
+      final uid = _authProvider.getUser()!.uid;
+
+      // ✅ 3) Crear perfil del cliente en Firestore
+      Client client = Client(
+        id: uid,
+        the01Nombres: name ?? "",
+        the02Apellidos: apellidos ?? "",
+        the06Email: email ?? "",
+        the07Celular: celNormalizado,
+        the09Genero: "",
+        the15FotoPerfilUsuario: "",
+        the17Bono: 0,
+        the18Calificacion: 0,
+        the19Viajes: 0,
+        the20Rol: "regular",
+        the21FechaDeRegistro: DateHelpers.getStartDate(),
+        token: "",
+        image: "",
+        status: "registrado",
+        the00isTraveling: false,
+        the22Cancelaciones: 0,
+        the41SuspendidoPorCancelaciones: false,
+        fotoPerfilTomada: false,
+        palabraClave: (answer ?? "").trim(),
+        preguntaPalabraClave: selectedQuestion ?? "",
+      );
+
+      try {
         await _clientProvider.create(client);
+      } catch (e) {
+        // ✅ Rollback si Firestore falla
+        await FirebaseAuth.instance.currentUser?.delete();
+        await FirebaseAuth.instance.signOut();
+
         _progressDialog.hide();
-        _goTakeFotoPerfil();
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'No se pudo completar el registro. Inténtalo nuevamente.',
+        );
+        return;
       }
-      else{
-        _progressDialog.hide();
-      }
-    }catch (error) {
+
       _progressDialog.hide();
+      _goTakeFotoPerfil();
+
+    } catch (error) {
+      _progressDialog.hide();
+
       if (kDebugMode) {
         print('Error durante el registro: $error');
       }
 
-      if (error is FirebaseAuthException) {
-        if (error.code == 'email-already-in-use') {
-          Snackbar.showSnackbar(key.currentContext!,
-              'El correo electrónico ya está en uso por otra cuenta.');
-        } else {
-          Snackbar.showSnackbar(key.currentContext!,
-              'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
-        }
+      if (error is FirebaseAuthException && error.code == 'email-already-in-use') {
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'El correo electrónico ya está en uso.',
+        );
       } else {
-        Snackbar.showSnackbar(key.currentContext!,
-            'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Ocurrió un error durante el registro.',
+        );
       }
     }
-
   }
+
+
 
   void _goTakeFotoPerfil(){
     Navigator.pushReplacement(
@@ -700,8 +831,11 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Widget _buildPalabraClave() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
@@ -712,49 +846,78 @@ class _RegisterPageState extends State<RegisterPage> {
           const Text(
             "Selecciona una pregunta de seguridad y proporciona tu respuesta",
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
-          ),
-          const SizedBox(height: 16),
-          // Dropdown para seleccionar la pregunta
-          DropdownButton<String>(
-            hint: const Text("Selecciona una pregunta"),
-            value: selectedQuestion,
-            onChanged: (String? newValue) {
-              setState(() {
-                selectedQuestion = newValue;
-              });
-            },
-            items: questions.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(
-                  value,
-                  style: const TextStyle(fontSize: 14), // Puedes personalizar el tamaño aquí
-                  maxLines: 2,  // Esto asegura que el texto se ajuste en 2 líneas
-                  overflow: TextOverflow.ellipsis, // En caso de que sea más largo que 2 líneas
-                ),
-              );
-            }).toList(),
-          ),
-          // Mostrar un error si no se seleccionó una pregunta
-          const SizedBox(height: 16),
-          // TextField para ingresar la respuesta
-          TextField(
-            controller: answerController,
-            onChanged: (value) {
-              answer = value;
-            },
-            decoration: InputDecoration(
-              labelText: "Escribe tu respuesta",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
 
+          // Dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: questionError != null ? Colors.red : Colors.grey),
+              color: Colors.white,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: selectedQuestion,
+                hint: const Text("Selecciona una pregunta"),
+                items: questions.map((value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedQuestion = newValue;
+                  });
+                },
+              ),
+            ),
+          ),
+          if (questionError != null) ...[
+            const SizedBox(height: 6),
+            Text(questionError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
+
+          const SizedBox(height: 16),
+
+          // Respuesta
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: answerError != null ? Colors.red : Colors.grey),
+              color: Colors.white,
+            ),
+            child: TextField(
+              controller: answerController,
+              onChanged: (value) => answer = value,
+              decoration: const InputDecoration(
+                labelText: "Escribe tu respuesta",
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          if (answerError != null) ...[
+            const SizedBox(height: 6),
+            Text(answerError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
+
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
+
 
 }

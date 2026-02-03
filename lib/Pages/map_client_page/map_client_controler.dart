@@ -14,7 +14,6 @@ import '../../../../providers/push_notifications_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/conectivity_service.dart';
-import '../../helpers/session_manager.dart';
 import '../../helpers/snackbar.dart';
 
 class ClientMapController {
@@ -57,6 +56,11 @@ class ClientMapController {
   bool isConnected = false; //**para validar el estado de conexion a internet
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;  // Suscripción para escuchar cambios en conectividad
 
+  bool _pedirCedula = false;
+  int _cedulaDespuesDeViajes = 1;
+
+
+
   // Inicializar _positionStream
   void startPositionStream() {
     _positionStream = Geolocator.getPositionStream().listen((Position position) {
@@ -72,6 +76,12 @@ class ClientMapController {
     _geofireProvider = GeofireProvider();
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
+
+    final config = await _clientProvider.getConfigCedula();
+    _pedirCedula = config['cedula'] == true;
+    _cedulaDespuesDeViajes = (config['cedula_despues_de_viajes'] as int?) ?? 1;
+
+
     _pushNotificationsProvider = PushNotificationsProvider();
 
     markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
@@ -375,7 +385,7 @@ class ClientMapController {
     // ✅ NUEVA REGLA: primer viaje libre, desde el segundo exige cédula ACEPTADA
     final int viajes = c.the19Viajes; // 19_Viajes
 
-    if (viajes >= 1) {
+    if (_pedirCedula && viajes >= _cedulaDespuesDeViajes) {
       final String estadoFront = (c.the16CedulaFrontalUsuario).toString().trim().toLowerCase();
       final String estadoBack  = (c.the23CedulaReversoUsuario).toString().trim().toLowerCase();
 

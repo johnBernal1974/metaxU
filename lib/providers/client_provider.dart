@@ -148,4 +148,40 @@ class ClientProvider{
     return query.docs.isNotEmpty;
   }
 
+  //para validar si se pide la cedula
+
+  Future<Map<String, dynamic>> getConfigCedula() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('Prices')
+          .doc('info')
+          .get();
+
+      if (!snap.exists) {
+        return {
+          'cedula': false,
+          'cedula_despues_de_viajes': 1,
+        };
+      }
+
+      final data = snap.data() as Map<String, dynamic>?;
+
+      final bool pedir = (data?['cedula'] == true);
+      final int despues = (data?['cedula_despues_de_viajes'] is num)
+          ? (data!['cedula_despues_de_viajes'] as num).toInt()
+          : 1;
+
+      return {
+        'cedula': pedir,
+        'cedula_despues_de_viajes': despues,
+      };
+    } catch (_) {
+      return {
+        'cedula': false,
+        'cedula_despues_de_viajes': 1,
+      };
+    }
+  }
+
+
 }

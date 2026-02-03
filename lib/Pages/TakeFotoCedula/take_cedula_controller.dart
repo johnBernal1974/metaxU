@@ -152,7 +152,7 @@ class TakeCedulaController {
 
         updates.addAll({
           'cedula_frontal_tomada': true,
-          '16_Cedula_frontal_usuario': '', // pendiente implícito
+          '16_Cedula_frontal_usuario': 'corregida', // pendiente implícito
           '16_Cedula_frontal_url': frontUrl,
         });
       }
@@ -174,7 +174,7 @@ class TakeCedulaController {
 
         updates.addAll({
           'cedula_reverso_tomada': true,
-          '23_Cedula_reverso_usuario': '',
+          '23_Cedula_reverso_usuario': 'corregida',
           '23_Cedula_reverso_url': backUrl,
         });
       }

@@ -38,7 +38,7 @@ class _EliminarCuentaPageState extends State<EliminarCuentaPage> {
        children: [
          InAppWebView(
            initialUrlRequest: URLRequest(
-             url: Uri.parse('https://...'),
+             url: Uri.parse('https://metax.com.co/baja.html'),
            ),
            onWebViewCreated: (InAppWebViewController controller){
              inAppWebViewController = controller;

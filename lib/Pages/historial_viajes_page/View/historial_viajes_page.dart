@@ -173,7 +173,8 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                     destino: item.to,
                     fechaViaje: fechaFormateada,
                     tarifa: item.tarifa,
-                    travelId: item.id,
+                    travelId: item.travelHistoryId,   // ✅ el real
+                    numeroViaje: item.numeroViaje,    // ✅ número
                   );
                 },
               ),
@@ -734,6 +735,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
     required String fechaViaje,
     required double tarifa,
     required String travelId,
+    required int numeroViaje,
   }) {
     final formatter = NumberFormat.currency(
       locale: 'es_CO',

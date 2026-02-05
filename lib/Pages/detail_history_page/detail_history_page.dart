@@ -99,22 +99,23 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
   }
 
   Widget _buildProfilePhoto() {
-    if (_controller.driver != null) {
-      return Container(
-        alignment: Alignment.center,
-        margin: EdgeInsets.only(bottom: 15.r),
-        child: CircleAvatar(
-          backgroundColor: blanco,
-          backgroundImage: _controller.driver!.image != null
-              ? CachedNetworkImageProvider(_controller.driver!.image)
-              : null,
-          radius: 40,
-        ),
+    if (_controller.driver == null) {
+      return const SizedBox(
+        width: 80,
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
       );
-    } else {
-      return const CircularProgressIndicator();
     }
+
+    return CircleAvatar(
+      backgroundColor: blanco,
+      backgroundImage: _controller.driver!.image != null
+          ? CachedNetworkImageProvider(_controller.driver!.image)
+          : null,
+      radius: 40,
+    );
   }
+
 
   Widget _buildName() {
     return Container(

@@ -128,18 +128,18 @@ class HistorialViajesController {
     };
   }
 
-  Future<void> hideFromMyHistory(String travelId) async {
+  Future<void> hideFromMyHistory(String idTravelHistory) async {
     final user = _authProvider.getUser();
     if (user == null) return;
 
     await _clientHistoryProvider.hideFromHistory(
       clientId: user.uid,
-      travelId: travelId,
+      travelId: idTravelHistory, // ⚠️ si tu provider hace .doc(travelId)
     );
   }
 
-  void goToDetailHistory(String id) {
-    Navigator.pushNamed(context, 'detail_history_page', arguments: id);
+  void goToDetailHistory(String idTravelHistory) {
+    Navigator.pushNamed(context, 'detail_history_page', arguments: idTravelHistory);
   }
 
 }

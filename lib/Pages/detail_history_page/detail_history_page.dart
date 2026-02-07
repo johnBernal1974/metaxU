@@ -51,6 +51,38 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
+            // ✅ Número de viaje
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // 🔑 clave
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Número viaje: ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 10,
+                      height: 1.1,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    _controller.travelHistory?.numeroViaje ?? "",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                      height: 1.1,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            _buildDivider(),
+            const SizedBox(height: 15),
             _buildDriverInfo(),
             const SizedBox(height: 15),
             _buildDivider(),

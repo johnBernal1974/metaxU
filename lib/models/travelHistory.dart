@@ -14,6 +14,7 @@ class TravelHistory {
   String from;
   String to;
   String nameDriver;
+  String numeroViaje;
   String apellidosDriver;
   String placaShow;
   String placaNorm;
@@ -33,6 +34,7 @@ class TravelHistory {
     required this.from,
     required this.to,
     required this.nameDriver,
+    required this.numeroViaje,
     required this.apellidosDriver,
     required this.placaShow,
     required this.placaNorm,
@@ -56,6 +58,13 @@ class TravelHistory {
     // ✅ estos dos eran los null
     nameDriver: (json["nameDriver"] ?? "") as String,
     apellidosDriver: (json["apellidosDriver"] ?? "") as String,
+
+    numeroViaje: (json["numeroViaje"] ??
+        json["numero_viaje"] ??
+        json["tripNumber"] ??
+        "")
+        .toString(),
+
 
     placaShow: (json["placaShow"] ?? json["placa"] ?? "") as String,
     placaNorm: (json["placaNorm"] ??
@@ -82,6 +91,7 @@ class TravelHistory {
     "to": to,
     // "nameDriver": nameDriver,
     // "apellidosDriver": apellidosDriver,
+    "numeroViaje": numeroViaje,
     "placaShow": placaShow,
     "placaNorm": placaNorm,
     "solicitudViaje": solicitudViaje,

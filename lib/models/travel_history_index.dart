@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TravelHistoryIndex {
-  final String travelHistoryId; // ✅ referencia al TravelHistory global
-  final int numeroViaje;        // ✅ número de viaje
+  final String travelHistoryId;
+  final String numeroViaje; // ✅ siempre String
   final String from;
   final String to;
   final double tarifa;
@@ -19,25 +19,30 @@ class TravelHistoryIndex {
 
   factory TravelHistoryIndex.fromDoc(String docId, Map<String, dynamic> data) {
     final refId = (data['travelHistoryId'] ??
-        data['idTravelHistory'] ??          // ✅ el que tienes en Firestore
+        data['idTravelHistory'] ??
         data['travelId'] ??
         docId)
         .toString();
 
-    final numViajeRaw =
-        data['numeroViaje'] ?? data['numero_viaje'] ?? data['tripNumber'] ?? 0;
-    final numViaje = (numViajeRaw is num)
-        ? numViajeRaw.toInt()
-        : int.tryParse(numViajeRaw.toString()) ?? 0;
+    // ✅ Siempre String (aunque venga int/num en docs viejos)
+    final numeroViaje = (data['numeroViaje'] ??
+        data['numero_viaje'] ??
+        data['tripNumber'] ??
+        '')
+        .toString();
+
+    // ✅ finalViaje: evitar cast directo si viene null o tipo raro
+    final Timestamp finalViaje = data['finalViaje'] is Timestamp
+        ? data['finalViaje'] as Timestamp
+        : Timestamp.now();
 
     return TravelHistoryIndex(
       travelHistoryId: refId,
-      numeroViaje: numViaje,
+      numeroViaje: numeroViaje,
       from: (data['from'] ?? '').toString(),
       to: (data['to'] ?? '').toString(),
       tarifa: (data['tarifa'] is num) ? (data['tarifa'] as num).toDouble() : 0.0,
-      finalViaje: data['finalViaje'] as Timestamp,
+      finalViaje: finalViaje,
     );
   }
-
 }

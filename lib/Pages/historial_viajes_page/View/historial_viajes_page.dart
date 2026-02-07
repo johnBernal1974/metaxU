@@ -735,7 +735,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
     required String fechaViaje,
     required double tarifa,
     required String travelId,
-    required int numeroViaje,
+    required String numeroViaje, // ✅ String
   }) {
     final formatter = NumberFormat.currency(
       locale: 'es_CO',
@@ -766,7 +766,6 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
           padding: const EdgeInsets.all(12),
           child: Stack(
             children: [
-              // ❌ Botón borrar pegado a la esquina
               Positioned(
                 top: -10,
                 right: -15,
@@ -783,11 +782,39 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                 ),
               ),
 
-              // 📄 Contenido
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Etiqueta
+                  // ✅ Número de viaje
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Número viaje: ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 8,
+                          height: 1.1,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          numeroViaje,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700, // ✅ negrilla
+                            fontSize: 9,
+                            height: 1.1,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+
                   Row(
                     children: [
                       Image.asset(
@@ -808,7 +835,6 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                   ),
                   const SizedBox(height: 2),
 
-                  // Texto destino
                   Text(
                     destino,
                     maxLines: 2,
@@ -826,23 +852,23 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                   const SizedBox(height: 6),
 
                   Text(
-                    'Hora finalización: $fechaViaje',
+                    'Fecha: $fechaViaje',
                     style: const TextStyle(
                       color: gris,
                       fontWeight: FontWeight.w400,
-                      fontSize: 10,
+                      fontSize: 9,
                     ),
                   ),
-                  const SizedBox(height: 4),
-
-                  Text(
-                    formatter.format(tarifa),
-                    style: const TextStyle(
-                      color: negro,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                  // const SizedBox(height: 4),
+                  //
+                  // Text(
+                  //   formatter.format(tarifa),
+                  //   style: const TextStyle(
+                  //     color: negro,
+                  //     fontSize: 10,
+                  //     fontWeight: FontWeight.w900,
+                  //   ),
+                  // ),
                 ],
               ),
             ],
@@ -851,6 +877,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
       ),
     );
   }
+
 
   Future<void> _confirmarEliminar(String travelId) async {
     final confirm = await showDialog<bool>(

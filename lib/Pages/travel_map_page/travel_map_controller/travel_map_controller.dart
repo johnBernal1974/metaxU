@@ -21,7 +21,6 @@ import '../../../models/driver.dart';
 import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
-import 'dart:math' as Math;
 import 'package:cloud_functions/cloud_functions.dart';
 
 
@@ -44,11 +43,14 @@ class TravelMapController{
   late DriverProvider _driverProvider;
   late ClientProvider _clientProvider;
   bool isConected = true;
-  late StreamSubscription<DocumentSnapshot<Object?>> _statusSuscription;
-  late StreamSubscription<DocumentSnapshot<Object?>> _driverInfoSuscription;
-  late StreamSubscription<DocumentSnapshot<Object?>> _streamLocationController;
-  late StreamSubscription<DocumentSnapshot<Object?>> _streamTravelController;
-  late StreamSubscription<DocumentSnapshot<Object?>> _streamStatusController;
+  //late StreamSubscription<DocumentSnapshot<Object?>> _statusSuscription;
+  //late StreamSubscription<DocumentSnapshot<Object?>> _driverInfoSuscription;
+  StreamSubscription<DocumentSnapshot<Object?>>? _streamLocationController;
+  StreamSubscription<DocumentSnapshot<Object?>>? _streamTravelController;
+
+
+
+  //late StreamSubscription<DocumentSnapshot<Object?>> _streamStatusController;
   late TravelInfoProvider _travelInfoProvider;
   late BitmapDescriptor fromMarker;
   late BitmapDescriptor toMarker;
@@ -65,17 +67,17 @@ class TravelMapController{
   bool soundIsaceptado = false;
   Set<Polyline> polylines ={};
   List<LatLng> points = List.from([]);
-  int seconds = 0;
-  double mts = 0;
-  double kms = 0;
+  //int seconds = 0;
+  //double mts = 0;
+  //double kms = 0;
   LatLng? _from;
   LatLng? _to;
   LatLng? get from => _from;
   LatLng? get to => _to;
-  final StreamController<double> timeRemainingController = StreamController<double>.broadcast();
-  String? status = '';
+  //final StreamController<double> timeRemainingController = StreamController<double>.broadcast();
+  //String? status = '';
   final ConnectionService _connectionService = ConnectionService();
-  bool isConnected = false;
+  //bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
   //sounds
@@ -85,15 +87,9 @@ class TravelMapController{
   late AudioPlayer _playerConductorHaCancelado;
   bool _audioConductorHaCanceladoYaReproducido = false;
 
-  // Timer? _markerAnimTimer;
-  // LatLng? _smoothPos;
-  // double _smoothHeading = 0.0;
-  // LatLng? _targetPos;
-  // double _targetHeading = 0.0;
-  //
-  // Timer? _smoothTimer;
-  // static const int _smoothTickMs = 120; // ~60fps
-  // static const double _speedMetersPerSec = 14.0; comentado para quitar suavizado
+  //evitar traergetdriverinfo dos veces
+  bool _didLoadTravel = false;
+
 
   Future? init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -108,11 +104,19 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
     await checkConnectionAndShowSnackbar();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      checkConnectionAndShowSnackbar();
-      refresh();
-    });
-    _getTravelInfo();
+    // _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    //   checkConnectionAndShowSnackbar();
+    //   refresh();
+    // }); 8 feb 2026
+
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((_) async {
+          await checkConnectionAndShowSnackbar();
+          if (context.mounted) refresh();
+        });
+
+
+    //_getTravelInfo();
     // obtenerStatus();
     _actualizarIsTravelingTrue();
     _position = await Geolocator.getCurrentPosition();
@@ -125,82 +129,6 @@ class TravelMapController{
     _playerTaxiHaLlegado = AudioPlayer();
     _playerConductorHaCancelado = AudioPlayer();
   }
-
-  //double _lerpDouble(double a, double b, double t) => a + (b - a) * t;
-
-  // LatLng _lerpLatLng(LatLng a, LatLng b, double t) {
-  //   return LatLng(
-  //     _lerpDouble(a.latitude, b.latitude, t),
-  //     _lerpDouble(a.longitude, b.longitude, t),
-  //   );
-  // }
-
-// Para evitar que la rotación “salte” de 359 a 0
-//   double _lerpHeading(double a, double b, double t) {
-//     double diff = (b - a) % 360;
-//     if (diff > 180) diff -= 360;
-//     return (a + diff * t) % 360;
-//   }
-
-  //helpers movimiento carro
-
-  // double _distanceMeters(LatLng a, LatLng b) {
-  //   return Geolocator.distanceBetween(a.latitude, a.longitude, b.latitude, b.longitude);
-  // }
-
-  // LatLng _moveTowards(LatLng current, LatLng target, double metersStep) {
-  //   final d = _distanceMeters(current, target);
-  //   if (d <= metersStep || d == 0) return target;
-  //
-  //   final t = metersStep / d;
-  //   return LatLng(
-  //     _lerpDouble(current.latitude, target.latitude, t),
-  //     _lerpDouble(current.longitude, target.longitude, t),
-  //   );
-  // }
-
-//   void _startSmoothLoop() {
-//     _smoothTimer?.cancel();
-//
-//     _smoothTimer = Timer.periodic(const Duration(milliseconds: _smoothTickMs), (_) {
-//       if (_smoothPos == null || _targetPos == null) return;
-//
-//       final stepMeters = _speedMetersPerSec * (_smoothTickMs / 1000.0);
-//
-//       final newPos = _moveTowards(_smoothPos!, _targetPos!, stepMeters);
-//
-//       // heading suave
-//       double desiredHeading = _targetHeading;
-//
-// // ✅ si nos estamos moviendo, usamos bearing real del movimiento
-//       if (_smoothPos != null && _targetPos != null) {
-//         final dist = _distanceMeters(_smoothPos!, _targetPos!);
-//         if (dist > 2) { // si hay movimiento real
-//           desiredHeading = _bearingBetween(_smoothPos!, _targetPos!);
-//         }
-//       }
-//
-// // ✅ suavizamos hacia ese heading
-//       final newHeading = _lerpHeading(_smoothHeading, desiredHeading, 0.25);
-//
-//
-//       _smoothPos = newPos;
-//       _smoothHeading = newHeading;
-//
-//       addMarkerDriver(
-//         'driver',
-//         newPos.latitude,
-//         newPos.longitude,
-//         'Tu conductor',
-//         '',
-//         markerDriver,
-//         heading: newHeading,
-//       );
-//
-//       refresh();
-//     });
-//   }
-//
 
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
@@ -301,18 +229,20 @@ class TravelMapController{
     _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
   }
 
-  void dispose(){
-    _statusSuscription.cancel();
-    _driverInfoSuscription.cancel();
-    _streamLocationController.cancel();
-    _streamTravelController.cancel();
-    _streamStatusController.cancel();
+  void dispose() {
+    _streamLocationController?.cancel();
+    _streamLocationController = null;
+
+    _streamTravelController?.cancel();
+    _streamTravelController = null;
+
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+
     _playerTaxiHaLlegado.dispose();
     _playerConductorHaCancelado.dispose();
-    // _markerAnimTimer?.cancel();
-    // _smoothTimer?.cancel(); quitar suavizado
-
   }
+
 
   void _getTravelInfo() async {
     // Obtener la información del viaje del proveedor de información de viaje
@@ -542,6 +472,17 @@ class TravelMapController{
   }
 
   Future<void> setPolylines(LatLng from, LatLng to) async {
+    final ok = await _connectionService.hasInternetConnection();
+    if (!ok) {
+      if(context.mounted){
+        await _connectionService.checkConnectionAndShowCard(context, () {
+          refresh();
+        });
+      }
+      return;
+    }
+
+
     try {
       points = List.from([]);
 
@@ -583,11 +524,26 @@ class TravelMapController{
     }
   }
 
-  void onMapCreated(GoogleMapController controller){
+  // void onMapCreated(GoogleMapController controller){
+  //   controller.setMapStyle(utilsMap.mapStyle);
+  //   _mapController.complete(controller);
+  //   _getTravelInfo();
+  // } 8 feb 2026
+
+
+  void onMapCreated(GoogleMapController controller) {
     controller.setMapStyle(utilsMap.mapStyle);
-    _mapController.complete(controller);
+
+    if (!_mapController.isCompleted) {
+      _mapController.complete(controller);
+    }
+
+    if (_didLoadTravel) return;   // ✅ evita duplicar listeners
+    _didLoadTravel = true;
+
     _getTravelInfo();
   }
+
 
   void checkGPS() async{
     bool islocationEnabled = await Geolocator.isLocationServiceEnabled();

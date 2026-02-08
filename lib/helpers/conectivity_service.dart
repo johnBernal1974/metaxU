@@ -146,11 +146,9 @@ class ConnectionService {
       final ok = await hasInternetConnection();
       if (!ok) return;
 
-      _overlayEntry?.remove();
-      _overlayEntry = null;
-      _isOverlayVisible = false;
-
+      hide(); // ✅ quita banner y limpia flags siempre
       onConnectionRestored();
+
       await _sub?.cancel();
       _sub = null;
     });
@@ -164,6 +162,7 @@ class ConnectionService {
       ) async {
     final ok = await hasInternetConnection();
     if (ok) {
+      hide();
       onConnectionRestored();
       return;
     }
@@ -181,6 +180,15 @@ class ConnectionService {
     _overlayEntry = null;
     _isOverlayVisible = false;
   }
+
+  void hide() {
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
+    _isOverlayVisible = false;
+  }
+
 }
 
 class _MiniNoInternetBanner extends StatefulWidget {

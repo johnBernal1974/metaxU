@@ -40,14 +40,30 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
 
 
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+  //     _controller.init(context, refresh);
+  //     setState(() {});
+  //   });
+  // } prueba 8 feb 2026
+
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-      _controller.init(context, refresh);
-      setState(() {});
+
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+      await connectionService.checkConnectionAndShowCard(
+        context,
+            () {
+          _controller.init(context, refresh);
+          if (mounted) setState(() {});
+        },
+      );
     });
   }
+
 
   @override
   void dispose() {
@@ -318,16 +334,27 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 disabledBackgroundColor:
                 const Color(0xFF1EBE71).withOpacity(0.4),
               ),
+              // onPressed: _controller.canConfirmTrip
+              //     ? () async {
+              //   bool hasConnection =
+              //   await connectionService.hasInternetConnection();
+              //
+              //   if (hasConnection) {
+              //     verificarCedulaInicial();
+              //   } else {
+              //     alertSinInternet();
+              //   }
+              // }
+              //     : null, feb 8 2026
+
               onPressed: _controller.canConfirmTrip
                   ? () async {
-                bool hasConnection =
-                await connectionService.hasInternetConnection();
-
-                if (hasConnection) {
-                  verificarCedulaInicial();
-                } else {
-                  alertSinInternet();
-                }
+                await connectionService.checkConnectionAndShowCard(
+                  context,
+                      () {
+                    verificarCedulaInicial();
+                  },
+                );
               }
                   : null,
               child: Row(

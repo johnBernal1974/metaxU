@@ -372,45 +372,53 @@ class _MapClientPageState extends State<MapClientPage> {
                   SizedBox(width: 10.r),
 
                   // ⭐ FAVORITOS (container independiente)
-                  GestureDetector(
-                    onTap: _showFavoritesSheet,
-                    child: Container(
-                      height: 52.r,
-                      width: 80.r,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.black87, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            offset: Offset(0, 2.r),
-                            blurRadius: 6.r,
-                          ),
-                        ],
+              GestureDetector(
+                onTap: () async {
+                  await connectionService.checkConnectionAndShowCard(
+                    context,
+                        () {
+                      _showFavoritesSheet();
+                    },
+                  );
+                },
+                child: Container(
+                  height: 52.r,
+                  width: 80.r,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.black87, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.4),
+                        offset: Offset(0, 2.r),
+                        blurRadius: 6.r,
                       ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Favoritos',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Icon(
-                            Icons.favorite,
-                            color: Colors.red,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Favoritos',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Icon(
+                        Icons.favorite,
+                        color: Colors.red,
+                        size: 18,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              ],
               ),
             ),
             const SizedBox(height: 6),
@@ -455,15 +463,24 @@ class _MapClientPageState extends State<MapClientPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  onTap: () {
+                  onTap: () async {
+                    final hasConnection = await connectionService.hasInternetConnection();
+                    if (!hasConnection) {
+                      alertSinInternet(); // 👈 solo alerta
+                      return;
+                    }
+
                     final latLng = LatLng(f.lat, f.lng);
+
                     setState(() {
                       _controller.to = f.subtitle.isNotEmpty ? '${f.title}, ${f.subtitle}' : f.title;
                       _controller.tolatlng = latLng;
                     });
+
                     Navigator.pop(context);
-                    _controller.requestDriver();
+                    _controller.requestDriver(); // aquí ya va a calcular ruta/tarifa con internet
                   },
+
                 )),
             ],
           ),

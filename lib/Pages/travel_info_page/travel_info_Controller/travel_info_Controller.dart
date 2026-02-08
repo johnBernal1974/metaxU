@@ -1,6 +1,7 @@
 
 import 'dart:async';
 import 'dart:math';
+import 'package:apptaxis/helpers/conectivity_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -79,6 +80,10 @@ class TravelInfoController{
   // Cambio a Api desde el backend
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
+  //para internet
+  final ConnectionService connectionService = ConnectionService();
+
+
 
   // ✅ listo solo si ya hay ruta y tarifa
   bool get canConfirmTrip {
@@ -109,14 +114,35 @@ class TravelInfoController{
     Map<String, dynamic>? arguments = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     await getClientInfo();
 
+    // if (arguments != null) {
+    //   updateMap();
+    //   from = arguments['from'] ?? "Desconocido";
+    //   to = arguments['to'] ?? "Desconocido";
+    //   fromLatlng = arguments['fromlatlng'];
+    //   toLatlng = arguments['tolatlng'];
+    //   animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
+    //   getGoogleMapsDirections(fromLatlng, toLatlng);
+    // } else {
+    //   if (kDebugMode) {
+    //     print('Error: Los argumentos son nulos');
+    //   }
+    // } 8 febe 2026
+
     if (arguments != null) {
-      updateMap();
       from = arguments['from'] ?? "Desconocido";
       to = arguments['to'] ?? "Desconocido";
       fromLatlng = arguments['fromlatlng'];
       toLatlng = arguments['tolatlng'];
-      animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
-      getGoogleMapsDirections(fromLatlng, toLatlng);
+
+      // ✅ Todo lo que requiere internet va aquí
+      await connectionService.checkConnectionAndShowCard(context, () {
+        // No pongas await aquí porque el callback es VoidCallback
+        Future.microtask(() async {
+          updateMap();
+          animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
+          await getGoogleMapsDirections(fromLatlng, toLatlng);
+        });
+      });
     } else {
       if (kDebugMode) {
         print('Error: Los argumentos son nulos');
@@ -322,6 +348,8 @@ class TravelInfoController{
 
 
   Future<void> getGoogleMapsDirections(LatLng from, LatLng to) async {
+    final ok = await connectionService.hasInternetConnection();
+    if (!ok) return;
     try {
       final res = await _functions.httpsCallable('getDirections').call({
         'fromLat': from.latitude,

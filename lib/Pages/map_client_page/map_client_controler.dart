@@ -15,6 +15,7 @@ import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
+import '../../service/connection_service_singleton.dart';
 
 class ClientMapController {
   late BuildContext context;
@@ -52,9 +53,9 @@ class ClientMapController {
   LatLng? tolatlng;
   LatLng? currentLocation;
 
-  final ConnectionService _connectionService = ConnectionService();
+  //final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false; //**para validar el estado de conexion a internet
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;  // Suscripción para escuchar cambios en conectividad
+  //StreamSubscription<ConnectivityResult>? _connectivitySubscription;  // Suscripción para escuchar cambios en conectividad
 
   bool _pedirCedula = false;
   int _cedulaDespuesDeViajes = 1;
@@ -89,11 +90,12 @@ class ClientMapController {
 
     checkGPS();
 
-    await checkConnectionAndShowSnackbar();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      checkConnectionAndShowSnackbar();
-      refresh();
-    });
+    //await checkConnectionAndShowSnackbar();
+
+    // _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+    //   checkConnectionAndShowSnackbar();
+    //   refresh();
+    // }); prueba -feb2026
     await obtenerDatos();
   }
 
@@ -137,12 +139,19 @@ class ClientMapController {
   }
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
+  // Future<void> checkConnectionAndShowSnackbar() async {
+  //   await _connectionService.checkConnectionAndShowCard(context, () {
+  //     // Callback para manejar la reconexión a Internet
+  //     refresh();
+  //   });
+  // } prueba 8 feb 2026
+
   Future<void> checkConnectionAndShowSnackbar() async {
-    await _connectionService.checkConnectionAndShowCard(context, () {
-      // Callback para manejar la reconexión a Internet
+    await connectionService.checkConnectionAndShowCard(context, () {
       refresh();
     });
   }
+
   void _initializePositionStream() {
     // Inicializa tu _positionStream aquí
     _positionStream = Geolocator.getPositionStream().listen((Position position) {
@@ -269,7 +278,7 @@ class ClientMapController {
     _positionStream.cancel();
     _clientInfoSuscription.cancel();
     _driversSubscription?.cancel();
-    _connectivitySubscription?.cancel();
+    //_connectivitySubscription?.cancel();
   }
 
   void onMapCreated(GoogleMapController controller){
@@ -370,6 +379,9 @@ class ClientMapController {
 
 
   void requestDriver() async {
+
+    // ⛔ Validar internet SOLO cuando va a solicitar viaje
+    await connectionService.checkConnectionAndShowCard(context, () => refresh());
 
     final user = _authProvider.getUser();
     if (user == null) return;

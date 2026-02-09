@@ -12,9 +12,8 @@ class BottomSheetDriverInfo extends StatefulWidget {
   final String imageUrl;
   final String name;
   final String apellido;
-  late String calificacion;
-  final String numeroViajes;
   final String celular;
+  final int numeroViajes;
   final String placa;
   final String color;
   final String servicio;
@@ -26,9 +25,8 @@ class BottomSheetDriverInfo extends StatefulWidget {
     required this.imageUrl,
     required this.name,
     required this.apellido,
-    required this.calificacion,
-    required this.numeroViajes,
     required this.celular,
+    required this.numeroViajes,
     required this.placa,
     required this.color,
     required this.servicio,
@@ -48,13 +46,25 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
   late MyAuthProvider _authProvider;
   String tipoServicio = '';
 
+  //para calificacion
+  double? ratingAvg;
+  int ratingCount = 0;
+
+  String get ratingText {
+    if (ratingAvg != null && ratingCount > 0) {
+      return ratingAvg!.toStringAsFixed(1);
+    }
+    return 'Primer viaje';
+  }
+
+
   @override
   void initState() {
     super.initState();
     _driverProvider = DriverProvider();
     _authProvider = MyAuthProvider();
     getDriverInfo();
-    getClientRatings();
+    getDriverRatingFromDoc();
   }
 
   @override
@@ -178,7 +188,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                                 ],
                               ),
                               Text(
-                                widget.numeroViajes,
+                                widget.numeroViajes.toString(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
@@ -199,12 +209,13 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
                                 ],
                               ),
                               Text(
-                                widget.calificacion,
+                                ratingText,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 12,
                                 ),
                               ),
+
                             ],
                           ),
                         ],
@@ -303,14 +314,14 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
 
 
   void getDriverInfo() async {
-    driver = await _driverProvider.getById(_authProvider.getUser()!.uid);
+    driver = await _driverProvider.getById(widget.idDriver);
     if (driver != null) {
+      if (!mounted) return;
       setState(() {
         tipoServicio = driver!.the19TipoServicio;
       });
     }
   }
-
 
   void _openWhatsApp(BuildContext context) async {
     final phoneNumber = '+57${widget.celular}';
@@ -359,31 +370,34 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     }
   }
 
-  void getClientRatings() async {
-    final drivertId = widget.idDriver;
-    final ratingsSnapshot = await FirebaseFirestore.instance
+  Future<void> getDriverRatingFromDoc() async {
+    final driverId = widget.idDriver;
+
+    final doc = await FirebaseFirestore.instance
         .collection('Drivers')
-        .doc(drivertId)
-        .collection('ratings')
+        .doc(driverId)
         .get();
 
-    if (ratingsSnapshot.docs.isNotEmpty) {
-      double totalRating = 0;
-      int ratingCount = ratingsSnapshot.docs.length;
-
-      for (var doc in ratingsSnapshot.docs) {
-        totalRating += doc['calificacion'];
-      }
-
-      double averageRating = totalRating / ratingCount;
-
+    if (!doc.exists) {
+      if (!mounted) return;
       setState(() {
-        widget.calificacion = averageRating.toStringAsFixed(1);
+        ratingAvg = null;
+        ratingCount = 0;
       });
-    } else {
-      setState(() {
-        widget.calificacion = 'N/A';
-      });
+      return;
     }
+
+    final data = doc.data() as Map<String, dynamic>;
+
+    final double? avg = (data['rating_avg'] as num?)?.toDouble();
+    final int count = (data['rating_count'] as num?)?.toInt() ?? 0;
+
+    if (!mounted) return;
+    setState(() {
+      ratingAvg = avg;
+      ratingCount = count;
+    });
   }
+
+
 }

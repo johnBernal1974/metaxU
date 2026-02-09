@@ -110,12 +110,7 @@ class TravelCalificationController{
       return;
     }
 
-    await _travelHistoryProvider.update({
-      'calificacionAlConductor': calification
-    }, idTravelHistory!);
-
-    final clientId = _authProvider.getUser()!.uid;
-
+    // 1) Lee el travelHistory para saber qué driver es
     travelHistory = await _travelHistoryProvider.getById(idTravelHistory!);
     if (travelHistory == null) {
       if (!context.mounted) return;
@@ -128,18 +123,41 @@ class TravelCalificationController{
       return;
     }
 
+    final clientId = _authProvider.getUser()!.uid;
     final idConductor = travelHistory!.idDriver;
+    final rating = calification!.toDouble();
 
-    await FirebaseFirestore.instance
-        .collection('Drivers')
-        .doc(idConductor)
-        .collection('ratings')
-        .add({
-      'idCliente': clientId,
-      'idTravelHistory': idTravelHistory,
-      'calificacion': calification,
-      'fecha': FieldValue.serverTimestamp(), // ✅ mejor que DateTime.now()
+    final driverRef = FirebaseFirestore.instance.collection('Drivers').doc(idConductor);
+    final ratingRef = driverRef.collection('ratings').doc(); // id automático
+    final travelRef = FirebaseFirestore.instance.collection('TravelHistory').doc(idTravelHistory);
+
+    await FirebaseFirestore.instance.runTransaction((tx) async {
+      // ✅ 1) PRIMERO la lectura
+      final driverSnap = await tx.get(driverRef);
+      final data = (driverSnap.data() as Map<String, dynamic>?) ?? {};
+
+      final currentAvg = (data['rating_avg'] as num?)?.toDouble() ?? 0.0;
+      final currentCount = (data['rating_count'] as num?)?.toInt() ?? 0;
+
+      final newCount = currentCount + 1;
+      final newAvg = ((currentAvg * currentCount) + rating) / newCount;
+
+      // ✅ 2) DESPUÉS las escrituras (todas juntas)
+      tx.update(travelRef, {'calificacionAlConductor': rating});
+
+      tx.set(ratingRef, {
+        'idCliente': clientId,
+        'idTravelHistory': idTravelHistory,
+        'calificacion': rating,
+        'fecha': FieldValue.serverTimestamp(),
+      });
+
+      tx.set(driverRef, {
+        'rating_avg': newAvg,
+        'rating_count': newCount,
+      }, SetOptions(merge: true));
     });
+
 
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(
@@ -148,7 +166,6 @@ class TravelCalificationController{
           (route) => false,
     );
   }
-
 
 
   void getTravelHistory () async {

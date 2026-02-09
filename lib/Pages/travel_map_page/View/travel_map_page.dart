@@ -4,7 +4,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../../helpers/conectivity_service.dart';
 import '../../../models/driver.dart';
 import '../../../src/colors/colors.dart';
 import '../travel_map_controller/travel_map_controller.dart';
@@ -20,7 +19,8 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
   late TravelMapController _controller;
   Driver? driver;
-  final ConnectionService connectionService = ConnectionService();
+
+
 
   @override
   void initState() {
@@ -239,7 +239,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
             // }, 8 feb 2026
 
             onTap: () async {
-              await connectionService.checkConnectionAndShowCard(context, () {
+              await _controller.connectionService.checkConnectionAndShowCard(context, () {
                 showDialog(
                   context: context,
                   builder: (BuildContext context) {

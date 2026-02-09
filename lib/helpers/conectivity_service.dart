@@ -109,6 +109,7 @@ class ConnectionService {
   bool _isOverlayVisible = false;
 
   StreamSubscription<ConnectivityResult>? _sub;
+  Timer? _pollTimer;
 
   /// ✅ “Internet real”: intenta un request liviano con timeout.
   /// (Esto funciona en mobile y web)
@@ -140,17 +141,27 @@ class ConnectionService {
     Overlay.of(context).insert(_overlayEntry!);
     _isOverlayVisible = true;
 
+    // ✅ Cancela anteriores
     _sub?.cancel();
+    _pollTimer?.cancel();
 
+    // ✅ 1) Listener por cambios de conectividad
     _sub = Connectivity().onConnectivityChanged.listen((_) async {
       final ok = await hasInternetConnection();
       if (!ok) return;
 
-      hide(); // ✅ quita banner y limpia flags siempre
+      hide();               // ✅ limpia todo
       onConnectionRestored();
+    });
 
-      await _sub?.cancel();
-      _sub = null;
+    // ✅ 2) Poll mientras el banner esté visible (para casos sin eventos)
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (!_isOverlayVisible) return;
+      final ok = await hasInternetConnection();
+      if (!ok) return;
+
+      hide();               // ✅ limpia todo
+      onConnectionRestored();
     });
   }
 
@@ -182,10 +193,15 @@ class ConnectionService {
   }
 
   void hide() {
-    if (_overlayEntry != null) {
-      _overlayEntry!.remove();
-      _overlayEntry = null;
-    }
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+
+    _pollTimer?.cancel();
+    _pollTimer = null;
+
+    _sub?.cancel();
+    _sub = null;
+
     _isOverlayVisible = false;
   }
 

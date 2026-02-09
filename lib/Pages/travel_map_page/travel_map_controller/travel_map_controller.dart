@@ -76,7 +76,7 @@ class TravelMapController{
   LatLng? get to => _to;
   //final StreamController<double> timeRemainingController = StreamController<double>.broadcast();
   //String? status = '';
-  final ConnectionService _connectionService = ConnectionService();
+  final ConnectionService connectionService = ConnectionService();
   //bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
@@ -89,6 +89,11 @@ class TravelMapController{
 
   //evitar traergetdriverinfo dos veces
   bool _didLoadTravel = false;
+
+  //para calificacion
+  double? ratingAvg;
+  int ratingCount = 0;
+
 
 
   Future? init(BuildContext context, Function refresh) async {
@@ -133,7 +138,7 @@ class TravelMapController{
 
   // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
   Future<void> checkConnectionAndShowSnackbar() async {
-    await _connectionService.checkConnectionAndShowCard(context, () {
+    await connectionService.checkConnectionAndShowCard(context, () {
       refresh();
     });
   }
@@ -239,9 +244,13 @@ class TravelMapController{
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
 
+    // ✅ CLAVE: limpiar overlay + listener interno del ConnectionService
+    connectionService.dispose();
+
     _playerTaxiHaLlegado.dispose();
     _playerConductorHaCancelado.dispose();
   }
+
 
 
   void _getTravelInfo() async {
@@ -472,10 +481,10 @@ class TravelMapController{
   }
 
   Future<void> setPolylines(LatLng from, LatLng to) async {
-    final ok = await _connectionService.hasInternetConnection();
+    final ok = await connectionService.hasInternetConnection();
     if (!ok) {
       if(context.mounted){
-        await _connectionService.checkConnectionAndShowCard(context, () {
+        await connectionService.checkConnectionAndShowCard(context, () {
           refresh();
         });
       }
@@ -639,9 +648,8 @@ class TravelMapController{
           imageUrl: driver?.image ?? '',
           name:driver?.the01Nombres ?? '',
           apellido: driver?.the02Apellidos ?? '',
-          calificacion: driver?.the31Calificacion.toString() ?? '',
-          numeroViajes: driver?.the30NumeroViajes.toString() ?? '',
           celular: driver?.the07Celular ?? '',
+          numeroViajes: driver?.the30NumeroViajes ?? 0,
           placa: driver?.the18Placa ?? '',
           color: driver?.the16Color ?? '',
           servicio: driver?.the19TipoServicio ?? '',

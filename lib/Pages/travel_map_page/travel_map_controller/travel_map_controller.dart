@@ -109,10 +109,10 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
     await checkConnectionAndShowSnackbar();
-    // _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-    //   checkConnectionAndShowSnackbar();
-    //   refresh();
-    // }); 8 feb 2026
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      checkConnectionAndShowSnackbar();
+      refresh();
+    });
 
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((_) async {
@@ -318,55 +318,6 @@ class TravelMapController{
     }
   }
 
-  // void getDriverLocation(String idDriver) {
-  //   final stream = _geofireProvider.getLocationByIdStream(idDriver);
-  //
-  //   _streamLocationController = stream.listen((DocumentSnapshot document) {
-  //     final data = document.data() as Map<String, dynamic>?;
-  //     if (data == null) return;
-  //
-  //     final pos = data['position'] as Map<String, dynamic>?;
-  //     if (pos == null) return;
-  //
-  //     final geoPoint = pos['geopoint'] as GeoPoint?;
-  //     if (geoPoint == null) return;
-  //
-  //     final headingRaw = pos['heading'];
-  //     final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
-  //
-  //     final newTarget = LatLng(geoPoint.latitude, geoPoint.longitude);
-  //     _driverLatlng = newTarget;
-  //
-  //     // ✅ actualiza SOLO el objetivo (target)
-  //     _targetPos = newTarget;
-  //     _targetHeading = heading;
-  //
-  //     // ✅ primera vez: coloca y arranca el loop suave
-  //     if (_smoothPos == null) {
-  //       _smoothPos = newTarget;
-  //       _smoothHeading = heading;
-  //
-  //       addMarkerDriver(
-  //         'driver',
-  //         newTarget.latitude,
-  //         newTarget.longitude,
-  //         'Tu conductor',
-  //         '',
-  //         markerDriver,
-  //         heading: heading,
-  //       );
-  //
-  //       _startSmoothLoop(); // 🔥 empieza el deslizamiento continuo
-  //       refresh();
-  //     }
-  //
-  //     if (!isRouteready) {
-  //       isRouteready = true;
-  //       checkTravelStatus();
-  //     }
-  //   });
-  // } para quitar el suavizado
-
   void getDriverLocation(String idDriver) {
     final stream = _geofireProvider.getLocationByIdStream(idDriver);
 
@@ -405,25 +356,6 @@ class TravelMapController{
       }
     });
   }
-
-
-  // double _bearingBetween(LatLng a, LatLng b) {
-  //   final lat1 = a.latitude * (3.141592653589793 / 180.0);
-  //   final lon1 = a.longitude * (3.141592653589793 / 180.0);
-  //   final lat2 = b.latitude * (3.141592653589793 / 180.0);
-  //   final lon2 = b.longitude * (3.141592653589793 / 180.0);
-  //
-  //   final dLon = lon2 - lon1;
-  //
-  //   final y = Math.sin(dLon) * Math.cos(lat2);
-  //   final x = Math.cos(lat1) * Math.sin(lat2) -
-  //       Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  //
-  //   var brng = Math.atan2(y, x) * (180.0 / 3.141592653589793);
-  //   brng = (brng + 360.0) % 360.0;
-  //   return brng;
-  // }
-
 
   void pickupTravel () {
     if(!isPickUpTravel){
@@ -491,7 +423,6 @@ class TravelMapController{
       return;
     }
 
-
     try {
       points = List.from([]);
 
@@ -532,13 +463,6 @@ class TravelMapController{
       if (kDebugMode) print('setPolylines (function) error: $e');
     }
   }
-
-  // void onMapCreated(GoogleMapController controller){
-  //   controller.setMapStyle(utilsMap.mapStyle);
-  //   _mapController.complete(controller);
-  //   _getTravelInfo();
-  // } 8 feb 2026
-
 
   void onMapCreated(GoogleMapController controller) {
     controller.setMapStyle(utilsMap.mapStyle);
@@ -656,7 +580,7 @@ class TravelMapController{
           marca: driver?.the15Marca ?? '',
           idDriver: driver?.id ?? '',
           clase: driver?.the14TipoVehiculo ?? "",
-        ));
+    ));
   }
 
 }

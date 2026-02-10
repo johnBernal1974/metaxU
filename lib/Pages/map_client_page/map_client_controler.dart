@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide ModalBottomSheetRoute;
 import 'package:geolocator/geolocator.dart';
@@ -13,7 +12,6 @@ import 'package:geocoding/geocoding.dart';
 import '../../../../providers/push_notifications_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
-import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
 import '../../service/connection_service_singleton.dart';
 
@@ -52,10 +50,7 @@ class ClientMapController {
   String? to;
   LatLng? tolatlng;
   LatLng? currentLocation;
-
-  //final ConnectionService _connectionService = ConnectionService();
   bool isConnected = false; //**para validar el estado de conexion a internet
-  //StreamSubscription<ConnectivityResult>? _connectivitySubscription;  // Suscripción para escuchar cambios en conectividad
 
   bool _pedirCedula = false;
   int _cedulaDespuesDeViajes = 1;
@@ -89,13 +84,6 @@ class ClientMapController {
     markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
 
     checkGPS();
-
-    //await checkConnectionAndShowSnackbar();
-
-    // _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-    //   checkConnectionAndShowSnackbar();
-    //   refresh();
-    // }); prueba -feb2026
     await obtenerDatos();
   }
 
@@ -137,14 +125,6 @@ class ClientMapController {
     getClientInfo();
     getNearbyDrivers();
   }
-
-  // Método para verificar la conexión a Internet y mostrar el Snackbar si no hay conexión
-  // Future<void> checkConnectionAndShowSnackbar() async {
-  //   await _connectionService.checkConnectionAndShowCard(context, () {
-  //     // Callback para manejar la reconexión a Internet
-  //     refresh();
-  //   });
-  // } prueba 8 feb 2026
 
   Future<void> checkConnectionAndShowSnackbar() async {
     await connectionService.checkConnectionAndShowCard(context, () {
@@ -352,34 +332,8 @@ class ClientMapController {
     Navigator.pushNamed(context, "eliminar_cuenta");
   }
 
-  // void requestDriver() {
-  //   if (fromlatlng != null && tolatlng != null) {
-  //     // Verificar si las coordenadas de origen y destino son iguales
-  //     if (from == to) {
-  //       // Mostrar un Snackbar informando que las coordenadas son iguales
-  //       if (key.currentState != null) {
-  //         Snackbar.showSnackbar(context, 'La posición de origen es la misma que el destino. Verifica el destino e intentalo nuevamente');
-  //       }
-  //     } else {
-  //       // Si las coordenadas no son iguales, navega a la página de viaje
-  //       Navigator.pushNamed(context, "travel_info_page", arguments: {
-  //         'from': from,
-  //         'to': to,
-  //         'fromlatlng': fromlatlng,
-  //         'tolatlng': tolatlng,
-  //       });
-  //     }
-  //   } else {
-  //     // Si no se han seleccionado las coordenadas, mostrar un Snackbar
-  //     if (key.currentState != null) {
-  //       Snackbar.showSnackbar(context,  'Debes seleccionar el lugar de origen y destino');
-  //     }
-  //   }
-  // }para validar la foto en caso de que no la tenga
-
 
   void requestDriver() async {
-
     // ⛔ Validar internet SOLO cuando va a solicitar viaje
     await connectionService.checkConnectionAndShowCard(context, () => refresh());
 
@@ -395,7 +349,7 @@ class ClientMapController {
     }
 
     // ✅ NUEVA REGLA: primer viaje libre, desde el segundo exige cédula ACEPTADA
-    final int viajes = c.the19Viajes; // 19_Viajes
+    final int viajes = c.the19Viajes;
 
     if (_pedirCedula && viajes >= _cedulaDespuesDeViajes) {
       final String estadoFront = (c.the16CedulaFrontalUsuario).toString().trim().toLowerCase();
@@ -464,7 +418,7 @@ class ClientMapController {
     }
     // ✅ Foto de perfil (como lo tienes)
     final bool fotoTomada = c.fotoPerfilTomada == true;
-    final String estadoFoto = (c.the15FotoPerfilUsuario ?? '').toString().trim().toLowerCase();
+    final String estadoFoto = (c.the15FotoPerfilUsuario).toString().trim().toLowerCase();
 
     if (!fotoTomada) {
       if (context.mounted) {
@@ -507,9 +461,6 @@ class ClientMapController {
       }
     }
   }
-
-
-
 
   Future<Position> _determinePosition() async {
     bool serviceEnabled;

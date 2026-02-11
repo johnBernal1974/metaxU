@@ -74,9 +74,6 @@ class _MapClientPageState extends State<MapClientPage> {
   SearchHistoryItem? _lastPickedPlace;
 
 
-
-
-
   void _safeSheetRepaint() {
     if (!_isSheetOpen) return;
     final s = _sheetSetState;
@@ -129,7 +126,9 @@ class _MapClientPageState extends State<MapClientPage> {
       }
 
       // 2) Si la sesión está OK, ahora sí carga el resto
-      _controller.init(context, refresh);
+      if(context.mounted){
+        _controller.init(context, refresh);
+      }
       _checkConnection();
       checkForUpdate();
       _loadSearchHistory();
@@ -162,10 +161,14 @@ class _MapClientPageState extends State<MapClientPage> {
         print('¡*****************Actualización disponible!*************');
         await InAppUpdate.performImmediateUpdate();
       } else {
-        print('***********************No hay actualizaciones disponibles.****************');
+        if (kDebugMode) {
+          print('***********************No hay actualizaciones disponibles.****************');
+        }
       }
     } catch (e) {
-      print('***************Error al verificar actualizaciones: $e');
+      if (kDebugMode) {
+        print('***************Error al verificar actualizaciones: $e');
+      }
     }
   }
 

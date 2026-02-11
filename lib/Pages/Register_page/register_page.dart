@@ -400,65 +400,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // void _register() async {
-  //   _progressDialog.show();
-  //   try{
-  //     bool isSignUp =  await _authProvider.signUp(email!, password!);
-  //     if(isSignUp){
-  //       Client client = Client(
-  //           id: _authProvider.getUser()!.uid,
-  //           the01Nombres: name ?? "",
-  //           the02Apellidos: apellidos ?? "",
-  //           the06Email: email ?? "",
-  //           the07Celular: celular ?? "",
-  //           the09Genero: "",
-  //           the15FotoPerfilUsuario: "",
-  //           the17Bono: 0,
-  //           the18Calificacion: 0,
-  //           the19Viajes: 0,
-  //           the20Rol: "regular",
-  //           the21FechaDeRegistro: DateHelpers.getStartDate(),
-  //           token: "",
-  //           image: "",
-  //           status: "registrado",
-  //           the00isTraveling: false,
-  //           the22Cancelaciones: 0,
-  //           the41SuspendidoPorCancelaciones: false,
-  //           fotoPerfilTomada: false,
-  //           palabraClave: answer ?? "",
-  //           preguntaPalabraClave: selectedQuestion ?? ""
-  //       );
-  //
-  //       await _clientProvider.create(client);
-  //       _progressDialog.hide();
-  //       _goTakeFotoPerfil();
-  //     }
-  //     else{
-  //       _progressDialog.hide();
-  //     }
-  //   }catch (error) {
-  //     _progressDialog.hide();
-  //     if (kDebugMode) {
-  //       print('Error durante el registro: $error');
-  //     }
-  //
-  //     if (error is FirebaseAuthException) {
-  //       if (error.code == 'email-already-in-use') {
-  //         Snackbar.showSnackbar(key.currentContext!,
-  //             'El correo electrónico ya está en uso por otra cuenta.');
-  //       } else {
-  //         Snackbar.showSnackbar(key.currentContext!,
-  //             'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
-  //       }
-  //     } else {
-  //       Snackbar.showSnackbar(key.currentContext!,
-  //           'Ocurrió un error durante el registro. Por favor, inténtalo nuevamente.');
-  //     }
-  //   }
-  //
-  // } para mejorar el registro y no se vree un auth pero no el registro en firestore
-
-
   void _register() async {
 
     // ✅ SEGURO: valida aquí también (por si alguien llama _register() directo)
@@ -586,7 +527,6 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     }
   }
-
 
 
   void _goTakeFotoPerfil(){
@@ -922,6 +862,5 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
-
 
 }

@@ -113,21 +113,6 @@ class TravelInfoController{
 
     Map<String, dynamic>? arguments = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     await getClientInfo();
-
-    // if (arguments != null) {
-    //   updateMap();
-    //   from = arguments['from'] ?? "Desconocido";
-    //   to = arguments['to'] ?? "Desconocido";
-    //   fromLatlng = arguments['fromlatlng'];
-    //   toLatlng = arguments['tolatlng'];
-    //   animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
-    //   getGoogleMapsDirections(fromLatlng, toLatlng);
-    // } else {
-    //   if (kDebugMode) {
-    //     print('Error: Los argumentos son nulos');
-    //   }
-    // } 8 febe 2026
-
     if (arguments != null) {
       from = arguments['from'] ?? "Desconocido";
       to = arguments['to'] ?? "Desconocido";

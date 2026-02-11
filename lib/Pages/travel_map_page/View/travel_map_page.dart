@@ -202,42 +202,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
         child: Align(
           alignment: Alignment.centerRight,
           child: GestureDetector(
-            // onTap: () {
-            //   // Verificar conexión a Internet antes de ejecutar la acción
-            //   connectionService.hasInternetConnection().then((hasConnection) {
-            //     if (hasConnection) {
-            //       // Llama a _mostrarCajonDeBusqueda inmediatamente
-            //       showDialog(
-            //         context: context,
-            //         builder: (BuildContext context) {
-            //           return AlertDialog(
-            //             title: Text('Cancelar Viaje', style: TextStyle(fontSize: 16.r, fontWeight: FontWeight.bold)),
-            //             content: const Text('¿En verdad deseas cancelar el viaje?'),
-            //             actions: [
-            //               TextButton(
-            //                 onPressed: () {
-            //                   // Cerrar el AlertDialog sin realizar ninguna acción
-            //                   Navigator.of(context).pop();
-            //                 },
-            //                 child: const Text('NO'),
-            //               ),
-            //               TextButton(
-            //                 onPressed: () {
-            //                   _controller.cancelTravelByClient();
-            //                 },
-            //                 child: const Text('SI'),
-            //               ),
-            //             ],
-            //           );
-            //         },
-            //       );
-            //     } else {
-            //       // Llama a alertSinInternet inmediatamente si no hay conexión
-            //       alertSinInternet();
-            //     }
-            //   });
-            // }, 8 feb 2026
-
             onTap: () async {
               await _controller.connectionService.checkConnectionAndShowCard(context, () {
                 showDialog(

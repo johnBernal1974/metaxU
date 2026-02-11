@@ -334,20 +334,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 disabledBackgroundColor:
                 const Color(0xFF1EBE71).withOpacity(0.4),
               ),
-              // onPressed: _controller.canConfirmTrip
-              //     ? () async {
-              //   bool hasConnection =
-              //   await connectionService.hasInternetConnection();
-              //
-              //   if (hasConnection) {
-              //     verificarCedulaInicial();
-              //   } else {
-              //     alertSinInternet();
-              //   }
-              // }
-              //     : null, feb 8 2026
-
-              onPressed: _controller.canConfirmTrip
+             onPressed: _controller.canConfirmTrip
                   ? () async {
                 await connectionService.checkConnectionAndShowCard(
                   context,

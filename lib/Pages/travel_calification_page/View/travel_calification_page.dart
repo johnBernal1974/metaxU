@@ -230,26 +230,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
                 shadowColor: gris,
                 elevation: 6,
               ),
-              // onPressed: isLoading
-              //     ? null // Desactiva el botón si está cargando
-              //     : () async {
-              //   // Verificar conexión a Internet antes de ejecutar la acción
-              //   bool hasConnection = await connectionService.hasInternetConnection();
-              //   if (hasConnection) {
-              //     setState(() {
-              //       isLoading = true; // Muestra el indicador de carga
-              //     });
-              //
-              //     // Llama a _controller.calificate e intercala el indicador
-              //     await _controller.calificate(); // Ejecuta calificate y espera que termine
-              //
-              //     setState(() {
-              //       isLoading = false; // Oculta el indicador de carga
-              //     });
-              //   } else {
-              //     alertSinInternet();
-              //   }
-              // },8 feb 2026
+
               onPressed: isLoading
                   ? null
                   : () async {
@@ -279,26 +260,6 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
       ),
     );
   }
-
-  // Future alertSinInternet (){
-  //   return showDialog(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return AlertDialog(
-  //         title: const Text('Sin Internet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
-  //         content: const Text('Por favor, verifica tu conexión e inténtalo nuevamente.'),
-  //         actions: <Widget>[
-  //           TextButton(
-  //             onPressed: () {
-  //               Navigator.of(context).pop(); // Cierra el diálogo
-  //             },
-  //             child: const Text('Aceptar'),
-  //           ),
-  //         ],
-  //       );
-  //     },
-  //   );
-  // }para borrar
 
   void refresh(){
     if(mounted){

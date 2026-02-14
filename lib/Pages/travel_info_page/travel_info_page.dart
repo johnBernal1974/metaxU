@@ -37,41 +37,30 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   String? apuntesAlConductor;
   String? tipoServicioSeleccionado;
   final ConnectionService connectionService = ConnectionService();
+  bool _loadingRoute = true;
 
 
 
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-  //     _controller.init(context, refresh);
-  //     setState(() {});
-  //   });
-  // } prueba 8 feb 2026
+
 
   @override
   void initState() {
     super.initState();
-
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
-      await connectionService.checkConnectionAndShowCard(
-        context,
-            () {
-          _controller.init(context, refresh);
-          if (mounted) setState(() {});
-        },
-      );
+    _loadingRoute = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
+      await connectionService.checkConnectionAndShowCard(context, () async {
+        if (mounted) setState(() => _loadingRoute = true);
+        await _controller.init(context, refresh);
+        if (mounted) setState(() => _loadingRoute = false);
+      });
     });
   }
-
 
   @override
   void dispose() {
     super.dispose();
     _controller.dispose();
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +120,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   Widget _googleMapsWidget() {
     return SizedBox(
       height: MediaQuery.of(context).size.height * 0.50,
-      //margin: const EdgeInsets.only(bottom: 420),
       child: GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
@@ -140,10 +128,11 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         zoomControlsEnabled: false,
         tiltGesturesEnabled: false,
         markers: Set<Marker>.of(_controller.markers.values),
-        polylines: _controller.polylines,
+        polylines: _loadingRoute ? {} : _controller.polylines,
       ),
     );
   }
+
 
   Widget _buttonVolverAtras(){
     return SafeArea(

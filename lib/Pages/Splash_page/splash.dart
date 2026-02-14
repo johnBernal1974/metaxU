@@ -43,41 +43,40 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   void _checkConnectionAndAuthenticate() async {
-    // ✅ 0) ¿Hay sesión local en FirebaseAuth?
     final isLoggedIn = await _authProvider.isUserLoggedIn();
 
-    // ✅ 1) Si NO hay sesión: ir a login (no depende de internet)
     if (!isLoggedIn) {
       _navigateToLoginPage();
       return;
     }
 
-    // ✅ 2) Si SÍ hay sesión: validar internet antes de tocar Firestore
     setState(() {
       _esperandoInternet = true;
       _msgEstado = 'Verificando conexión...';
     });
 
-    if(context.mounted){
-      final okInternet = await connectionService.checkConnectionAndShowCard(
+    if (!context.mounted) return;
+
+    final okInternet = await connectionService.hasInternetConnection();
+
+    if (!okInternet) {
+      connectionService.showPersistentConnectionCard(
         context,
             () {
-          // cuando vuelva internet, reintenta el arranque
           if (mounted) _checkConnectionAndAuthenticate();
         },
       );
 
-      if (!okInternet) {
-        if (!mounted) return;
-        setState(() {
-          _esperandoInternet = true;
-          _msgEstado = 'Sin internet. Esperando conexión...';
-        });
-        return; // ✅ te quedas en splash sin mandar al login
-      }
+      if (!mounted) return;
+      setState(() {
+        _esperandoInternet = true;
+        _msgEstado = 'Sin internet. Esperando conexión...';
+      });
+      return;
     }
 
-    // ✅ 3) Con internet: ya puedes validar sesión única
+    connectionService.hide();
+
     if (!mounted) return;
     setState(() {
       _esperandoInternet = true;

@@ -25,6 +25,8 @@ import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../../travel_map_page/View/travel_map_page.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'dart:math' as math;
+
 
 
 class TravelInfoController{
@@ -95,11 +97,12 @@ class TravelInfoController{
   bool get isCalculatingTrip => !canConfirmTrip;
 
 
-
-
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
+
+    resetVisualTrip();
+
     _pricesProvider = PricesProvider();
     _travelInfoProvider = TravelInfoProvider();
     _driverProvider = DriverProvider();
@@ -109,7 +112,7 @@ class TravelInfoController{
     _pushNotificationsProvider = PushNotificationsProvider();
 
     // Reinicia el Completer del controlador de mapa cada vez que se llama init
-    _mapController = Completer();
+    //_mapController = Completer();
 
     Map<String, dynamic>? arguments = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     await getClientInfo();
@@ -146,6 +149,72 @@ class TravelInfoController{
     min = null;
     total = 0.0;
   }
+
+  Future<void> fitRouteToScreen() async {
+    if (!_mapController.isCompleted) return;
+
+    try {
+      final controller = await _mapController.future;
+
+      // ✅ Altura real del MAPA (tu mapa ocupa 50% pantalla)
+      final mapHeight = MediaQuery.of(context).size.height * 0.50;
+
+      // ✅ 1) Si la distancia es MUY corta → mejor zoom al centro (evita marcadores pegados)
+      final distanceMeters = _calculateDistance(fromLatlng, toLatlng); // metros
+
+      if (distanceMeters < 900000) { // 👈 ajusta 150/200/300 a tu gusto
+        final center = LatLng(
+          (fromLatlng.latitude + toLatlng.latitude) / 2,
+          (fromLatlng.longitude + toLatlng.longitude) / 2,
+        );
+
+        await controller.animateCamera(
+          CameraUpdate.newLatLngZoom(center, 17.0), // 👈 16.5 - 18.0 recomendado
+        );
+
+        // ✅ opcional: sube un poquito para que no quede "pegado abajo"
+        await controller.animateCamera(
+          CameraUpdate.scrollBy(0, -(mapHeight * 0.12)),
+        );
+        return;
+      }
+
+      // ✅ 2) Para distancias normales/largas → bounds con ajustes verticales (tu lógica)
+      final swLat0 = math.min(fromLatlng.latitude, toLatlng.latitude);
+      final swLng0 = math.min(fromLatlng.longitude, toLatlng.longitude);
+      final neLat0 = math.max(fromLatlng.latitude, toLatlng.latitude);
+      final neLng0 = math.max(fromLatlng.longitude, toLatlng.longitude);
+
+      double swLat = swLat0, swLng = swLng0, neLat = neLat0, neLng = neLng0;
+
+      final lngSpan = (neLng - swLng).abs();
+      final latSpan = (neLat - swLat).abs();
+
+      // ✅ Si la ruta es MUY vertical, agranda el ancho
+      if (lngSpan < 0.002 || (latSpan > 0 && (lngSpan / latSpan) < 0.15)) {
+        final extra = 0.005; // ajusta: 0.003 a 0.01 según tu ciudad/zoom
+        swLng -= extra;
+        neLng += extra;
+      }
+
+      final bounds = LatLngBounds(
+        southwest: LatLng(swLat, swLng),
+        northeast: LatLng(neLat, neLng),
+      );
+
+      final padding = (mapHeight * 0.12); // px
+      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, padding));
+
+      // ✅ Scroll hacia arriba para compensar UI / sensación "pegado abajo"
+      final yOffset = (mapHeight * 0.18);
+      await controller.animateCamera(CameraUpdate.scrollBy(0, -yOffset));
+
+    } catch (e) {
+      if (kDebugMode) print('fitRouteToScreen error: $e');
+    }
+  }
+
+
 
   Future<void> updateMap() async {
     clearMap();
@@ -243,6 +312,18 @@ class TravelInfoController{
       }
     }
   }
+
+  Future<GoogleMapController?> _waitMapController({int msTimeout = 2500}) async {
+    final sw = Stopwatch()..start();
+
+    while (!_mapController.isCompleted && sw.elapsedMilliseconds < msTimeout) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+
+    if (!_mapController.isCompleted) return null;
+    return _mapController.future;
+  }
+
 
   void guardarTipoServicio(String tipoServicio) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -385,9 +466,7 @@ class TravelInfoController{
   Future<void> setPolylinesFromEncoded(String encodedPolyline) async {
     clearMap();
 
-    // Decodifica la polyline
     final decoded = PolylinePoints().decodePolyline(encodedPolyline);
-
     points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
     polylines.clear();
@@ -397,6 +476,8 @@ class TravelInfoController{
         color: Colors.black,
         points: points,
         width: 5,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
       ),
     );
 
@@ -405,7 +486,30 @@ class TravelInfoController{
     addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
 
     refresh();
+
+    // ✅ AHORA sí: encuadra ruta completa
+    await Future.delayed(const Duration(milliseconds: 50)); // pequeño “tick” para evitar glitch
+    await fitRouteToScreen();
   }
+
+
+  void resetVisualTrip() {
+    markers.clear();
+    polylines.clear();
+    points = [];
+    km = null;
+    min = null;
+    total = null;
+    totalInt = null;
+    distancia = 0;
+    duracion = 0;
+    distanciaString = '';
+    duracionString = '';
+    // 👇 importante: repinta de inmediato para borrar lo anterior
+    refresh();
+  }
+
+
 
   void calcularPrecio() async {
     try {

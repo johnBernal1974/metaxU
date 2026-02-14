@@ -133,11 +133,11 @@ class ClientMapController {
   }
 
   void _initializePositionStream() {
-    // Inicializa tu _positionStream aquí
     _positionStream = Geolocator.getPositionStream().listen((Position position) {
-      // Manejar la posición actualizada
+      _position = position; // ✅ IMPORTANTE
     });
   }
+
 
   Future<Null> setLocationdraggableInfo() async {
     double lat = initialPosition.target.latitude;
@@ -447,11 +447,18 @@ class ClientMapController {
         }
       } else {
         if (context.mounted) {
+          // Navigator.pushNamed(context, "travel_info_page", arguments: {
+          //   'from': from,
+          //   'to': to,
+          //   'fromlatlng': fromlatlng,
+          //   'tolatlng': tolatlng,
+          // });
           Navigator.pushNamed(context, "travel_info_page", arguments: {
             'from': from,
             'to': to,
             'fromlatlng': fromlatlng,
             'tolatlng': tolatlng,
+            'navKey': DateTime.now().microsecondsSinceEpoch.toString(), // ✅
           });
         }
       }

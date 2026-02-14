@@ -67,38 +67,38 @@ class ConnectionService {
 
 
   /// ✅ Método principal (lo llamas desde cualquier pantalla)
-  // Future<void> checkConnectionAndShowCard(
-  //     BuildContext context,
-  //     VoidCallback onConnectionRestored,
-  //     ) async {
-  //   final ok = await hasInternetConnection();
-  //   if (ok) {
-  //     hide();
-  //     onConnectionRestored();
-  //     return;
-  //   }
-  //
-  //   if (context.mounted) {
-  //     showPersistentConnectionCard(context, onConnectionRestored);
-  //   }
-  // }
-
-  Future<bool> checkConnectionAndShowCard(
+  Future<void> checkConnectionAndShowCard(
       BuildContext context,
       VoidCallback onConnectionRestored,
       ) async {
     final ok = await hasInternetConnection();
-
     if (ok) {
-      hide();       // por si estaba visible
-      return true;  // ✅ NO ejecutes el callback aquí
+      hide();
+      onConnectionRestored();
+      return;
     }
 
     if (context.mounted) {
       showPersistentConnectionCard(context, onConnectionRestored);
     }
-    return false;
   }
+
+  // Future<bool> checkConnectionAndShowCard(
+  //     BuildContext context,
+  //     VoidCallback onConnectionRestored,
+  //     ) async {
+  //   final ok = await hasInternetConnection();
+  //
+  //   if (ok) {
+  //     hide();       // por si estaba visible
+  //     return true;  // ✅ NO ejecutes el callback aquí
+  //   }
+  //
+  //   if (context.mounted) {
+  //     showPersistentConnectionCard(context, onConnectionRestored);
+  //   }
+  //   return false;
+  // }
 
 
   /// ✅ Limpieza (para evitar listeners colgados)

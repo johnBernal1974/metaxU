@@ -73,6 +73,9 @@ class _MapClientPageState extends State<MapClientPage> {
   static const String _favKey = 'favorite_places_v1';
   SearchHistoryItem? _lastPickedPlace;
 
+  bool _tapHistorialBloqueado = false;
+
+
 
   void _safeSheetRepaint() {
     if (!_isSheetOpen) return;
@@ -1622,83 +1625,103 @@ class _MapClientPageState extends State<MapClientPage> {
 
           return Column(
             children: [
-              GestureDetector(
-                onTap: () async {
-                  final hasConnection = await connectionService.hasInternetConnection();
-                  if (!hasConnection) {
-                    alertSinInternet();
-                    return;
-                  }
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () async {
+                    if (_tapHistorialBloqueado) return; // ✅ evita doble tap
+                    _tapHistorialBloqueado = true;
 
-                  final latLng = LatLng(item.lat, item.lng);
+                    try {
+                      final hasConnection = await connectionService.hasInternetConnection();
+                      if (!hasConnection) {
+                        alertSinInternet();
+                        return;
+                      }
 
-                  setState(() {
-                    _controller.to = item.subtitle.isNotEmpty
-                        ? '${item.title}, ${item.subtitle}'
-                        : item.title;
-                    _controller.tolatlng = latLng;
-                  });
+                      final latLng = LatLng(item.lat, item.lng);
 
-                  _controller.requestDriver();
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 3.r, horizontal: 6.r),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.location_on, size: 16, color: Colors.green),
-                      const SizedBox(width: 6),
+                      setState(() {
+                        _controller.to = item.subtitle.isNotEmpty
+                            ? '${item.title}, ${item.subtitle}'
+                            : item.title;
+                        _controller.tolatlng = latLng;
+                      });
 
-                      Expanded(
-                        child: RichText(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: item.title,
-                                style: TextStyle(
-                                  fontSize: 11.r,
-                                  fontWeight: FontWeight.w900,
-                                  color: negro,
-                                ),
-                              ),
-                              if (item.subtitle.isNotEmpty)
+                      _controller.requestDriver();
+                    } finally {
+                      _tapHistorialBloqueado = false; // ✅ libera
+                    }
+                  },
+
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 1.r, horizontal: 6.r),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.location_on, size: 16, color: Colors.green),
+                        const SizedBox(width: 6),
+
+                        Expanded(
+                          child: RichText(
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              children: [
                                 TextSpan(
-                                  text: ', ${item.subtitle}',
+                                  text: item.title,
                                   style: TextStyle(
                                     fontSize: 11.r,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.black54,
+                                    fontWeight: FontWeight.w900,
+                                    color: negro,
                                   ),
                                 ),
-                            ],
+                                if (item.subtitle.isNotEmpty)
+                                  TextSpan(
+                                    text: ', ${item.subtitle}',
+                                    style: TextStyle(
+                                      fontSize: 11.r,
+                                      fontWeight: FontWeight.w400,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
 
-                      // ⭐ botón favorito (NO debe navegar)
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _guardarFavoritoDesdeHistorial(item),
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 8.r),
-                          child: Icon(
-                            yaEsFavorito ? Icons.star_rounded : Icons.star_border_rounded,
-                            color: Colors.amber,
-                            size: 20.r,
+                        // ⭐ botón favorito (NO navega)
+                        SizedBox(
+                          width: 44, // ✅ área de toque estándar
+                          height: 32,
+                          child: InkResponse(
+                            onTap: () => _guardarFavoritoDesdeHistorial(item),
+                            radius: 16,
+                            child: Center(
+                              child: Icon(
+                                yaEsFavorito ? Icons.star_rounded : Icons.star_border_rounded,
+                                color: Colors.amber,
+                                size: 20.r,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
 
               if (index != searchHistory.length - 1)
-                const Divider(color: grisMedio),
+                const Divider(
+                  color: grisMedio,
+                  height: 6,     // espacio total
+                  thickness: 0.8,
+                ),
+
             ],
           );
+
         }),
       ],
     );

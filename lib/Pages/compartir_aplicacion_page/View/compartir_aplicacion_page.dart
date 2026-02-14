@@ -43,18 +43,26 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
     }
   }
 
-  void _shareAppLinkViaWhatsAppClient(BuildContext context, String link) async {
-    String message = "¡Ingresando a este enlace podrás descargar Metax Cliente! $link";
-    final Uri uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
+  void _shareAppLinkViaWhatsAppClient(BuildContext context) async {
+    const String playStoreUrl =
+        "https://play.google.com/store/apps/details?id=com.app_taxis.apptaxis&pcampaignid=web_share";
+
+    String message =
+        "¡Ingresando a este enlace podrás descargar Metax Cliente! 🚖📲\n$playStoreUrl";
+
+    final Uri uri =
+    Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
 
     try {
-      await launchUrl(uri);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
       if (context.mounted) {
         _showNoWhatsAppInstalledDialog(context);
       }
     }
   }
+
+
 
   void _showNoWhatsAppInstalledDialog(BuildContext context) {
     showDialog(
@@ -128,7 +136,7 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
                     String? linkClient = await _getLinkFromFirestore('link_descarga_client');
                     if (linkClient != null) {
                       if (context.mounted) {
-                        _shareAppLinkViaWhatsAppClient(context, linkClient);
+                        _shareAppLinkViaWhatsAppClient(context);
                       }
                     }
                   },
@@ -247,18 +255,97 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
   }
 
   Widget qrDriver() {
-    return Image(
-      height: 250.r,
-      width: 250.r,
-      image: const AssetImage('assets/icono_app_driver.png'),
+    return GestureDetector(
+      onTap: () => _showZoomImage('assets/icono_app_driver.png'),
+      child: Image(
+        height: 250.r,
+        width: 250.r,
+        image: const AssetImage('assets/icono_app_driver.png'),
+      ),
     );
   }
 
   Widget qrCliente() {
-    return Image(
-      height: 250.r,
-      width: 250.r,
-      image: const AssetImage('assets/icono_app_client.png'),
+    return GestureDetector(
+      onTap: () => _showZoomImage('assets/qr_metax_cliente.png'),
+      child: Image(
+        height: 250.r,
+        width: 250.r,
+        image: const AssetImage('assets/qr_metax_cliente.png'),
+      ),
+    );
+  }
+
+  void _showZoomImage(String assetPath) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "zoom",
+      barrierColor: Colors.black.withOpacity(0.85),
+      pageBuilder: (_, __, ___) {
+        return Center(
+          child: _ZoomableAssetImage(
+            assetPath: assetPath,
+            size: 320.r, // tamaño del zoom (ajústalo)
+          ),
+        );
+      },
+    );
+  }
+
+}
+
+class _ZoomableAssetImage extends StatefulWidget {
+  final String assetPath;
+  final double size;
+
+  const _ZoomableAssetImage({
+    required this.assetPath,
+    required this.size,
+  });
+
+  @override
+  State<_ZoomableAssetImage> createState() => _ZoomableAssetImageState();
+}
+
+class _ZoomableAssetImageState extends State<_ZoomableAssetImage> {
+  bool _zoomed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Arranca con animación al abrir el dialog
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      setState(() => _zoomed = true);
+    });
+  }
+
+  void _close() {
+    setState(() => _zoomed = false);
+    Future.delayed(const Duration(milliseconds: 180), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _close, // 👈 segundo click: vuelve al estado original (cierra)
+      child: AnimatedScale(
+        scale: _zoomed ? 1.0 : 0.85,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16.r),
+          child: Image.asset(
+            widget.assetPath,
+            width: widget.size,
+            height: widget.size,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 }
+

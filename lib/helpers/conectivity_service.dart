@@ -12,16 +12,31 @@ class ConnectionService {
   Timer? _pollTimer;
 
   /// ✅ “Internet real”: intenta un request liviano con timeout.
-  /// (Esto funciona en mobile y web)
+
   Future<bool> hasInternetConnection() async {
-    try {
-      final uri = Uri.parse('https://www.google.com/generate_204');
-      final res = await http.get(uri).timeout(const Duration(seconds: 3));
-      return res.statusCode == 204 || res.statusCode == 200;
-    } catch (_) {
-      return false;
+    // Endpoints livianos y confiables (204/200)
+    final urls = <String>[
+      'https://www.google.com/generate_204',
+      'https://www.cloudflare.com/cdn-cgi/trace', // suele responder 200
+      'https://www.apple.com/library/test/success.html', // 200
+    ];
+
+    for (final u in urls) {
+      try {
+        final uri = Uri.parse(u);
+        final res = await http.get(uri).timeout(const Duration(seconds: 3));
+
+        if (res.statusCode == 204 || res.statusCode == 200) {
+          return true;
+        }
+      } catch (_) {
+        // intenta el siguiente
+      }
     }
+
+    return false;
   }
+
 
   void showPersistentConnectionCard(
       BuildContext context,
@@ -83,24 +98,6 @@ class ConnectionService {
     }
   }
 
-  // Future<bool> checkConnectionAndShowCard(
-  //     BuildContext context,
-  //     VoidCallback onConnectionRestored,
-  //     ) async {
-  //   final ok = await hasInternetConnection();
-  //
-  //   if (ok) {
-  //     hide();       // por si estaba visible
-  //     return true;  // ✅ NO ejecutes el callback aquí
-  //   }
-  //
-  //   if (context.mounted) {
-  //     showPersistentConnectionCard(context, onConnectionRestored);
-  //   }
-  //   return false;
-  // }
-
-
   /// ✅ Limpieza (para evitar listeners colgados)
   Future<void> dispose() async {
     await _sub?.cancel();
@@ -108,6 +105,7 @@ class ConnectionService {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _isOverlayVisible = false;
+    hide();
   }
 
   void hide() {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-
-import '../../helpers/conectivity_service.dart';
 import '../../helpers/session_manager.dart';
 import '../../providers/auth_provider.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
+import '../../helpers/connection_service_instance.dart';
+
+
+
 
 class SplashPage extends StatefulWidget {
   const SplashPage({Key? key}) : super(key: key);
@@ -17,10 +19,13 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late MyAuthProvider _authProvider;
-  final ConnectionService connectionService = ConnectionService();
+  //final ConnectionService connectionService = ConnectionService();
   // para mostrar sin internet
   bool _esperandoInternet = false;
   String _msgEstado = '';
+
+  bool _navigated = false;
+
 
 
   @override
@@ -60,12 +65,14 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     final okInternet = await connectionService.hasInternetConnection();
 
     if (!okInternet) {
-      connectionService.showPersistentConnectionCard(
-        context,
-            () {
-          if (mounted) _checkConnectionAndAuthenticate();
-        },
-      );
+      if(context.mounted){
+        connectionService.showPersistentConnectionCard(
+          context,
+              () {
+            if (mounted) _checkConnectionAndAuthenticate();
+          },
+        );
+      }
 
       if (!mounted) return;
       setState(() {
@@ -93,8 +100,34 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         _msgEstado = '';
       });
 
+      _navigated = true;
       _authProvider.checkIfUserIsLogged(context);
     } catch (e) {
+      if (!mounted) return;
+
+      // ✅ 1) Si fue un fallo por conectividad real, NO cierres sesión ni navegues al login.
+      final okInternet = await connectionService.hasInternetConnection();
+
+      if (!okInternet) {
+        if(context.mounted){
+          // mostramos banner y reintentamos cuando vuelva internet
+          connectionService.showPersistentConnectionCard(
+            context,
+                () {
+              if (mounted) _checkConnectionAndAuthenticate();
+            },
+          );
+        }
+
+        setState(() {
+          _esperandoInternet = true;
+          _msgEstado = 'Conexión inestable. Esperando internet para validar sesión...';
+        });
+
+        return; // ✅ importantísimo: NO signOut, NO login
+      }
+
+      // ✅ 2) Si sí hay internet, entonces es error real (sesión activa en otro equipo u otro fallo)
       SessionManager.stopHeartbeat();
       await _authProvider.signOut();
 
@@ -109,14 +142,17 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           ),
         ),
       );
+
       _navigateToLoginPage();
     }
   }
 
-
   void _navigateToLoginPage() {
-    // Redirige a la página de login
+    if (_navigated) return;
+    _navigated = true;
+
     Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -124,10 +160,11 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     });
   }
 
+
   @override
   void dispose() {
-    connectionService.dispose();
     _controller.dispose();
+    connectionService.hide();
     super.dispose();
   }
 

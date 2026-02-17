@@ -30,12 +30,21 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
     }
   }
 
-  void _shareAppLinkViaWhatsAppDriver(BuildContext context, String link) async {
-    String message = "¡Ingresando a este enlace podrás descargar Metax Conductor! $link";
-    final Uri uri = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
+  void _shareAppLinkViaWhatsAppDriver(BuildContext context) async {
+    const String playStoreUrl =
+        "https://play.google.com/store/apps/details?id=com.apptaxxic.apptaxisc";
+
+    String message =
+        "Descarga Metax Conductor y empieza a manejar con nosotros 🚕🧭📲\n$playStoreUrl";
+
+    final Uri uri =
+    Uri.parse("https://wa.me/?text=${Uri.encodeComponent(message)}");
 
     try {
-      await launchUrl(uri);
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
     } catch (e) {
       if (context.mounted) {
         _showNoWhatsAppInstalledDialog(context);
@@ -173,7 +182,7 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
                     String? linkDriver = await _getLinkFromFirestore('link_descarga_driver');
                     if (linkDriver != null) {
                       if (context.mounted) {
-                        _shareAppLinkViaWhatsAppDriver(context, linkDriver);
+                        _shareAppLinkViaWhatsAppDriver(context);
                       }
                     }
                   },
@@ -256,11 +265,11 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
 
   Widget qrDriver() {
     return GestureDetector(
-      onTap: () => _showZoomImage('assets/icono_app_driver.png'),
+      onTap: () => _showZoomImage('assets/qrConductor.png'),
       child: Image(
         height: 250.r,
         width: 250.r,
-        image: const AssetImage('assets/icono_app_driver.png'),
+        image: const AssetImage('assets/qrConductor.png'),
       ),
     );
   }

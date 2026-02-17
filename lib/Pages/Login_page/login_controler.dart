@@ -58,7 +58,7 @@ class LoginController{
   }
 
 
-  void login() async {
+  Future<void> login() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
@@ -71,59 +71,43 @@ class LoginController{
       return;
     }
 
-    showSimpleAlertDialog(context, 'Espera un momento ...');
-
     try {
       final ok = await _authProvider.login(email, password, context);
-      if (!ok) {
-        if (context.mounted) closeSimpleProgressDialog(context);
-        return;
-      }
+      if (!ok) return;
 
-      // ✅ 1) Validar primero que exista el perfil Client en Firestore
       final uid = _authProvider.getUser()!.uid;
       Client? client = await _clientProvider.getById(uid);
 
       if (client == null) {
-        if (context.mounted) {
-          closeSimpleProgressDialog(context);
-          Snackbar.showSnackbar(context, 'Este usuario no es válido');
-        }
+        Snackbar.showSnackbar(context, 'Este usuario no es válido');
         await _authProvider.signOut();
         return;
       }
 
-      // ✅ 2) Registrar sesión por dispositivo (CLIENTS)
       try {
         await SessionManager.loginGuard(collection: 'Clients');
       } catch (e) {
-        if (context.mounted) {
-          closeSimpleProgressDialog(context);
-          Snackbar.showSnackbar(
-            context,
-            'Este usuario ya está logueado en otro dispositivo. '
-                'Por favor, cierre sesión allá o espere unos minutos.',
-          );
-        }
+        Snackbar.showSnackbar(
+          context,
+          'Este usuario ya está logueado en otro dispositivo. '
+              'Por favor, cierre sesión allá o espere unos minutos.',
+        );
         await _authProvider.signOut();
         return;
       }
 
-      // ✅ 3) Iniciar heartbeat para mantener lastSeen actualizado
       SessionManager.startHeartbeat(collection: 'Clients');
 
-      // ✅ 4) Navegar como ya lo haces
       if (context.mounted) {
-        closeSimpleProgressDialog(context);
         _authProvider.checkIfUserIsLogged(context);
       }
     } catch (error) {
       if (context.mounted) {
-        closeSimpleProgressDialog(context);
         Snackbar.showSnackbar(context, 'Error: $error');
       }
     }
   }
+
 
 }
 

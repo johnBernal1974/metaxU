@@ -48,185 +48,195 @@ class _LoginPageState extends State<LoginPage> {
       ),
       body: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center, // Alinea al centro horizontalmente
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 30), // Espaciado inicial
-                  const Center(
-                    child: Text(
-                      "Bienvenido",
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 30), // Espaciado después del texto de bienvenida
-                  // Campo de correo electrónico.
-                  SizedBox(
-                    width: 300, // Establece un ancho consistente
-                    child: TextField(
-                      controller: _controller.emailController,
-                      decoration: InputDecoration(
-                        labelText: "Correo electrónico",
-                        prefixIcon: const Icon(Icons.email, color: primary),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
+          AbsorbPointer(
+            absorbing: _isLoading,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center, // Alinea al centro horizontalmente
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 30), // Espaciado inicial
+                    const Center(
+                      child: Text(
+                        "Bienvenido",
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
                         ),
                       ),
-                      keyboardType: TextInputType.emailAddress,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Campo de contraseña.
-                  SizedBox(
-                    width: 300, // Establece un ancho consistente
-                    child: TextField(
-                      controller: _controller.passwordController,
-                      decoration: InputDecoration(
-                        labelText: "Contraseña",
-                        prefixIcon: const Icon(Icons.lock, color: primary),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isPasswordVisible ? Icons.visibility_off : Icons.visibility ,
-                            color: Colors.black38,
+                    const SizedBox(height: 30), // Espaciado después del texto de bienvenida
+                    // Campo de correo electrónico.
+                    SizedBox(
+                      width: 300, // Establece un ancho consistente
+                      child: TextField(
+                        controller: _controller.emailController,
+                        decoration: InputDecoration(
+                          labelText: "Correo electrónico",
+                          prefixIcon: const Icon(Icons.email, color: primary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _isPasswordVisible = !_isPasswordVisible; // Cambiar el estado
-                            });
-                          },
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Campo de contraseña.
+                    SizedBox(
+                      width: 300, // Establece un ancho consistente
+                      child: TextField(
+                        controller: _controller.passwordController,
+                        decoration: InputDecoration(
+                          labelText: "Contraseña",
+                          prefixIcon: const Icon(Icons.lock, color: primary),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _isPasswordVisible ? Icons.visibility_off : Icons.visibility ,
+                              color: Colors.black38,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible; // Cambiar el estado
+                              });
+                            },
+                          ),
+                        ),
+                        obscureText: !_isPasswordVisible, // Muestra/oculta la contraseña
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Botón de inicio de sesión.
+                    SizedBox(
+                      width: 300, // Establece un ancho consistente
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : () async {
+                          FocusScope.of(context).unfocus();
+                          setState(() => _isLoading = true);
+
+                          try {
+                            bool hasConnection = await connectionService.hasInternetConnection();
+                            if (!hasConnection) {
+                              await alertSinInternet();
+                              return;
+                            }
+
+                            await _controller.login(); // si falla, retorna y cae al finally
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        ),
+                        child: const Text(
+                          "Iniciar Sesión",
+                          style: TextStyle(fontSize: 18, color: Colors.white),
                         ),
                       ),
-                      obscureText: !_isPasswordVisible, // Muestra/oculta la contraseña
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Botón de inicio de sesión.
-                  SizedBox(
-                    width: 300, // Establece un ancho consistente
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        setState(() {
-                          _isLoading = true; // Iniciar el estado de carga
-                        });
-
-                        // Verificar la conexión a Internet antes de ejecutar la acción
+                    const SizedBox(height: 16),
+                    // Texto para "Olvidé mi contraseña".
+                    GestureDetector(
+                      onTap: () async {
+                        // Verificar conexión a Internet antes de ejecutar la acción
                         bool hasConnection = await connectionService.hasInternetConnection();
-
-                        setState(() {
-                          _isLoading = false; // Terminar el estado de carga
-                        });
-
+            
                         if (hasConnection) {
-                          // Si hay conexión, ejecuta la acción de login
-                          _controller.login();
+                          // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
+                          _controller.goToForgotPassword();
                         } else {
                           // Si no hay conexión, muestra un AlertDialog
                           alertSinInternet();
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      ),
-                      child: const Text(
-                        "Iniciar Sesión",
-                        style: TextStyle(fontSize: 18, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Texto para "Olvidé mi contraseña".
-                  GestureDetector(
-                    onTap: () async {
-                      // Verificar conexión a Internet antes de ejecutar la acción
-                      bool hasConnection = await connectionService.hasInternetConnection();
-
-                      if (hasConnection) {
-                        // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
-                        _controller.goToForgotPassword();
-                      } else {
-                        // Si no hay conexión, muestra un AlertDialog
-                        alertSinInternet();
-                      }
-                    },
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center, // Centra horizontalmente
-                      children: [
-                        Icon(Icons.double_arrow_rounded, color: Colors.black38),
-                        SizedBox(width: 8),
-                        Text(
-                          "Olvidé mi contraseña",
-                          style: TextStyle(
-                            color: Colors.black38,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center, // Centra horizontalmente
+                        children: [
+                          Icon(Icons.double_arrow_rounded, color: Colors.black38),
+                          SizedBox(width: 8),
+                          Text(
+                            "Olvidé mi contraseña",
+                            style: TextStyle(
+                              color: Colors.black38,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                  const Text(
-                    "¿No tienes cuenta?",
-                    style: TextStyle(fontSize: 14, color: Colors.black),
-                    textAlign: TextAlign.center, // Centra el texto
-                  ),
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () async {
-
-                      setState(() {
-                        _isLoading = true; // Iniciar el estado de carga
-                      });
-
-                      // Verificar la conexión a Internet antes de ejecutar la acción
-                      bool hasConnection = await connectionService.hasInternetConnection();
-
-                      setState(() {
-                        _isLoading = false; // Terminar el estado de carga
-                      });
-
-                      if (hasConnection) {
-                        if(context.mounted){
-                          Navigator.pushNamed(context, 'register');
+                    const SizedBox(height: 40),
+                    const Text(
+                      "¿No tienes cuenta?",
+                      style: TextStyle(fontSize: 14, color: Colors.black),
+                      textAlign: TextAlign.center, // Centra el texto
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: () async {
+            
+                        setState(() {
+                          _isLoading = true; // Iniciar el estado de carga
+                        });
+            
+                        // Verificar la conexión a Internet antes de ejecutar la acción
+                        bool hasConnection = await connectionService.hasInternetConnection();
+            
+                        setState(() {
+                          _isLoading = false; // Terminar el estado de carga
+                        });
+            
+                        if (hasConnection) {
+                          if(context.mounted){
+                            Navigator.pushNamed(context, 'register');
+                          }
+                        } else {
+                          // Si no hay conexión, muestra un AlertDialog
+                          alertSinInternet();
                         }
-                      } else {
-                        // Si no hay conexión, muestra un AlertDialog
-                        alertSinInternet();
-                      }
-                    },
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center, // Centra horizontalmente
-                      children: [
-                        Icon(Icons.double_arrow, size: 16),
-                        Text(
-                          "Regístrate aquí",
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
+                      },
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center, // Centra horizontalmente
+                        children: [
+                          Icon(Icons.double_arrow, size: 16),
+                          Text(
+                            "Regístrate aquí",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
+
+          if (_isLoading)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0x55000000),
+                child: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
         ],
       ),
     );

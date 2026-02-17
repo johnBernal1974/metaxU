@@ -856,8 +856,9 @@ class _MapClientPageState extends State<MapClientPage> {
                 children: [
                   TextButton(
                     onPressed: () async {
-                      // 1) Cierra el diálogo
-                      Navigator.of(context).pop();
+                      // 1) Cerrar SIEMPRE el diálogo (root)
+                      final nav = Navigator.of(context, rootNavigator: true);
+                      if (nav.canPop()) nav.pop();
 
                       // 2) Detén heartbeat + logout Firestore
                       try {
@@ -870,9 +871,8 @@ class _MapClientPageState extends State<MapClientPage> {
 
                       if (!mounted) return;
 
-                      // 4) Ir al login
-                      Navigator.pushAndRemoveUntil(
-                        context,
+                      // 4) Navega al login usando rootNavigator para no quedar “encima” del dialog
+                      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
                         MaterialPageRoute(builder: (_) => const LoginPage()),
                             (route) => false,
                       );
@@ -883,7 +883,8 @@ class _MapClientPageState extends State<MapClientPage> {
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      final nav = Navigator.of(context, rootNavigator: true);
+                      if (nav.canPop()) nav.pop();
                     },
                     child: Text('No', style: TextStyle(
                         fontSize: 16.r, fontWeight: FontWeight.bold, color: negro

@@ -37,7 +37,7 @@ class _PoliticasDePrivacidadPageState extends State<PoliticasDePrivacidadPage> {
         children: [
           InAppWebView(
             initialUrlRequest: URLRequest(
-              url: Uri.parse('https://metax.com.co/privacidad.html'),
+              url: WebUri('https://metax.com.co/privacidad.html'),
             ),
             onWebViewCreated: (InAppWebViewController controller){
               inAppWebViewController = controller;

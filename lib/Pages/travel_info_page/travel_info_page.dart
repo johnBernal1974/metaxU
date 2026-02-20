@@ -162,16 +162,26 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       height: MediaQuery.of(context).size.height * 0.50,
       width: double.infinity,
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30)
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30.r),
+          topRight: Radius.circular(30.r),
+        ),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            primary,
+            blancoCards,
+          ],
+          stops: [0.0, 0.5], // 👈 mitad y mitad
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: negro.withOpacity(0.4),
+            offset: Offset(0, 8.r),
+            blurRadius: 9.r,
           ),
-          boxShadow: [BoxShadow(
-            color: gris,
-            offset: const Offset(1,1),
-            blurRadius: 10.r,
-          )]
+        ],
       ),
       child: Column(
         children: [
@@ -196,7 +206,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
 
-          const Divider(height: 2, color: grisMedio, indent: 15, endIndent: 15),
+          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
 
           Container(
             margin: const EdgeInsets.symmetric(vertical: 5),
@@ -285,7 +295,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
 
-          const Divider(height: 2, color: grisMedio, indent: 15, endIndent: 15),
+          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
           const SizedBox(height: 15),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -597,12 +607,27 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       child: Container(
         height: double.infinity,
         padding: EdgeInsets.only(top: 50.r, left: 30.r, right: 30.r),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(26),
-            topRight: Radius.circular(26),
+            topLeft: Radius.circular(30.r),
+            topRight: Radius.circular(30.r),
           ),
-          color: blancoCards,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              primary,
+              blancoCards,
+            ],
+            stops: [0.0, 0.5], // 👈 mitad y mitad
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: negro.withOpacity(0.4),
+              offset: Offset(0, 8.r),
+              blurRadius: 9.r,
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,

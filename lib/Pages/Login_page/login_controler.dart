@@ -79,19 +79,39 @@ class LoginController{
       Client? client = await _clientProvider.getById(uid);
 
       if (client == null) {
-        Snackbar.showSnackbar(context, 'Este usuario no es válido');
+        if (!context.mounted) return;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => AlertDialog(
+            title: const Text('Acceso denegado'),
+            content: const Text(
+              'Este usuario no pertenece a la aplicación. '
+                  'Si crees que es un error, contacta al soporte.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Aceptar'),
+              ),
+            ],
+          ),
+        );
+
         await _authProvider.signOut();
         return;
       }
-
       try {
         await SessionManager.loginGuard(collection: 'Clients');
       } catch (e) {
-        Snackbar.showSnackbar(
-          context,
-          'Este usuario ya está logueado en otro dispositivo. '
-              'Por favor, cierre sesión allá o espere unos minutos.',
-        );
+        if(context.mounted){
+          Snackbar.showSnackbar(
+            context,
+            'Este usuario ya está logueado en otro dispositivo. '
+                'Por favor, cierre sesión allá o espere unos minutos.',
+          );
+        }
         await _authProvider.signOut();
         return;
       }

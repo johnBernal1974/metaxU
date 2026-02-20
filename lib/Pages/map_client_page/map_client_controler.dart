@@ -64,8 +64,6 @@ class ClientMapController {
     });
   }
 
-  ///este es el master
-
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
@@ -310,9 +308,7 @@ class ClientMapController {
     }
   }
 
-  void opendrawer(){
-    key.currentState?.openDrawer();
-  }
+
   void goToHistorialViajes(){
     Navigator.pushNamed(context, "historial_viajes");
   }
@@ -328,7 +324,7 @@ class ClientMapController {
   void goToProfile(){
     Navigator.pushNamed(context, "profile");
   }
-  void goToEliminarCuenta(){
+  void goToEliminarCuenta() {
     Navigator.pushNamed(context, "eliminar_cuenta");
   }
 

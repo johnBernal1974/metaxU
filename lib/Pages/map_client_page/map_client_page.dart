@@ -272,19 +272,26 @@ class _MapClientPageState extends State<MapClientPage> {
         height: 300.r, // Utiliza una función para calcular la altura dinámicamente
         width: double.infinity,
         decoration: BoxDecoration(
-            borderRadius:  BorderRadius.only(
-              topLeft: Radius.circular(30.r),
-              topRight: Radius.circular(30.r),
-            ),
-
-            boxShadow: [
-              BoxShadow(
-                color: negro.withOpacity(0.4),
-                offset:Offset(0, 8.r),
-                blurRadius: 9.r,
-              ),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30.r),
+            topRight: Radius.circular(30.r),
+          ),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              primary,
+              blancoCards,
             ],
-            color: Colors.white
+            stops: [0.0, 0.5], // 👈 mitad y mitad
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: negro.withOpacity(0.4),
+              offset: Offset(0, 8.r),
+              blurRadius: 9.r,
+            ),
+          ],
         ),
         padding: EdgeInsets.only(top: 15.r),
         child: Column(
@@ -524,17 +531,24 @@ class _MapClientPageState extends State<MapClientPage> {
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: blancoCards,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30.r),
+            topRight: Radius.circular(30.r),
+          ),
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              primary,
+              blancoCards,
+            ],
+            stops: [0.0, 0.7], // 👈 mitad y mitad
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 5,
-              blurRadius: 7,
-              offset: const Offset(0, 3), // changes position of shadow
+              color: negro.withOpacity(0.4),
+              offset: Offset(0, 8.r),
+              blurRadius: 9.r,
             ),
           ],
         ),
@@ -753,7 +767,10 @@ class _MapClientPageState extends State<MapClientPage> {
             title: Text('Políticas de privacidad', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
-            onTap: _controller.goToPoliticasDePrivacidad,
+            onTap: () {
+              Navigator.pop(context); // ✅ cerrar drawer
+              _controller.goToPoliticasDePrivacidad();
+            },
           ),
 
           ListTile(
@@ -792,7 +809,12 @@ class _MapClientPageState extends State<MapClientPage> {
             title: Text('Eliminar cuenta', style: TextStyle(
                 fontWeight: FontWeight.w400, color: negro, fontSize: 16.r
             )),
-            onTap: _controller.goToEliminarCuenta,
+            onTap: () {
+              Navigator.pop(context); // cierra drawer
+              Future.microtask(() {
+                Navigator.of(context).pushNamed("eliminar_cuenta");
+              });
+            },
           ),
         ],
       ),

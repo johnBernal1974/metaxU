@@ -71,6 +71,7 @@ dependencies:
   in_app_update: ^4.2.3
   uuid: ^4.0.0
   cloud_functions: ^4.6.8
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:

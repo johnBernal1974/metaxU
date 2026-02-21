@@ -13,16 +13,18 @@ class ClientProvider{
     _ref = FirebaseFirestore.instance.collection('Clients');
   }
 
-  Future<void> create(Client client){
-    String errorMessage;
+  Future<void> create(Client client) async {
+    try {
+      final doc = await _ref.doc(client.id).get();
 
-    try{
-      return _ref.doc(client.id).set(client.toJson());
-    }on FirebaseFirestore catch(error){
-      errorMessage = error.hashCode as String;
+      if (doc.exists) {
+        throw Exception('El usuario ya existe');
+      }
+
+      await _ref.doc(client.id).set(client.toJson());
+    } catch (e) {
+      rethrow;
     }
-
-    return Future.error(errorMessage);
   }
 
   Stream<DocumentSnapshot> getByIdStream(String id) {

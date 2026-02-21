@@ -1,7 +1,9 @@
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:apptaxis/models/client.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'client_provider.dart';
 
@@ -67,12 +69,11 @@ class MyAuthProvider{
       FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         if (user != null) {
           // Verificar si el correo electrónico está verificado
-          if (!user.emailVerified) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              'email_verification',
-                  (route) => false,
-            );
+          final providerIds = user.providerData.map((e) => e.providerId).toList();
+          final isGoogle = providerIds.contains('google.com');
+
+          if (!isGoogle && !user.emailVerified) {
+            Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
             return;
           }
 
@@ -179,8 +180,12 @@ class MyAuthProvider{
   }
 
   Future<void> signOut() async {
-    String? userId = _firebaseAuth.currentUser?.uid;
-    if (userId != null) {
+    try {
+      if (!kIsWeb) {
+        await GoogleSignIn().signOut();
+      }
+      await _firebaseAuth.signOut();
+    } catch (_) {
       await _firebaseAuth.signOut();
     }
   }
@@ -190,5 +195,30 @@ class MyAuthProvider{
     var user = FirebaseAuth.instance.currentUser;
     return user != null;
   }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      if (kIsWeb) {
+        final googleProvider = GoogleAuthProvider();
+        return await _firebaseAuth.signInWithPopup(googleProvider);
+      } else {
+        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+        if (googleUser == null) return null; // cancelado
+
+        final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        return await _firebaseAuth.signInWithCredential(credential);
+      }
+    } on FirebaseAuthException {
+      rethrow;
+    }
+  }
+
 
 }

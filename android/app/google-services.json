@@ -12,7 +12,36 @@
           "package_name": "com.app_taxis.apptaxis"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "632604677797-114ofhdb0bbo2q0qo7hfshf7prdscmnu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.app_taxis.apptaxis",
+            "certificate_hash": "12110ca13abf410a53b2e7bc94ef31661b7dc325"
+          }
+        },
+        {
+          "client_id": "632604677797-amip2q0t30tpfv461qdq3lgkt7viid1i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.app_taxis.apptaxis",
+            "certificate_hash": "77b1a6f74a34ad76e41510aaa37a213cfd772fe1"
+          }
+        },
+        {
+          "client_id": "632604677797-aous0t570vvku562fnj2rgvpaeiau2k6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.app_taxis.apptaxis",
+            "certificate_hash": "4d82c2a6a1e662f5ad1b00b7a93e0bfd73cd18ca"
+          }
+        },
+        {
+          "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDkkBWDtzJIC8Sl_7TzSfwVKuliMMmoTJI"
@@ -20,7 +49,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "632604677797-0d1lbde7bdpg93kqhr21i8ts9ph53bqi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apptaxis.apptaxis"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +72,28 @@
           "package_name": "com.apptaxxic.apptaxisc"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "632604677797-7hm22e0k0h76jpj01c34nfn69382bch3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.apptaxxic.apptaxisc",
+            "certificate_hash": "525242104f3177eb1cff0a429c6adca22358f69a"
+          }
+        },
+        {
+          "client_id": "632604677797-t6bnhuhf09tndcoec28l2g228rljdqhi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.apptaxxic.apptaxisc",
+            "certificate_hash": "65ba30b411821781723357a28cac11fedeeddee2"
+          }
+        },
+        {
+          "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDkkBWDtzJIC8Sl_7TzSfwVKuliMMmoTJI"
@@ -39,7 +101,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "632604677797-0d1lbde7bdpg93kqhr21i8ts9ph53bqi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apptaxis.apptaxis"
+              }
+            }
+          ]
         }
       }
     },
@@ -50,7 +124,12 @@
           "package_name": "com.metax_administrador"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDkkBWDtzJIC8Sl_7TzSfwVKuliMMmoTJI"
@@ -58,7 +137,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "632604677797-c57i4tb8d49uf393d3j2k15tmvvnruvi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "632604677797-0d1lbde7bdpg93kqhr21i8ts9ph53bqi.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.apptaxis.apptaxis"
+              }
+            }
+          ]
         }
       }
     }

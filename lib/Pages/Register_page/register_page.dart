@@ -82,6 +82,8 @@ class _RegisterPageState extends State<RegisterPage> {
     '¿Cuál es el nombre de tu profesor favorito?',
   ];
 
+  bool _isGoogleFlow = false;
+
 
   @override
   void initState() {
@@ -125,11 +127,62 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  //para crear con google
+  Future<void> _signUpWithGoogleAndContinue() async {
+    _progressDialog.show();
+
+    try {
+      final cred = await _authProvider.signInWithGoogle();
+      if (cred == null) {
+        _progressDialog.hide(); // canceló
+        return;
+      }
+
+      final user = cred.user;
+      if (user == null) {
+        _progressDialog.hide();
+        Snackbar.showSnackbar(key.currentContext!, 'No se pudo obtener tu usuario de Google.');
+        return;
+      }
+
+      // ✅ Solo guardamos email si viene, pero NO lo ponemos en TextFields ni lo validamos
+      email = user.email ?? "";
+      emailConfirm = email;
+
+      // ✅ MUY IMPORTANTE: NO autollenar nombres/apellidos
+      name = null;
+      apellidos = null;
+      nameController.clear();
+      apellidosController.clear();
+
+      setState(() {
+        _isGoogleFlow = true;
+        _currentPage = 1; // ✅ ir a "Nombres"
+      });
+
+      _progressDialog.hide();
+
+      _pageController.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ).then((_) {
+        _handleFocusForPage(1);
+      });
+    } catch (e) {
+      _progressDialog.hide();
+      if (kDebugMode) {
+        print('🔥 ERROR Google Sign-In: $e');
+      }
+      Snackbar.showSnackbar(key.currentContext!, 'Error al iniciar con Google.');
+    }
+  }
+
 
   // Método para avanzar a la siguiente página
   void _nextPage() {
     setState(() {
-      // Limpiar errores antes de cada validación
+      // Limpiar errores antes de validar
       nameError = null;
       apellidosError = null;
       emailError = null;
@@ -140,110 +193,157 @@ class _RegisterPageState extends State<RegisterPage> {
       answerError = null;
       questionError = null;
 
+      // =========================
+      // 1) VALIDAR PÁGINA ACTUAL
+      // =========================
 
-      // Validaciones
-      if (_currentPage == 0 && (name == null || name!.isEmpty)) {
+      // Pag 1: nombres
+      if (_currentPage == 1 && (name == null || name!.trim().isEmpty)) {
         nameError = "Por favor ingresa tu nombre.";
         return;
       }
-      if (_currentPage == 1 && (apellidos == null || apellidos!.isEmpty)) {
+
+      // Pag 2: apellidos
+      if (_currentPage == 2 && (apellidos == null || apellidos!.trim().isEmpty)) {
         apellidosError = "Por favor ingresa tus apellidos.";
         return;
       }
-      if (_currentPage == 2 && (email == null || email!.isEmpty)) {
-        emailError = "Por favor ingresa un correo electrónico.";
-        return;
+
+      // Pag 3: email (solo NO Google)
+      if (!_isGoogleFlow && _currentPage == 3) {
+        if (email == null || email!.trim().isEmpty) {
+          emailError = "Por favor ingresa un correo electrónico.";
+          return;
+        }
+        if (!_isValidEmail(email!.trim())) {
+          emailError = "Este correo electrónico NO es válido.";
+          return;
+        }
       }
 
-      if (_currentPage == 2 && !_isValidEmail(email!)) {
-        emailError = "Este correo electrónico NO es válido.";
-        return;
+      // Pag 4: confirm email (solo NO Google)
+      if (!_isGoogleFlow && _currentPage == 4) {
+        if (emailConfirm == null || emailConfirm!.trim().isEmpty) {
+          emailConfirmError = "Por favor confirma tu correo electrónico.";
+          return;
+        }
+        if (!_isValidEmail(emailConfirm!.trim())) {
+          emailConfirmError = "Este correo electrónico NO es válido.";
+          return;
+        }
+        if (emailConfirm!.trim() != (email ?? "").trim()) {
+          emailConfirmError = "El correo de confirmación no coincide.";
+          return;
+        }
       }
 
-      if (_currentPage == 3 && (emailConfirm == null)) {
-        emailConfirmError = "Por favor ingresa un correo electrónico.";
-        return;
+      // Pag 5: celular (siempre)
+      if (_currentPage == 5) {
+        final cel = (celular ?? "").replaceAll(RegExp(r'\D'), '');
+        if (cel.isEmpty) {
+          celularError = "Por favor ingresa tu número de celular.";
+          return;
+        }
+        if (cel.length != 10) {
+          celularError = "Este número de celular NO es válido.";
+          return;
+        }
       }
 
-      if (_currentPage == 3 &&  !_isValidEmail(emailConfirm!)) {
-        emailConfirmError = "Este correo electrónico NO es válido.";
-        return;
+      // Pag 6: password (solo NO Google)
+      if (!_isGoogleFlow && _currentPage == 6) {
+        if (password == null || password!.isEmpty) {
+          passwordError = "Por favor ingresa una contraseña.";
+          return;
+        }
+        if (password!.length < 6) {
+          passwordError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
+          return;
+        }
       }
 
-      if (_currentPage == 3 && (emailConfirm != email)) {
-        emailConfirmError = "El correo de confirmación no coincide.";
-        return;
+      // Pag 7: confirm password (solo NO Google)
+      if (!_isGoogleFlow && _currentPage == 7) {
+        if (passwordConfirm == null || passwordConfirm!.isEmpty) {
+          passwordConfirmError = "Por favor confirma tu contraseña.";
+          return;
+        }
+        if (passwordConfirm!.length < 6) {
+          passwordConfirmError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
+          return;
+        }
+        if (passwordConfirm != password) {
+          passwordConfirmError = "Las contraseñas no coinciden.";
+          return;
+        }
       }
 
-      if (_currentPage == 4 && (celular == null || celular!.isEmpty)) {
-        celularError = "Por favor ingresa tu número de celular.";
-        return;
-      }
-      if (_currentPage == 4 && celular!.length != 10) {
-        celularError = "Este número de celular NO es válido.";
-        return;
-      }
-      if (_currentPage == 5 && (password == null || password!.isEmpty)) {
-        passwordError = "Por favor ingresa una contraseña.";
-        return;
-      }
-      if (_currentPage == 5 && password!.length < 6) {
-        passwordError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
-        return;
-      }
-      if (_currentPage == 6 && (passwordConfirm == null)) {
-        passwordConfirmError = "Por favor ingresa una contraseña.";
-        return;
+      // Pag 8: pregunta/resp (siempre)
+      if (_currentPage == 8) {
+        if (selectedQuestion == null) {
+          questionError = "Debes seleccionar una pregunta.";
+          return;
+        }
+        if (answer == null || answer!.trim().isEmpty) {
+          answerError = "Debes escribir tu respuesta.";
+          return;
+        }
       }
 
-      if (_currentPage == 6 && passwordConfirm!.length < 6) {
-        passwordConfirmError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
-        return;
-      }
+      // =========================
+      // 2) NAVEGAR / REGISTRAR
+      // =========================
 
-      if (_currentPage == 6 && (passwordConfirm != password)) {
-        passwordConfirmError = "Las contraseñas no coinciden.";
-        return;
-      }
-
-      if (_currentPage == 7 && selectedQuestion == null) {
-        questionError = "Debes seleccionar una pregunta.";
-        return;
-      }
-
-      if (_currentPage == 7 && (answer == null || answer!.trim().isEmpty)) {
-        answerError = "Debes escribir tu respuesta.";
-        return;
-      }
-
-      // Avanzar de página si no hay errores
-      if (_currentPage < 7) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-        _currentPage++;
-      } else {
-
+      if (_currentPage == 8) {
         _register();
+        return;
       }
-    });
-  }
 
+      int next = _currentPage + 1;
 
-  // Método para retroceder a la página anterior
-  void _previousPage() {
-    if (_currentPage > 0) {
-      _pageController.previousPage(
+      // Saltos para Google:
+      if (_isGoogleFlow) {
+        // Saltar email(3) y confirm(4)
+        if (next == 3 || next == 4) next = 5;
+
+        // Saltar password(6) y confirm(7)
+        if (next == 6 || next == 7) next = 8;
+      }
+
+      _pageController.animateToPage(
+        next,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-      setState(() {
-        _currentPage--;
-      });
-    }
+
+      _currentPage = next;
+      _handleFocusForPage(_currentPage);
+    });
   }
 
+  // Método para retroceder a la página anterior
+  void _previousPage() {
+    if (_currentPage <= 0) return;
+
+    int prev = _currentPage - 1;
+
+    if (_isGoogleFlow) {
+      // Si es Google, saltar páginas no usadas al retroceder:
+      // saltar password(6) y confirm(7)
+      if (prev == 7 || prev == 6) prev = 5;
+      // saltar email(3) y confirm(4)
+      if (prev == 4 || prev == 3) prev = 2;
+    }
+
+    _pageController.animateToPage(
+      prev,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+
+    setState(() => _currentPage = prev);
+    _handleFocusForPage(_currentPage);
+  }
 
   // Método para validar el formato del correo electrónico
   bool _isValidEmail(String email) {
@@ -251,31 +351,70 @@ class _RegisterPageState extends State<RegisterPage> {
     return emailRegex.hasMatch(email);
   }
 
+  void _handleFocusForPage(int page) {
+    // Espera un poco a que PageView termine de pintar la página
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+
+      FocusNode? node;
+      switch (page) {
+        case 1:
+          node = _nameFocusNode;
+          break;
+        case 2:
+          node = _apellidosFocusNode;
+          break;
+        case 3:
+          node = _emailFocusNode;
+          break;
+        case 4:
+          node = _emailConfirmFocusNode;
+          break;
+        case 5:
+          node = _celularFocusNode;
+          break;
+        case 6:
+          node = _passwordFocusNode;
+          break;
+        case 7:
+          node = _passwordDonfirmFocusNode;
+          break;
+        default:
+          node = null;
+      }
+
+      if (node != null) {
+        FocusScope.of(context).requestFocus(node);
+        SystemChannels.textInput.invokeMethod('TextInput.show'); // ✅ abre teclado
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     // Usamos un post-frame callback para asegurarnos de que el foco se maneje después de la renderización
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_currentPage == 1) {
-        FocusScope.of(context).requestFocus(_apellidosFocusNode);
-        // Asegúrate de que el teclado se muestre después de que el foco haya sido aplicado
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      } else if (_currentPage == 2) {
-        FocusScope.of(context).requestFocus(_emailFocusNode);
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      } else if (_currentPage == 3) {
-        FocusScope.of(context).requestFocus(_emailConfirmFocusNode);
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      } else if (_currentPage == 4) {
-        FocusScope.of(context).requestFocus(_celularFocusNode);
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      } else if (_currentPage == 5) {
-        FocusScope.of(context).requestFocus(_passwordFocusNode);
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      } else if (_currentPage == 6) {
-        FocusScope.of(context).requestFocus(_passwordDonfirmFocusNode);
-        SystemChannels.textInput.invokeMethod('TextInput.show');
-      }
-    });
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (_currentPage == 1) {
+    //     FocusScope.of(context).requestFocus(_apellidosFocusNode);
+    //     // Asegúrate de que el teclado se muestre después de que el foco haya sido aplicado
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   } else if (_currentPage == 2) {
+    //     FocusScope.of(context).requestFocus(_emailFocusNode);
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   } else if (_currentPage == 3) {
+    //     FocusScope.of(context).requestFocus(_emailConfirmFocusNode);
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   } else if (_currentPage == 4) {
+    //     FocusScope.of(context).requestFocus(_celularFocusNode);
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   } else if (_currentPage == 5) {
+    //     FocusScope.of(context).requestFocus(_passwordFocusNode);
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   } else if (_currentPage == 6) {
+    //     FocusScope.of(context).requestFocus(_passwordDonfirmFocusNode);
+    //     SystemChannels.textInput.invokeMethod('TextInput.show');
+    //   }
+    // });
 
     return Scaffold(
       backgroundColor: blancoCards,
@@ -298,7 +437,7 @@ class _RegisterPageState extends State<RegisterPage> {
         children: [
           // Indicador de progreso
           LinearProgressIndicator(
-            value: (_currentPage + 1) / 8, // Cambiar 3 por 7
+            value: (_currentPage + 1) / 9,
             backgroundColor: Colors.grey[300],
             color: primary,
           ),
@@ -307,14 +446,15 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                _buildNamePage(),
-                _buildApellidosPage(),
-                _buildEmailPage(),
-                _buildEmailConfirmPage(),
-                _buildCelularPage(),
-                _buildPasswordPage(),
-                _buildPasswordConfirmPage(),
-                _buildPalabraClave()
+                _buildMetodoRegistroPage(), // ✅ nueva pagina 0
+                _buildNamePage(),           // ahora es pagina 1
+                _buildApellidosPage(),      // 2
+                _buildEmailPage(),          // 3
+                _buildEmailConfirmPage(),   // 4
+                _buildCelularPage(),        // 5
+                _buildPasswordPage(),       // 6
+                _buildPasswordConfirmPage(),// 7
+                _buildPalabraClave(),       // 8
               ],
             ),
           ),
@@ -344,7 +484,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (_currentPage == 7) {
+                    if (_currentPage == 8) {
                       bool hasConnection = await connectionService.hasInternetConnection();
 
                       if (hasConnection) {
@@ -365,7 +505,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   child: Row(
                     children: [
                       Text(
-                        _currentPage == 7 ? "Registrar" : "Siguiente",
+                        _currentPage == 8 ? "Registrar" : "Siguiente",
                         style: const TextStyle(color: Colors.black87),
                       ),
                       const Icon(Icons.double_arrow_rounded, color: Colors.black, size: 16),
@@ -375,6 +515,119 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetodoRegistroPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 24),
+
+          // Logo + headline
+          const Center(
+            child: Column(
+              children: [
+                SizedBox(height: 6),
+                Text(
+                  "Crea tu cuenta en segundos",
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, height: 1.0),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  "Elige cómo quieres continuar",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black54),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 26),
+
+          // ✅ Google (protagonista)
+          ElevatedButton(
+            onPressed: _signUpWithGoogleAndContinue,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: const BorderSide(color: Colors.black12),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/logo_google.png',
+                  height: 22,
+                  width: 22,
+                  fit: BoxFit.contain,
+                ),
+                SizedBox(width: 10),
+                const Text(
+                  "Continuar con Google",
+                  style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Divider "o"
+          const Row(
+            children: [
+              Expanded(child: Divider(color: Colors.black12)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Text("o", style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600)),
+              ),
+              Expanded(child: Divider(color: Colors.black12)),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ✅ Email (secundario, más pequeño)
+          OutlinedButton(
+            onPressed: () {
+              setState(() {
+                _isGoogleFlow = false;
+                _currentPage = 1; // ✅ ir a Nombres (nuevo indice)
+              });
+              _pageController.animateToPage(
+                1,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+              );
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: const BorderSide(color: Colors.black12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text(
+              "Continuar con correo",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+          ),
+
+          const Spacer(),
+
+          // Texto de confianza (queda pro)
+          const Text(
+            "Tu información está protegida.\nLuego te pediremos tu celular y una verificación rápida.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.2),
+          ),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -401,7 +654,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   void _register() async {
-
     // ✅ SEGURO: valida aquí también (por si alguien llama _register() directo)
     setState(() {
       questionError = null;
@@ -437,9 +689,49 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      // ✅ 1) Verificar si el celular ya existe
-      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
+      // ✅ 1) Obtener UID (Google o correo/contraseña)
+      String uid;
 
+      if (_isGoogleFlow) {
+        final user = _authProvider.getUser();
+        if (user == null) {
+          _progressDialog.hide();
+          Snackbar.showSnackbar(
+            key.currentContext!,
+            'Sesión inválida. Intenta con Google nuevamente.',
+          );
+          return;
+        }
+        uid = user.uid;
+        email = user.email ?? (email ?? "");
+      } else {
+        // Flujo normal (correo/contraseña)
+        bool isSignUp = await _authProvider.signUp(email!, password!);
+        if (!isSignUp) {
+          _progressDialog.hide();
+          return;
+        }
+        uid = _authProvider.getUser()!.uid;
+      }
+
+      // ✅ 2) Si ya existe en Firestore, NO hacer registro de nuevo
+      final existing = await _clientProvider.getById(uid);
+      if (existing != null) {
+        _progressDialog.hide();
+
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Bienvenido nuevamente 👋',
+        );
+
+        if (context.mounted) {
+          _authProvider.checkIfUserIsLogged(context);
+        }
+        return;
+      }
+
+      // ✅ 3) Solo para usuarios NUEVOS: validar celular duplicado
+      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
       if (existeCelular) {
         _progressDialog.hide();
         Snackbar.showSnackbar(
@@ -450,17 +742,7 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      // ✅ 2) Crear usuario en Firebase Auth
-      bool isSignUp = await _authProvider.signUp(email!, password!);
-
-      if (!isSignUp) {
-        _progressDialog.hide();
-        return;
-      }
-
-      final uid = _authProvider.getUser()!.uid;
-
-      // ✅ 3) Crear perfil del cliente en Firestore
+      // ✅ 4) Crear perfil del cliente en Firestore (solo nuevo)
       Client client = Client(
         id: uid,
         the01Nombres: name ?? "",
@@ -486,13 +768,13 @@ class _RegisterPageState extends State<RegisterPage> {
         the16CedulaFrontalUsuario: "",
         cedulaFrontalTomada: false,
         the23CedulaReversoUsuario: "",
-        cedulaReversoTomada: false
+        cedulaReversoTomada: false,
       );
 
       try {
         await _clientProvider.create(client);
       } catch (e) {
-        // ✅ Rollback si Firestore falla
+        // ✅ Rollback si Firestore falla (solo tiene sentido si era nuevo)
         await FirebaseAuth.instance.currentUser?.delete();
         await FirebaseAuth.instance.signOut();
 
@@ -506,7 +788,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
       _progressDialog.hide();
       _goTakeFotoPerfil();
-
     } catch (error) {
       _progressDialog.hide();
 
@@ -528,7 +809,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-
   void _goTakeFotoPerfil(){
     Navigator.pushReplacement(
       context,
@@ -544,12 +824,7 @@ class _RegisterPageState extends State<RegisterPage> {
         mainAxisAlignment: MainAxisAlignment.start,
 
         children: [
-          const Text(
-            "¡Vamos a crear tu cuenta!",
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black, height: 0.8),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 80),
+
           const Text(
             "¿Cuáles son tus nombres?",
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -559,8 +834,10 @@ class _RegisterPageState extends State<RegisterPage> {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black54),
           ),
           const SizedBox(height: 16),
+
           TextField(
             controller: nameController,
+            focusNode: _nameFocusNode,
             onChanged: (value) {
               setState(() {
                 name = value; // Actualiza el valor de name al escribir

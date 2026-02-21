@@ -1,80 +1,94 @@
-
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:apptaxis/models/client.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'dart:async';
 
 import 'client_provider.dart';
+import 'package:apptaxis/models/client.dart';
 
-class MyAuthProvider{
-  late FirebaseAuth _firebaseAuth;
+class MyAuthProvider {
+  late final FirebaseAuth _firebaseAuth;
   StreamSubscription<User?>? _authSub;
   bool _navigating = false;
 
-
-  MyAuthProvider(){
+  MyAuthProvider() {
     _firebaseAuth = FirebaseAuth.instance;
   }
 
-  BuildContext? get context => null;
+  User? getUser() => _firebaseAuth.currentUser;
 
-  Future<bool> login(String email, String password, BuildContext context) async {
-    String? errorMessage;
+  // =========================
+  // ✅ OTP: enviar y verificar
+  // =========================
 
-    try{
-      await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
-    }on FirebaseAuthException catch (error){
-      errorMessage = _getErrorMessage(error.code);
-      if(context.mounted){
-        showSnackbar(context, errorMessage);
-      }
-      return false;
+  /// Envía OTP. (Para Colombia: pásale +57XXXXXXXXXX desde la UI)
+  Future<void> sendOtp({
+    required String phoneNumberE164, // Ej: +573001234567
+    Duration timeout = const Duration(seconds: 60),
+    required void Function(String verificationId) onCodeSent,
+    void Function()? onAutoVerified,
+    void Function(String message)? onError,
+  }) async {
+    try {
+      await _firebaseAuth.verifyPhoneNumber(
+        phoneNumber: phoneNumberE164,
+        timeout: timeout,
+
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Android a veces auto-verifica
+          try {
+            final cred = await _firebaseAuth.signInWithCredential(credential);
+            if (cred.user != null) {
+              onAutoVerified?.call();
+            }
+          } catch (_) {
+            // silencio: si falla auto, el usuario mete el código manual
+          }
+        },
+
+        verificationFailed: (FirebaseAuthException e) {
+          onError?.call(e.message ?? _getErrorMessage(e.code));
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+          onCodeSent(verificationId);
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Puedes guardar este verificationId si quieres
+        },
+      );
+    } catch (e) {
+      onError?.call('No se pudo enviar el código. Intenta de nuevo.');
     }
-    return true;
   }
 
-  String _getErrorMessage(String errorCode) {
-    // Mapeo de los códigos de error a mensajes en español
-    Map<String, String> errorMessages = {
-      'user-not-found': 'Usuario no encontrado. Verifica tu correo electrónico.',
-      'wrong-password': 'Contraseña incorrecta. Inténtalo de nuevo.',
-      'invalid-email': 'La dirección de correo electrónico no tiene el formato correcto.',
-      'user-disabled': 'La cuenta de usuario ha sido deshabilitada.',
-      'invalid-credential': 'Las credenciales proporcionadas no son válidas.',
-      'network-request-failed': 'Sin señal. Revisa tu conexión de INTERNET.',
-      'email-already-in-use': 'El correo electrónico ingresado ya está siendo usado por otro usuario.',
-    };
-
-    return errorMessages[errorCode] ?? 'Error desconocido';
+  /// Verifica OTP e inicia sesión (crea/usa el user de Firebase Auth).
+  Future<UserCredential?> verifyOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      return await _firebaseAuth.signInWithCredential(credential);
+    } on FirebaseAuthException {
+      rethrow;
+    }
   }
 
-  void showSnackbar(BuildContext context, String message) {
-    final snackBar = SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(fontSize: 16),
-      ),
-      backgroundColor: Colors.black,
-    );
+  // =========================
+  // ✅ Navegación según estado
+  // =========================
 
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  }
-
-  User? getUser(){
-    return _firebaseAuth.currentUser;
-  }
-
-  //ajutado para que siempre estaen las preguntas de seguridad
   void checkIfUserIsLogged(BuildContext? context) {
     if (context == null) return;
 
-    // ✅ evita múltiples listeners
     _authSub?.cancel();
     _navigating = false;
 
-    _authSub = FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+    _authSub = _firebaseAuth.authStateChanges().listen((User? user) async {
       if (!context.mounted) return;
       if (_navigating) return;
 
@@ -85,34 +99,23 @@ class MyAuthProvider{
         return;
       }
 
-      // 2) Email verificado solo si NO es Google
-      final providerIds = user.providerData.map((e) => e.providerId).toList();
-      final isGoogle = providerIds.contains('google.com');
-
-      if (!isGoogle && !user.emailVerified) {
-        _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
-        return;
-      }
-
       final clientProvider = ClientProvider();
       final userId = user.uid;
 
-      // 3) Traer el Client UNA SOLA VEZ (fuente de la verdad)
+      // 2) Traer el Client (fuente de la verdad)
       final Client? client = await clientProvider.getById(userId);
 
       if (!context.mounted) return;
       if (_navigating) return;
 
       if (client == null) {
-        // si no hay documento cliente, manda a login
+        // Si no hay documento cliente, manda a login
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
         return;
       }
 
-      // 4) Status bloqueado (usa el dato del cliente si lo tienes en el modelo)
-      // Si tu status viene en client.status, usa eso.
+      // 3) Status bloqueado
       final status = (client.status ?? '').trim();
       if (status == 'bloqueado') {
         _navigating = true;
@@ -120,7 +123,7 @@ class MyAuthProvider{
         return;
       }
 
-      // 5) ✅ Foto obligatoria (robusta)
+      // 4) Foto obligatoria
       final foto = (client.the15FotoPerfilUsuario ?? '').trim();
       final fotoTomada = client.fotoPerfilTomada ?? false;
 
@@ -130,7 +133,7 @@ class MyAuthProvider{
         return;
       }
 
-      // 6) ✅ Pregunta y respuesta obligatorias
+      // 5) Pregunta y respuesta obligatorias
       final pregunta = (client.preguntaPalabraClave ?? '').trim();
       final respuesta = (client.palabraClave ?? '').trim();
 
@@ -140,7 +143,7 @@ class MyAuthProvider{
         return;
       }
 
-      // 7) ✅ Viaje o mapa normal
+      // 6) Viaje o mapa normal
       final isTraveling = client.the00isTraveling;
 
       _navigating = true;
@@ -152,60 +155,47 @@ class MyAuthProvider{
     });
   }
 
-  Future<bool> signUp(String email, String password) async {
-    try {
-      await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException {
-      // Lanzar el error para manejarlo en SignUpController
-      rethrow;
-    }
-    return true;
-  }
+  // =========================
+  // ✅ Sign out
+  // =========================
 
   Future<void> signOut() async {
-    try {
-      if (!kIsWeb) {
-        await GoogleSignIn().signOut();
-      }
-      await _firebaseAuth.signOut();
-    } catch (_) {
-      await _firebaseAuth.signOut();
-    }
+    await _firebaseAuth.signOut();
   }
 
   Future<bool> isUserLoggedIn() async {
-    // Si usas Firebase Authentication
-    var user = FirebaseAuth.instance.currentUser;
-    return user != null;
+    return _firebaseAuth.currentUser != null;
   }
 
-  Future<UserCredential?> signInWithGoogle() async {
-    try {
-      if (kIsWeb) {
-        final googleProvider = GoogleAuthProvider();
-        return await _firebaseAuth.signInWithPopup(googleProvider);
-      } else {
-        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-        if (googleUser == null) return null; // cancelado
+  // =========================
+  // Helpers
+  // =========================
 
-        final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
+  String _getErrorMessage(String errorCode) {
+    final Map<String, String> errorMessages = {
+      'user-not-found': 'Usuario no encontrado.',
+      'wrong-password': 'Contraseña incorrecta.',
+      'invalid-email': 'Formato de correo inválido.',
+      'user-disabled': 'La cuenta ha sido deshabilitada.',
+      'invalid-credential': 'Las credenciales no son válidas.',
+      'network-request-failed': 'Sin señal. Revisa tu conexión de INTERNET.',
+      'email-already-in-use': 'El correo ya está siendo usado.',
+      'invalid-verification-code': 'Código OTP incorrecto.',
+      'too-many-requests': 'Demasiados intentos. Espera un momento e intenta de nuevo.',
+    };
 
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
+    return errorMessages[errorCode] ?? 'Error desconocido';
+  }
 
-        return await _firebaseAuth.signInWithCredential(credential);
-      }
-    } on FirebaseAuthException {
-      rethrow;
-    }
+  void showSnackbar(BuildContext context, String message) {
+    final snackBar = SnackBar(
+      content: Text(message, style: const TextStyle(fontSize: 16)),
+      backgroundColor: Colors.black,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 
   void dispose() {
     _authSub?.cancel();
   }
-
-
 }

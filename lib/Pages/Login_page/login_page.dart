@@ -12,41 +12,49 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-
   late LoginController _controller;
   final ConnectionService connectionService = ConnectionService();
-  bool _isLoading = false;
-  bool _isPasswordVisible = false;
 
-  bool _showLoginForm = false; //
+  bool _isLoading = false;
+  bool _showLoginForm = false;
 
   @override
   void initState() {
     super.initState();
     _controller = LoginController();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
-      _controller.init(context);
+      _controller.init(context, () {
+        if (mounted) setState(() {});
+      });
     });
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final otpEnviado = _controller.otpEnviado;
+
     return Scaffold(
       backgroundColor: blancoCards,
       key: _controller.key,
       appBar: AppBar(
         backgroundColor: primary,
         iconTheme: const IconThemeData(color: negro, size: 30),
-        title: const Text("Ingreso", style: TextStyle(
-          fontWeight: FontWeight.w900,
-          fontSize: 20
-        ),),
+        title: const Text(
+          "Ingreso",
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+        ),
         actions: const <Widget>[
           Image(
-              height: 40.0,
-              width: 100.0,
-              image: AssetImage('assets/metax_logo.png'))
+            height: 40.0,
+            width: 100.0,
+            image: AssetImage('assets/metax_logo.png'),
+          )
         ],
       ),
       body: Stack(
@@ -57,10 +65,11 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: SingleChildScrollView(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center, // Alinea al centro horizontalmente
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const SizedBox(height: 30),
+
                     if (!_showLoginForm) ...[
                       const Center(
                         child: Text(
@@ -118,10 +127,9 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 18),
                     ],
 
-
                     const SizedBox(height: 18),
 
-// ✅ TEXTO: "¿Ya tienes cuenta?"
+                    // ✅ TEXTO: "¿Ya tienes cuenta?"
                     GestureDetector(
                       onTap: () {
                         setState(() => _showLoginForm = !_showLoginForm);
@@ -130,12 +138,16 @@ class _LoginPageState extends State<LoginPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            _showLoginForm ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                            _showLoginForm
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
                             color: Colors.black45,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _showLoginForm ? "Ocultar inicio de sesión" : "¿Ya tienes cuenta? Inicia sesión",
+                            _showLoginForm
+                                ? "Ocultar inicio de sesión"
+                                : "¿Ya tienes cuenta? Inicia sesión",
                             style: const TextStyle(
                               color: Colors.black54,
                               fontWeight: FontWeight.bold,
@@ -148,9 +160,28 @@ class _LoginPageState extends State<LoginPage> {
 
                     const SizedBox(height: 16),
 
-// ✅ FORMULARIO DE LOGIN (solo si _showLoginForm == true)
+                    // ✅ FORMULARIO OTP
                     if (_showLoginForm) ...[
-                      // ✅ BOTÓN GOOGLE
+                      // ✅ CELULAR
+                      SizedBox(
+                        width: 300,
+                        child: TextField(
+                          controller: _controller.celularController,
+                          decoration: InputDecoration(
+                            labelText: "Número de celular",
+                            hintText: "Ej: 3001234567",
+                            prefixIcon: const Icon(Icons.phone, color: primary),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                          ),
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ✅ BOTÓN ENVIAR OTP
                       SizedBox(
                         width: 300,
                         child: ElevatedButton(
@@ -166,9 +197,7 @@ class _LoginPageState extends State<LoginPage> {
                                 await alertSinInternet();
                                 return;
                               }
-
-                              // ✅ Login con Google
-                              await _controller.loginWithGoogle();
+                              await _controller.enviarOtp();
                             } finally {
                               if (mounted) setState(() => _isLoading = false);
                             }
@@ -176,166 +205,83 @@ class _LoginPageState extends State<LoginPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                             side: const BorderSide(color: Colors.black12),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Image.asset(
-                                'assets/logo_google.png',
-                                height: 22,
-                                width: 22,
-                                fit: BoxFit.contain,
-                              ),
-                              const SizedBox(width: 10),
-                              const Text(
-                                "Continuar con Google",
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            otpEnviado ? "Reenviar código" : "Enviar código OTP",
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),
 
                       const SizedBox(height: 14),
 
-                      // ✅ DIVISOR "o"
-                      const Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.black12)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 10),
-                            child: Text(
-                              "o",
-                              style: TextStyle(
-                                color: Colors.black45,
-                                fontWeight: FontWeight.w600,
+                      // ✅ OTP (solo si ya se envió)
+                      if (otpEnviado) ...[
+                        SizedBox(
+                          width: 300,
+                          child: TextField(
+                            controller: _controller.otpController,
+                            decoration: InputDecoration(
+                              labelText: "Código OTP (6 dígitos)",
+                              prefixIcon: const Icon(Icons.verified, color: primary),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
                             ),
+                            keyboardType: TextInputType.number,
+                            maxLength: 6,
                           ),
-                          Expanded(child: Divider(color: Colors.black12)),
-                        ],
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // ✅ EMAIL
-                      SizedBox(
-                        width: 300,
-                        child: TextField(
-                          controller: _controller.emailController,
-                          decoration: InputDecoration(
-                            labelText: "Correo electrónico",
-                            prefixIcon: const Icon(Icons.email, color: primary),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
                         ),
-                      ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // ✅ PASSWORD
-                      SizedBox(
-                        width: 300,
-                        child: TextField(
-                          controller: _controller.passwordController,
-                          decoration: InputDecoration(
-                            labelText: "Contraseña",
-                            prefixIcon: const Icon(Icons.lock, color: primary),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _isPasswordVisible ? Icons.visibility_off : Icons.visibility,
-                                color: Colors.black38,
-                              ),
-                              onPressed: () {
-                                setState(() => _isPasswordVisible = !_isPasswordVisible);
-                              },
-                            ),
-                          ),
-                          obscureText: !_isPasswordVisible,
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ✅ BOTÓN LOGIN
-                      SizedBox(
-                        width: 300,
-                        child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () async {
-                            FocusScope.of(context).unfocus();
-                            setState(() => _isLoading = true);
-                            try {
-                              final hasConnection =
-                              await connectionService.hasInternetConnection();
-                              if (!hasConnection) {
-                                await alertSinInternet();
-                                return;
+                        // ✅ BOTÓN INGRESAR
+                        SizedBox(
+                          width: 300,
+                          child: ElevatedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                              FocusScope.of(context).unfocus();
+                              setState(() => _isLoading = true);
+                              try {
+                                final hasConnection =
+                                await connectionService.hasInternetConnection();
+                                if (!hasConnection) {
+                                  await alertSinInternet();
+                                  return;
+                                }
+                                await _controller.verificarOtpYEntrar();
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
                               }
-                              await _controller.login();
-                            } finally {
-                              if (mounted) setState(() => _isLoading = false);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                          ),
-                          child: const Text(
-                            "Iniciar Sesión",
-                            style: TextStyle(fontSize: 18, color: Colors.black),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // ✅ OLVIDÉ MI CONTRASEÑA
-                      GestureDetector(
-                        onTap: () async {
-                          final hasConnection = await connectionService.hasInternetConnection();
-                          if (hasConnection) {
-                            _controller.goToForgotPassword();
-                          } else {
-                            alertSinInternet();
-                          }
-                        },
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.double_arrow_rounded, color: Colors.black38),
-                            SizedBox(width: 8),
-                            Text(
-                              "Olvidé mi contraseña",
-                              style: TextStyle(
-                                color: Colors.black38,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.0),
                               ),
+                              padding: const EdgeInsets.symmetric(vertical: 16.0),
                             ),
-                          ],
+                            child: const Text(
+                              "Iniciar Sesión",
+                              style: TextStyle(fontSize: 18, color: Colors.black),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 30),
+                    ],
                   ],
                 ),
               ),
@@ -346,9 +292,7 @@ class _LoginPageState extends State<LoginPage> {
             const Positioned.fill(
               child: ColoredBox(
                 color: Color(0x55000000),
-                child: Center(
-                  child: CircularProgressIndicator(),
-                ),
+                child: Center(child: CircularProgressIndicator()),
               ),
             ),
         ],
@@ -356,18 +300,19 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future alertSinInternet (){
+  Future alertSinInternet() {
     return showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Sin Internet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
+          title: const Text(
+            'Sin Internet',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
           content: const Text('Por favor, verifica tu conexión e inténtalo nuevamente.'),
           actions: <Widget>[
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Aceptar'),
             ),
           ],

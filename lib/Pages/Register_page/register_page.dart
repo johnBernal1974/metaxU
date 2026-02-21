@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:apptaxis/providers/auth_provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -14,6 +16,7 @@ import '../../src/colors/colors.dart';
 import 'package:apptaxis/models/client.dart';
 
 import '../TakeFotoPerfil/take_foto_perfil_page.dart';
+import 'package:pin_code_fields/pin_code_fields.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -26,62 +29,66 @@ class _RegisterPageState extends State<RegisterPage> {
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final PageController _pageController = PageController();
   final ConnectionService connectionService = ConnectionService();
+
   int _currentPage = 0;
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
-  FocusNode _nameFocusNode = FocusNode();
-  FocusNode _apellidosFocusNode = FocusNode();
-  FocusNode _emailFocusNode = FocusNode();
-  FocusNode _emailConfirmFocusNode = FocusNode();
-  FocusNode _celularFocusNode = FocusNode();
-  FocusNode _passwordFocusNode = FocusNode();
-  FocusNode _passwordDonfirmFocusNode = FocusNode();
 
+  // Focus
+  final FocusNode _nameFocusNode = FocusNode();
+  final FocusNode _apellidosFocusNode = FocusNode();
+  final FocusNode _celularFocusNode = FocusNode();
+  final FocusNode _otpFocusNode = FocusNode();
 
-  // Variables para almacenar los datos ingresados por el usuario.
+  // Datos
   String? name;
   String? apellidos;
-  String? email;
-  String? emailConfirm;
   String? celular;
-  String? password;
-  String? passwordConfirm;
+
+  // OTP
+  String? _verificationId;
+  String? _otpCode;
+  bool _otpSent = false;
+  bool _otpVerified = false;
+
+  // Pregunta
   String? selectedQuestion;
   String? answer;
 
-  // Variables para almacenar los errores
+  // Errores
   String? nameError;
   String? apellidosError;
-  String? emailError;
-  String? emailConfirmError;
   String? celularError;
-  String? passwordError;
-  String? passwordConfirmError;
+  String? otpError;
   String? answerError;
   String? questionError;
 
-
-
-  // Controladores para los campos de texto
+  // Controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController apellidosController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController emailConfirmController = TextEditingController();
   final TextEditingController celularController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController passwordConfirmController = TextEditingController();
+  final TextEditingController otpController = TextEditingController();
   final TextEditingController answerController = TextEditingController();
 
-  // Opciones para las preguntas
   final List<String> questions = [
     'Nombre de tu mascota',
     'Nombre de tu abuelo materno',
     '¿Cuál es el nombre de tu profesor favorito?',
   ];
 
-  bool _isGoogleFlow = false;
   bool _isLoading = false;
+  bool _sendingOtp = false;
+  bool _verifyingOtp = false;
 
+  Timer? _resendTimer;
+  int _resendSeconds = 0; // 0 = ya puede reenviar
+  static const int _resendCooldown = 30; // segundos
+
+  static const int _totalPages = 5; // total pasos = 5 (páginas 0..4)
+
+  bool get _isOtpComplete => (otpController.text.trim().length == 6);
+
+  bool _alreadyRegistered = false;
 
   @override
   void initState() {
@@ -89,318 +96,759 @@ class _RegisterPageState extends State<RegisterPage> {
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       _authProvider = MyAuthProvider();
       _clientProvider = ClientProvider();
-     _checkConnection();
+      _checkConnection();
     });
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+
+    setState(() => _resendSeconds = _resendCooldown);
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_resendSeconds <= 1) {
+        t.cancel();
+        setState(() => _resendSeconds = 0);
+      } else {
+        setState(() => _resendSeconds--);
+      }
+    });
+  }
+
+  String _maskNumber(String number) {
+    final digits = number.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 4) return number;
+    // 3001234567 -> 300****567
+    return digits.replaceRange(3, digits.length - 3, '****');
   }
 
   Future<void> _checkConnection() async {
     await connectionService.checkConnectionAndShowCard(context, () {
-      setState(() {
-      });
+      setState(() {});
     });
   }
 
   @override
   void dispose() {
-    // Liberar los controladores cuando no se necesiten
     nameController.dispose();
     apellidosController.dispose();
-    emailController.dispose();
-    emailConfirmController.dispose();
     celularController.dispose();
-    passwordController.dispose();
-    passwordConfirmController.dispose();
+    otpController.dispose();
     answerController.dispose();
+
     _nameFocusNode.dispose();
     _apellidosFocusNode.dispose();
-    _emailFocusNode.dispose();
-    _emailConfirmFocusNode.dispose();
     _celularFocusNode.dispose();
-    _passwordFocusNode.dispose();
-    _passwordDonfirmFocusNode.dispose();
+    _otpFocusNode.dispose();
+    _resendTimer?.cancel();
+    _deviceBlockTimer?.cancel();
+
     super.dispose();
   }
 
-  //para crear con google
-  Future<void> _signUpWithGoogleAndContinue() async {
-    if (_isLoading) return;
+  // =========================
+  // Helpers OTP
+  // =========================
+  String _normalizeCel10(String raw) => raw.replaceAll(RegExp(r'\D'), '');
+  String _toE164Colombia(String cel10) => '+57$cel10';
 
-    FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
+  Future<void> _sendOtp() async {
+    if (_sendingOtp) return;
 
-    try {
-      // ✅ deja pintar overlay antes de abrir Google chooser
-      await Future.delayed(const Duration(milliseconds: 80));
+    setState(() {
+      celularError = null;
+      otpError = null;
+    });
 
-      final cred = await _authProvider.signInWithGoogle();
+    final cel10 = _normalizeCel10(celularController.text);
+    if (cel10.isEmpty) {
+      setState(() => celularError = "Por favor ingresa tu número de celular.");
+      return;
+    }
+    if (cel10.length != 10) {
+      setState(() => celularError = "Este número de celular NO es válido.");
+      return;
+    }
+
+    final hasConnection = await connectionService.hasInternetConnection();
+    if (!hasConnection) {
+      await alertSinInternet();
+      return;
+    }
+
+    setState(() => _sendingOtp = true);
+
+    Timer? failSafe;
+    void stopLoading() {
+      failSafe?.cancel();
+      if (mounted) setState(() => _sendingOtp = false);
+    }
+
+    // ✅ Si en X segundos no llegó codeSent ni failed, suelta y muestra mensaje
+    failSafe = Timer(const Duration(seconds: 25), () {
       if (!mounted) return;
-
-      if (cred == null) {
-        // canceló
-        return;
-      }
-
-      final user = cred.user;
-      if (user == null) {
-        Snackbar.showSnackbar(key.currentContext!, 'No se pudo obtener tu usuario de Google.');
-        return;
-      }
-
-      email = user.email ?? "";
-      emailConfirm = email;
-
-      final existing = await _clientProvider.getById(user.uid);
-      if (!mounted) return;
-
-      if (existing != null) {
-        Snackbar.showSnackbar(key.currentContext!, 'Bienvenido nuevamente 👋');
-        _authProvider.checkIfUserIsLogged(context);
-        return;
-      }
-
-      // Nuevo -> ir a nombres
-      name = null;
-      apellidos = null;
-      nameController.clear();
-      apellidosController.clear();
-
       setState(() {
-        _isGoogleFlow = true;
-        _currentPage = 1;
+        _sendingOtp = false;
+        otpError = "No pudimos enviar el código. Intenta de nuevo.";
       });
 
-      _pageController.animateToPage(
-        1,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("No se pudo enviar el código. Revisa tu señal e intenta otra vez."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    });
+
+    try {
+      final phone = _toE164Colombia(cel10);
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Android puede auto-verificar
+          try {
+            final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+            final user = cred.user;
+            if (!mounted || user == null) return;
+
+            stopLoading();
+
+            setState(() {
+              _otpVerified = true;
+              _otpSent = true;
+              otpError = null;
+            });
+
+            final redirected = await _redirectIfAlreadyRegistered(user);
+            if (redirected) return;
+
+            _goToPage(2);
+            _handleFocusForPage(2);
+          } catch (_) {
+            stopLoading();
+          }
+        },
+
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+          stopLoading();
+
+          String msg;
+          if (e.code == 'too-many-requests') {
+            msg = "Por seguridad, se bloqueó temporalmente el envío de códigos en este dispositivo.\nIntenta de nuevo más tarde.";
+            _startDeviceBlockCooldown(); // 👇 lo agregamos abajo
+          } else {
+            msg = e.message ?? "No se pudo enviar el código. Intenta de nuevo.";
+          }
+
+          setState(() => otpError = msg);
+
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(content: Text(msg), backgroundColor: Colors.red),
+          // );
+
+          if (kDebugMode) {
+            print("❌ verificationFailed: ${e.code} | ${e.message}");
+          }
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
+          stopLoading();
+
+          setState(() {
+            _verificationId = verificationId;
+            _otpSent = true;
+            otpError = null;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Código enviado al ${_maskNumber(celularController.text)}"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+
+          _startResendCooldown();
+          _goToPage(1);
+          _handleFocusForPage(1);
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {
+          if (!mounted) return;
+          stopLoading();
+
+          _verificationId = verificationId;
+
+          if (kDebugMode) {
+            print("⏳ codeAutoRetrievalTimeout: $verificationId");
+          }
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      stopLoading();
+
+      setState(() => otpError = "Error enviando OTP. Intenta nuevamente.");
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(otpError!),
+          backgroundColor: Colors.red,
+        ),
       );
 
-      _handleFocusForPage(1);
-    } catch (e) {
       if (kDebugMode) {
-        print('🔥 ERROR Google Sign-In: $e');
+        print("❌ Exception verifyPhoneNumber: $e");
       }
-      if (mounted) {
-        Snackbar.showSnackbar(key.currentContext!, 'Error al iniciar con Google.');
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // Método para avanzar a la siguiente página
-  void _nextPage() {
-    setState(() {
-      // Limpiar errores antes de validar
-      nameError = null;
-      apellidosError = null;
-      emailError = null;
-      emailConfirmError = null;
-      celularError = null;
-      passwordError = null;
-      passwordConfirmError = null;
-      answerError = null;
-      questionError = null;
+  Timer? _deviceBlockTimer;
+  int _deviceBlockSeconds = 0;
+  static const int _deviceBlockCooldown = 120; // 2 min (ajústalo)
+  bool get _deviceBlocked => _deviceBlockSeconds > 0;
 
-      // =========================
-      // 1) VALIDAR PÁGINA ACTUAL
-      // =========================
+  void _startDeviceBlockCooldown() {
+    _deviceBlockTimer?.cancel();
+    setState(() => _deviceBlockSeconds = _deviceBlockCooldown);
 
-      // Pag 1: nombres
-      if (_currentPage == 1 && (name == null || name!.trim().isEmpty)) {
-        nameError = "Por favor ingresa tu nombre.";
-        return;
+    _deviceBlockTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_deviceBlockSeconds <= 1) {
+        t.cancel();
+        setState(() => _deviceBlockSeconds = 0);
+      } else {
+        setState(() => _deviceBlockSeconds--);
       }
-
-      // Pag 2: apellidos
-      if (_currentPage == 2 && (apellidos == null || apellidos!.trim().isEmpty)) {
-        apellidosError = "Por favor ingresa tus apellidos.";
-        return;
-      }
-
-      // Pag 3: email (solo NO Google)
-      if (!_isGoogleFlow && _currentPage == 3) {
-        if (email == null || email!.trim().isEmpty) {
-          emailError = "Por favor ingresa un correo electrónico.";
-          return;
-        }
-        if (!_isValidEmail(email!.trim())) {
-          emailError = "Este correo electrónico NO es válido.";
-          return;
-        }
-      }
-
-      // Pag 4: confirm email (solo NO Google)
-      if (!_isGoogleFlow && _currentPage == 4) {
-        if (emailConfirm == null || emailConfirm!.trim().isEmpty) {
-          emailConfirmError = "Por favor confirma tu correo electrónico.";
-          return;
-        }
-        if (!_isValidEmail(emailConfirm!.trim())) {
-          emailConfirmError = "Este correo electrónico NO es válido.";
-          return;
-        }
-        if (emailConfirm!.trim() != (email ?? "").trim()) {
-          emailConfirmError = "El correo de confirmación no coincide.";
-          return;
-        }
-      }
-
-      // Pag 5: celular (siempre)
-      if (_currentPage == 5) {
-        final cel = (celular ?? "").replaceAll(RegExp(r'\D'), '');
-        if (cel.isEmpty) {
-          celularError = "Por favor ingresa tu número de celular.";
-          return;
-        }
-        if (cel.length != 10) {
-          celularError = "Este número de celular NO es válido.";
-          return;
-        }
-      }
-
-      // Pag 6: password (solo NO Google)
-      if (!_isGoogleFlow && _currentPage == 6) {
-        if (password == null || password!.isEmpty) {
-          passwordError = "Por favor ingresa una contraseña.";
-          return;
-        }
-        if (password!.length < 6) {
-          passwordError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
-          return;
-        }
-      }
-
-      // Pag 7: confirm password (solo NO Google)
-      if (!_isGoogleFlow && _currentPage == 7) {
-        if (passwordConfirm == null || passwordConfirm!.isEmpty) {
-          passwordConfirmError = "Por favor confirma tu contraseña.";
-          return;
-        }
-        if (passwordConfirm!.length < 6) {
-          passwordConfirmError = "Por favor ingresa una contraseña con mínimo 6 caracteres.";
-          return;
-        }
-        if (passwordConfirm != password) {
-          passwordConfirmError = "Las contraseñas no coinciden.";
-          return;
-        }
-      }
-
-      // Pag 8: pregunta/resp (siempre)
-      if (_currentPage == 8) {
-        if (selectedQuestion == null) {
-          questionError = "Debes seleccionar una pregunta.";
-          return;
-        }
-        if (answer == null || answer!.trim().isEmpty) {
-          answerError = "Debes escribir tu respuesta.";
-          return;
-        }
-      }
-
-      // =========================
-      // 2) NAVEGAR / REGISTRAR
-      // =========================
-
-      if (_currentPage == 8) {
-        _register();
-        return;
-      }
-
-      int next = _currentPage + 1;
-
-      // Saltos para Google:
-      if (_isGoogleFlow) {
-        // Saltar email(3) y confirm(4)
-        if (next == 3 || next == 4) next = 5;
-
-        // Saltar password(6) y confirm(7)
-        if (next == 6 || next == 7) next = 8;
-      }
-
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-
-      _currentPage = next;
-      _handleFocusForPage(_currentPage);
     });
   }
 
-  // Método para retroceder a la página anterior
-  void _previousPage() {
-    if (_currentPage <= 0) return;
 
-    int prev = _currentPage - 1;
 
-    if (_isGoogleFlow) {
-      // Si es Google, saltar páginas no usadas al retroceder:
-      // saltar password(6) y confirm(7)
-      if (prev == 7 || prev == 6) prev = 5;
-      // saltar email(3) y confirm(4)
-      if (prev == 4 || prev == 3) prev = 2;
+  Future<void> _verifyOtp() async {
+    if (_verifyingOtp) return;
+
+    // Limpia error anterior
+    setState(() => otpError = null);
+
+    final code = otpController.text.trim();
+
+    // Validaciones rápidas
+    if (code.length != 6) {
+      setState(() => otpError = "Ingresa el código de 6 dígitos.");
+      return;
     }
 
-    _pageController.animateToPage(
-      prev,
-      duration: const Duration(milliseconds: 300),
+    if (_verificationId == null) {
+      setState(() => otpError = "Primero solicita el código OTP.");
+      return;
+    }
+
+    setState(() => _verifyingOtp = true);
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: code,
+      );
+
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      if (!mounted) return;
+
+      if (userCred.user == null) {
+        setState(() => otpError = "No se pudo verificar el código.");
+        return;
+      }
+
+      // ✅ OTP correcto
+      setState(() {
+        _otpVerified = true;
+        _otpCode = code;
+        otpError = null;
+      });
+
+      final user = userCred.user!;
+      final redirected = await _redirectIfAlreadyRegistered(user);
+      if (redirected) return;
+
+      // ✅ opcional: mini delay para que el usuario vea el "✅ correcto"
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return;
+
+      // ya verificado, seguimos
+      _goToPage(2);
+      _handleFocusForPage(2);
+
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        if (e.code == 'invalid-verification-code') {
+          otpError = "Código incorrecto. Intenta de nuevo.";
+        } else if (e.code == 'session-expired') {
+          otpError = "El código expiró. Solicita uno nuevo.";
+        } else if (e.code == 'too-many-requests') {
+          otpError = "Demasiados intentos. Espera un momento e intenta de nuevo.";
+        } else {
+          otpError = e.message ?? "No se pudo verificar el código.";
+        }
+        _otpVerified = false;
+      });
+
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        otpError = "No se pudo verificar el código. Intenta de nuevo.";
+        _otpVerified = false;
+      });
+    } finally {
+      if (mounted) setState(() => _verifyingOtp = false);
+    }
+  }
+
+  Widget _buildPhoneStartPage() {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 18),
+
+          // ✅ Tarjeta superior (look premium)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  primary.withOpacity(0.85),
+                  primary.withOpacity(0.35),
+                ],
+              ),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center, // 👈 centra verticalmente
+              children: [
+                Text(
+                  "Crea tu cuenta con tu número de celular",
+                  textAlign: TextAlign.center, // 👈 centra el texto
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                    height: 1.1,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  "Te enviaremos un código por mensaje de texto para verificarlo.",
+                  textAlign: TextAlign.center, // 👈 centra el texto
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // ✅ Input celular
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: celularError != null ? Colors.red : Colors.black12),
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 14,
+                  spreadRadius: 0,
+                  offset: Offset(0, 6),
+                  color: Color(0x11000000),
+                )
+              ],
+            ),
+            child: TextField(
+              controller: celularController,
+              focusNode: _celularFocusNode,
+              enabled: !_sendingOtp,
+              onChanged: (value) => celular = value,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                labelText: "Número de celular",
+                hintText: "Ingresar número",
+                errorText: celularError,
+                prefixIcon: const Icon(Icons.phone_android, color: primary),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ✅ Botón enviar OTP con loader + texto + bloqueo
+          ElevatedButton(
+            onPressed: (_sendingOtp || _deviceBlocked)
+                ? null
+                : () async {
+              FocusScope.of(context).unfocus();
+              await _sendOtp();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 160),
+              child: _sendingOtp
+                  ?  Row(
+                key: const ValueKey('sending'),
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    key: const ValueKey('idle'),
+                    _deviceBlocked ? "Espera ${_deviceBlockSeconds}s" : "Solicitar código",
+                    style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900),
+                  ),
+                ],
+              )
+                  : const Text(
+                key: ValueKey('idle'),
+                "Solicitar código",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          if (otpError != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              otpError!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+            ),
+          ],
+          const SizedBox(height: 10),
+
+          Text(
+            _sendingOtp
+                ? "Estamos enviando el código…"
+                : "Tu información está protegida. No compartimos tu número.",
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, color: Colors.black45),
+          ),
+
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _redirectIfAlreadyRegistered(User user) async {
+    final existing = await _clientProvider.getById(user.uid);
+
+    if (!mounted) return true;
+
+    if (existing != null) {
+      setState(() => _alreadyRegistered = true);
+
+      Snackbar.showSnackbar(
+        key.currentContext!,
+        'Ya tienes cuenta. Ingresando...',
+      );
+
+      _authProvider.checkIfUserIsLogged(context);
+      return true;
+    }
+
+    setState(() => _alreadyRegistered = false);
+    return false;
+  }
+
+  // =========================
+  // Navegación
+  // =========================
+  Future<void> _goToPage(int page) async {
+    if (!mounted) return;
+
+    // 1) suelta teclado/foco antes de cambiar
+    FocusScope.of(context).unfocus();
+
+    setState(() => _currentPage = page);
+
+    // 2) espera a que termine la animación del PageView
+    await _pageController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 280),
       curve: Curves.easeInOut,
     );
 
-    setState(() => _currentPage = prev);
-    _handleFocusForPage(_currentPage);
+    // 3) deja que el frame se asiente y luego pide foco
+    await Future.delayed(const Duration(milliseconds: 80));
+    if (!mounted) return;
+    _handleFocusForPage(page);
   }
 
-  // Método para validar el formato del correo electrónico
-  bool _isValidEmail(String email) {
-    final emailRegex = RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$");
-    return emailRegex.hasMatch(email);
+  void _nextPage() async {
+    setState(() {
+      nameError = null;
+      apellidosError = null;
+      celularError = null;
+      otpError = null;
+      answerError = null;
+      questionError = null;
+    });
+
+    // 0: celular -> enviar otp
+    if (_currentPage == 0) {
+      await _sendOtp();   // si se envía, _sendOtp() te manda a 1
+      return;
+    }
+
+    // 1: otp -> verificar
+    if (_currentPage == 1) {
+      await _verifyOtp(); // si ok, te manda a 2
+      return;
+    }
+
+    // 2: nombres
+    if (_currentPage == 2) {
+      if ((name ?? "").trim().isEmpty) {
+        setState(() => nameError = "Por favor ingresa tu nombre.");
+        return;
+      }
+      _goToPage(3);
+      _handleFocusForPage(3);
+      return;
+    }
+
+    // 3: apellidos
+    if (_currentPage == 3) {
+      if ((apellidos ?? "").trim().isEmpty) {
+        setState(() => apellidosError = "Por favor ingresa tus apellidos.");
+        return;
+      }
+      _goToPage(4);
+      return;
+    }
+
+    // 4: pregunta/resp -> registrar
+    if (_currentPage == 4) {
+      if (selectedQuestion == null) {
+        setState(() => questionError = "Debes seleccionar una pregunta.");
+        return;
+      }
+      if ((answer ?? "").trim().isEmpty) {
+        setState(() => answerError = "Debes escribir tu respuesta.");
+        return;
+      }
+      _register();
+      return;
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage <= 0) return;
+    final prev = _currentPage - 1;
+    _goToPage(prev);
+    _handleFocusForPage(prev);
   }
 
   void _handleFocusForPage(int page) {
-    // Espera un poco a que PageView termine de pintar la página
-    Future.delayed(const Duration(milliseconds: 250), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
 
       FocusNode? node;
       switch (page) {
-        case 1:
-          node = _nameFocusNode;
-          break;
-        case 2:
-          node = _apellidosFocusNode;
-          break;
-        case 3:
-          node = _emailFocusNode;
-          break;
-        case 4:
-          node = _emailConfirmFocusNode;
-          break;
-        case 5:
+        case 0:
           node = _celularFocusNode;
           break;
-        case 6:
-          node = _passwordFocusNode;
+        case 1:
+          node = _otpFocusNode;
           break;
-        case 7:
-          node = _passwordDonfirmFocusNode;
+        case 2:
+          node = _nameFocusNode;
+          break;
+        case 3:
+          node = _apellidosFocusNode;
           break;
         default:
           node = null;
       }
 
-      if (node != null) {
-        FocusScope.of(context).requestFocus(node);
-        SystemChannels.textInput.invokeMethod('TextInput.show'); // ✅ abre teclado
-      }
+      if (node == null) return;
+
+      // truco: unfocus -> pequeño delay -> focus -> show
+      FocusScope.of(context).unfocus();
+      await Future.delayed(const Duration(milliseconds: 40));
+      if (!mounted) return;
+
+      FocusScope.of(context).requestFocus(node);
+      await Future.delayed(const Duration(milliseconds: 20));
+      if (!mounted) return;
+
+      SystemChannels.textInput.invokeMethod('TextInput.show');
     });
   }
 
+  // =========================
+  // Registro final (Firestore)
+  // =========================
+  void _register() async {
+    // validaciones finales
+    setState(() {
+      questionError = null;
+      answerError = null;
+
+      if (selectedQuestion == null) questionError = "Debes seleccionar una pregunta.";
+      if ((answer ?? "").trim().isEmpty) answerError = "Debes escribir tu respuesta.";
+    });
+
+    if (questionError != null || answerError != null) return;
+
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      if (!_otpVerified || FirebaseAuth.instance.currentUser == null) {
+        Snackbar.showSnackbar(key.currentContext!, 'Primero verifica tu número con OTP.');
+        return;
+      }
+
+      final uid = FirebaseAuth.instance.currentUser!.uid;
+      final celNormalizado = _normalizeCel10(celular ?? "");
+
+      // 1) Si ya existe por UID -> entrar
+      final existing = await _clientProvider.getById(uid);
+      if (existing != null) {
+        Snackbar.showSnackbar(key.currentContext!, 'Bienvenido nuevamente 👋');
+        if (context.mounted) _authProvider.checkIfUserIsLogged(context);
+        return;
+      }
+
+      // 2) Evitar duplicado por celular (por si cambian de cuenta)
+      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
+      if (existeCelular) {
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Este número de celular ya está registrado. Intenta iniciar sesión o recuperar tu cuenta.',
+        );
+        return;
+      }
+
+      // 3) Crear en Firestore
+      final client = Client(
+        id: uid,
+        the01Nombres: name ?? "",
+        the02Apellidos: apellidos ?? "",
+        the06Email: "", // ✅ ya no usamos correo
+        the07Celular: celNormalizado,
+        the09Genero: "",
+        the15FotoPerfilUsuario: "",
+        the17Bono: 0,
+        the18Calificacion: 0,
+        the19Viajes: 0,
+        the20Rol: "regular",
+        the21FechaDeRegistro: DateHelpers.getStartDate(),
+        token: "",
+        image: "",
+        status: "registrado",
+        the00isTraveling: false,
+        the22Cancelaciones: 0,
+        the41SuspendidoPorCancelaciones: false,
+        fotoPerfilTomada: false,
+        palabraClave: (answer ?? "").trim(),
+        preguntaPalabraClave: selectedQuestion ?? "",
+        the16CedulaFrontalUsuario: "",
+        cedulaFrontalTomada: false,
+        the23CedulaReversoUsuario: "",
+        cedulaReversoTomada: false,
+      );
+
+      await _clientProvider.create(client);
+      _goTakeFotoPerfil();
+    } catch (e) {
+      if (kDebugMode) print('Error durante el registro OTP: $e');
+      Snackbar.showSnackbar(key.currentContext!, 'Ocurrió un error durante el registro.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _goTakeFotoPerfil() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const TakeFotoPerfil()),
+    );
+  }
+
+  Future alertSinInternet() {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Sin Internet',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          content: const Text('Por favor, verifica tu conexión e inténtalo nuevamente.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // =========================
+  // UI
+  // =========================
   @override
   Widget build(BuildContext context) {
+    final bool disableNext =
+        _isLoading || (_currentPage == 1 && (!_isOtpComplete || _verifyingOtp));
+
+    // ✅ Ocultar "Siguiente" en:
+    // - Página 0 (celular): siempre
+    // - Página 1 (OTP): solo mostrar si OTP ya fue verificado y NO está registrado
+    final bool hideNextButton =
+        (_currentPage == 0) ||
+            (_currentPage == 1 && (!_otpVerified || _alreadyRegistered));
+
     return Scaffold(
       backgroundColor: blancoCards,
       key: key,
@@ -426,7 +874,7 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Column(
               children: [
                 LinearProgressIndicator(
-                  value: (_currentPage + 1) / 9,
+                  value: (_currentPage + 1) / _totalPages,
                   backgroundColor: Colors.grey[300],
                   color: primary,
                 ),
@@ -435,15 +883,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     controller: _pageController,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      _buildMetodoRegistroPage(),
-                      _buildNamePage(),
-                      _buildApellidosPage(),
-                      _buildEmailPage(),
-                      _buildEmailConfirmPage(),
-                      _buildCelularPage(),
-                      _buildPasswordPage(),
-                      _buildPasswordConfirmPage(),
-                      _buildPalabraClave(),
+                      _buildPhoneStartPage(), // 0 ✅ celular + enviar otp
+                      _buildOtpPage(),        // 1 ✅ confirmar otp + estado
+                      _buildNamePage(),       // 2
+                      _buildApellidosPage(),  // 3
+                      _buildPalabraClave(),   // 4 (registrar)
                     ],
                   ),
                 ),
@@ -465,48 +909,40 @@ class _RegisterPageState extends State<RegisterPage> {
                             children: [
                               Icon(Icons.keyboard_double_arrow_left,
                                   color: Colors.black, size: 16),
+                              SizedBox(width: 4),
                               Text("Atrás", style: TextStyle(color: Colors.black)),
                             ],
                           ),
                         ),
-                      ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () async {
-                          if (_currentPage == 8) {
-                            final hasConnection =
-                            await connectionService.hasInternetConnection();
-                            if (!hasConnection) {
-                              alertSinInternet();
-                              return;
-                            }
-                          }
-                          _nextPage();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+
+                      // ✅ Solo mostramos "Siguiente" cuando corresponda
+                      if (!hideNextButton)
+                        ElevatedButton(
+                          onPressed: disableNext ? null : _nextPage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                _currentPage == 4 ? "Registrar" : "Siguiente",
+                                style: const TextStyle(color: Colors.black87),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.double_arrow_rounded,
+                                  color: Colors.black, size: 16),
+                            ],
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Text(
-                              _currentPage == 8 ? "Registrar" : "Siguiente",
-                              style: const TextStyle(color: Colors.black87),
-                            ),
-                            const Icon(Icons.double_arrow_rounded,
-                                color: Colors.black, size: 16),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-
           if (_isLoading)
             const Positioned.fill(
               child: ColoredBox(
@@ -519,303 +955,13 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildMetodoRegistroPage() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 24),
-
-          // Logo + headline
-          const Center(
-            child: Column(
-              children: [
-                SizedBox(height: 6),
-                Text(
-                  "Crea tu cuenta en segundos",
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, height: 1.0),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 10),
-                Text(
-                  "Elige cómo quieres continuar",
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black54),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 26),
-
-          // ✅ Google (protagonista)
-          ElevatedButton(
-            onPressed: _signUpWithGoogleAndContinue,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              side: const BorderSide(color: Colors.black12),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/logo_google.png',
-                  height: 22,
-                  width: 22,
-                  fit: BoxFit.contain,
-                ),
-                SizedBox(width: 10),
-                const Text(
-                  "Continuar con Google",
-                  style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Divider "o"
-          const Row(
-            children: [
-              Expanded(child: Divider(color: Colors.black12)),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text("o", style: TextStyle(color: Colors.black45, fontWeight: FontWeight.w600)),
-              ),
-              Expanded(child: Divider(color: Colors.black12)),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // ✅ Email (secundario, más pequeño)
-          OutlinedButton(
-            onPressed: () {
-              setState(() {
-                _isGoogleFlow = false;
-                _currentPage = 1; // ✅ ir a Nombres (nuevo indice)
-              });
-              _pageController.animateToPage(
-                1,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black87,
-              side: const BorderSide(color: Colors.black12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text(
-              "Continuar con correo",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-          ),
-
-          const Spacer(),
-
-          // Texto de confianza (queda pro)
-          const Text(
-            "Tu información está protegida.\nLuego te pediremos tu celular y una verificación rápida.",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.2),
-          ),
-          const SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Future alertSinInternet (){
-    return showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Sin Internet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),),
-          content: const Text('Por favor, verifica tu conexión e inténtalo nuevamente.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // Cierra el diálogo
-              },
-              child: const Text('Aceptar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _register() async {
-    // ✅ SEGURO: valida aquí también (por si alguien llama _register() directo)
-    setState(() {
-      questionError = null;
-      answerError = null;
-
-      if (selectedQuestion == null) {
-        questionError = "Debes seleccionar una pregunta.";
-      }
-
-      final a = (answer ?? "").trim();
-      if (a.isEmpty) {
-        answerError = "Debes escribir tu respuesta.";
-      }
-    });
-
-    // ✅ Si hay errores, NO muestra loading y NO registra
-    if (questionError != null || answerError != null) {
-      return;
-    }
-
-    if (_isLoading) return;
-    setState(() => _isLoading = true);
-
-    try {
-      // ✅ Normaliza celular (solo números)
-      final celNormalizado = (celular ?? "").replaceAll(RegExp(r'\D'), '');
-
-      if (celNormalizado.length != 10) {
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'El número de celular no es válido.',
-        );
-        return;
-      }
-
-      // ✅ 1) Obtener UID (Google o correo/contraseña)
-      String uid;
-
-      if (_isGoogleFlow) {
-        final user = _authProvider.getUser();
-        if (user == null) {
-          Snackbar.showSnackbar(
-            key.currentContext!,
-            'Sesión inválida. Intenta con Google nuevamente.',
-          );
-          return;
-        }
-        uid = user.uid;
-        email = user.email ?? (email ?? "");
-      } else {
-        // Flujo normal (correo/contraseña)
-        bool isSignUp = await _authProvider.signUp(email!, password!);
-        if (!isSignUp) {
-          return;
-        }
-        uid = _authProvider.getUser()!.uid;
-      }
-
-      // ✅ 2) Si ya existe en Firestore, NO hacer registro de nuevo
-      final existing = await _clientProvider.getById(uid);
-      if (existing != null) {
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'Bienvenido nuevamente 👋',
-        );
-
-        if (context.mounted) {
-          _authProvider.checkIfUserIsLogged(context);
-        }
-        return;
-      }
-
-      // ✅ 3) Solo para usuarios NUEVOS: validar celular duplicado
-      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
-      if (existeCelular) {
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'Este número de celular ya está registrado. '
-              'Intenta iniciar sesión o recuperar tu cuenta.',
-        );
-        return;
-      }
-
-      // ✅ 4) Crear perfil del cliente en Firestore (solo nuevo)
-      Client client = Client(
-        id: uid,
-        the01Nombres: name ?? "",
-        the02Apellidos: apellidos ?? "",
-        the06Email: email ?? "",
-        the07Celular: celNormalizado,
-        the09Genero: "",
-        the15FotoPerfilUsuario: "",
-        the17Bono: 0,
-        the18Calificacion: 0,
-        the19Viajes: 0,
-        the20Rol: "regular",
-        the21FechaDeRegistro: DateHelpers.getStartDate(),
-        token: "",
-        image: "",
-        status: "registrado",
-        the00isTraveling: false,
-        the22Cancelaciones: 0,
-        the41SuspendidoPorCancelaciones: false,
-        fotoPerfilTomada: false,
-        palabraClave: (answer ?? "").trim(),
-        preguntaPalabraClave: selectedQuestion ?? "",
-        the16CedulaFrontalUsuario: "",
-        cedulaFrontalTomada: false,
-        the23CedulaReversoUsuario: "",
-        cedulaReversoTomada: false,
-      );
-
-      try {
-        await _clientProvider.create(client);
-      } catch (e) {
-        // ✅ Rollback si Firestore falla (solo tiene sentido si era nuevo)
-        await FirebaseAuth.instance.currentUser?.delete();
-        await FirebaseAuth.instance.signOut();
-
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'No se pudo completar el registro. Inténtalo nuevamente.',
-        );
-        return;
-      }
-
-      _goTakeFotoPerfil();
-    } catch (error) {
-
-      if (kDebugMode) {
-        print('Error durante el registro: $error');
-      }
-
-      if (error is FirebaseAuthException && error.code == 'email-already-in-use') {
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'El correo electrónico ya está en uso.',
-        );
-      } else {
-        Snackbar.showSnackbar(
-          key.currentContext!,
-          'Ocurrió un error durante el registro.',
-        );
-      }
-    }
-  }
-
-  void _goTakeFotoPerfil(){
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const TakeFotoPerfil()),
-    );
-  }
-
-  // Página para ingresar el nombre
+  // Página Nombres
   Widget _buildNamePage() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
-
         children: [
-
           const Text(
             "¿Cuáles son tus nombres?",
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -825,22 +971,15 @@ class _RegisterPageState extends State<RegisterPage> {
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black54),
           ),
           const SizedBox(height: 16),
-
           TextField(
             controller: nameController,
             focusNode: _nameFocusNode,
-            onChanged: (value) {
-              setState(() {
-                name = value; // Actualiza el valor de name al escribir
-              });
-            },
+            onChanged: (value) => setState(() => name = value),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
               labelText: "Nombres",
               errorText: nameError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ],
@@ -848,7 +987,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Página para ingresar los apellidos
+  // Página Apellidos
   Widget _buildApellidosPage() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -868,9 +1007,7 @@ class _RegisterPageState extends State<RegisterPage> {
             decoration: InputDecoration(
               labelText: "Apellidos",
               errorText: apellidosError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),
         ],
@@ -878,71 +1015,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Página para ingresar el correo electrónico
-  Widget _buildEmailPage() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text(
-            "¿Cuál es tu correo electrónico?",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Text(
-            "Debe ser una cuenta activa, de lo contrario no podrás ingresar más adelante",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: emailController,
-            focusNode: _emailFocusNode,
-            onChanged: (value) => email = value,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: "Correo electrónico",
-              errorText: emailError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Página para confirmar el correo electrónico
-  Widget _buildEmailConfirmPage() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text(
-            "¿Confirma tu correo electrónico?",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: emailConfirmController,
-            focusNode: _emailConfirmFocusNode,
-            onChanged: (value) => emailConfirm = value,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: "Confirmar Correo electrónico",
-              errorText: emailConfirmError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Página para ingresar el celular
+  // Página Celular (envía OTP al dar siguiente)
   Widget _buildCelularPage() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -953,6 +1026,11 @@ class _RegisterPageState extends State<RegisterPage> {
             "¿Cuál es tu número de celular?",
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 10),
+          const Text(
+            "Te enviaremos un código de verificación (OTP).",
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
+          ),
           const SizedBox(height: 16),
           TextField(
             controller: celularController,
@@ -961,45 +1039,161 @@ class _RegisterPageState extends State<RegisterPage> {
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
               labelText: "Celular",
+              hintText: "Ej: 3001234567",
               errorText: celularError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              suffixIcon: _sendingOtp
+                  ? const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+                  : null,
             ),
           ),
+          const SizedBox(height: 12),
+          if (_otpSent)
+            const Text(
+              "Ya enviamos un OTP. Pulsa “Siguiente” para ingresarlo.",
+              style: TextStyle(color: Colors.black54, fontSize: 12),
+            ),
         ],
       ),
     );
   }
 
-  // Página para ingresar la contraseña
-  Widget _buildPasswordPage() {
+  // Página OTP
+  Widget _buildOtpPage() {
+    final numeroMostrado =
+    celularController.text.isEmpty ? "celular" : celularController.text;
+    final bool canResend = !_sendingOtp && _resendSeconds == 0;
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           const Text(
-            "Crea una contraseña",
+            "Verifica tu número",
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
-          const Text(
-            "Debe ser de mínimo 6 caracteres",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
+          const SizedBox(height: 10),
+          Text(
+            "Ingresa el código de 6 dígitos que enviamos al $numeroMostrado.",
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.black38,
+            ),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: passwordController,
-            focusNode: _passwordFocusNode,
-            onChanged: (value) => password = value,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: "Contraseña",
-              errorMaxLines: 2,
-              errorText: passwordError,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+
+          const SizedBox(height: 22),
+
+          // ✅ OTP en cajitas
+          PinCodeTextField(
+            appContext: context,
+            controller: otpController,
+            focusNode: _otpFocusNode,
+            autoFocus: false,
+            length: 6,
+            keyboardType: TextInputType.number,
+            autoDisposeControllers: false,
+            enableActiveFill: true,
+            animationType: AnimationType.fade,
+            animationDuration: const Duration(milliseconds: 180),
+            cursorColor: primary,
+            textStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.black87,
+            ),
+            pastedTextStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Colors.black87,
+            ),
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            beforeTextPaste: (text) => true,
+
+            // ✅ Limpia error al escribir
+            onChanged: (value) {
+              setState(() {
+                _otpCode = value;
+                otpError = null;
+                _otpVerified = false;
+              });
+            },
+
+            // ✅ Si quieres que al completar dispare verificación automáticamente:
+            onCompleted: (value) async {
+              // opcional: verifica apenas complete
+              await _verifyOtp();
+            },
+
+            // ✅ Tema visual (cajitas)
+            pinTheme: PinTheme(
+              shape: PinCodeFieldShape.box,
+              borderRadius: BorderRadius.circular(12),
+              fieldHeight: 54,
+              fieldWidth: 46,
+              activeColor: primary,
+              selectedColor: primary,
+              inactiveColor: Colors.black12,
+              activeFillColor: Colors.white,
+              selectedFillColor: Colors.white,
+              inactiveFillColor: Colors.white,
+              borderWidth: 1.2,
+            ),
+
+            // ✅ Loader (mientras verifica)
+            enabled: !_verifyingOtp,
+          ),
+
+          const SizedBox(height: 10),
+
+          // 🔄/❌/✅ Estado
+          if (_verifyingOtp)
+            const Text(
+              "Verificando código...",
+              style: TextStyle(
+                color: Colors.black45,
+                fontWeight: FontWeight.w600,
               ),
+            ),
+
+          if (otpError != null && !_verifyingOtp)
+            Text(
+              otpError!,
+              style: const TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.w800,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+          if (_otpVerified)
+            const Text(
+              "✅ Código correcto",
+              style: TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+
+          const SizedBox(height: 12),
+
+          // 🔁 Reenviar
+          TextButton(
+            onPressed: canResend ? _sendOtp : null,
+            child: _sendingOtp
+                ? const SizedBox(
+              height: 14,
+              width: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+                : Text(
+              _resendSeconds > 0
+                  ? "Reenviar en ${_resendSeconds}s"
+                  : "Reenviar código",
             ),
           ),
         ],
@@ -1007,41 +1201,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Página para confirmar la contraseña
-  Widget _buildPasswordConfirmPage() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text(
-            "Confirma tu contraseña",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const Text(
-            "Debe ser de mínimo 6 caracteres",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: passwordConfirmController,
-            focusNode: _passwordDonfirmFocusNode,
-            onChanged: (value) => passwordConfirm = value,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: "Confirmar Contraseña",
-              errorText: passwordConfirmError,
-              errorMaxLines: 2,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // Tu página de pregunta/clave (sin cambios grandes)
   Widget _buildPalabraClave() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
@@ -1062,7 +1222,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 16),
 
-          // Dropdown
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -1087,9 +1246,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
-                  setState(() {
-                    selectedQuestion = newValue;
-                  });
+                  setState(() => selectedQuestion = newValue);
                 },
               ),
             ),
@@ -1101,7 +1258,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
           const SizedBox(height: 16),
 
-          // Respuesta
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -1130,5 +1286,4 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
-
 }

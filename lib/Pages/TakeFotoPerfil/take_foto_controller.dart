@@ -33,31 +33,58 @@ class TakeFotoController {
 
   void guardarFotoPerfil() async {
     showSimpleProgressDialog(context, 'Cargando imagen...');
-    if (pickedFile != null) {
-      try {
-        // Comprimir la imagen antes de subirla a Firestore
-        File compressedImage = await compressImage(File(pickedFile!.path));
-        // Convertir el archivo comprimido a un objeto PickedFile
-        PickedFile compressedPickedFile = PickedFile(compressedImage.path);
-        // Subir la imagen comprimida a Firestore
-        TaskSnapshot snapshot = await _storageProvider.uploadProfilePhoto(
-            compressedPickedFile, _authProvider.getUser()!.uid);
-        String imageUrl = await snapshot.ref.getDownloadURL();
-        // Actualizar la URL de la imagen en Firestore
-        Map<String, dynamic> data = {'image': imageUrl};
-        await _clientProvider.update(data, _authProvider.getUser()!.uid);
-        updateFotoPerfilATrue();
-        if(context.mounted){
-          closeSimpleProgressDialog(context);
-        }
-        verificarRutaPagina();
-      } catch (e) {
-        if(context.mounted){
-          closeSimpleProgressDialog(context);
-        }
-      }
-    } else {
+
+    if (pickedFile == null) {
       closeSimpleProgressDialog(context);
+      return;
+    }
+
+    try {
+      final uid = _authProvider.getUser()!.uid;
+
+      // ✅ Comprimir la imagen antes de subirla
+      File compressedImage = await compressImage(File(pickedFile!.path));
+
+      // ✅ Convertir a PickedFile (tu StorageProvider lo pide así)
+      PickedFile compressedPickedFile = PickedFile(compressedImage.path);
+
+      // ✅ Subir a Storage
+      TaskSnapshot snapshot = await _storageProvider.uploadProfilePhoto(
+        compressedPickedFile,
+        uid,
+      );
+
+      final String imageUrl = await snapshot.ref.getDownloadURL();
+
+      // ✅ IMPORTANTÍSIMO: guardar TODO en 1 SOLO UPDATE
+      // Alineado con el guard: the15FotoPerfilUsuario + fotoPerfilTomada
+      final Map<String, dynamic> data = {
+        // si tu app usa "image" en otros lados, lo mantenemos
+        'image': imageUrl,
+
+        // el campo que tu guard revisa como the15FotoPerfilUsuario
+        // (en tu updateFotoPerfilATrue usabas este nombre)
+        '15_Foto_perfil_usuario': imageUrl,
+
+        // flag que revisa el guard (client.fotoPerfilTomada)
+        'foto_perfil_tomada': true,
+
+        // status opcional
+        'status': 'foto_tomada',
+      };
+
+      await _clientProvider.update(data, uid);
+
+      if (context.mounted) {
+        closeSimpleProgressDialog(context);
+
+        // ✅ deja que tu guard decida a dónde ir (mapa / preguntas / etc.)
+        _authProvider.checkIfUserIsLogged(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        closeSimpleProgressDialog(context);
+      }
     }
   }
 
@@ -108,13 +135,8 @@ class TakeFotoController {
   }
 
 
-  void verificarRutaPagina() async {
-    bool? emailVerified = await isEmailVerified();
-    if (emailVerified!) {
-      goToMapClient();
-    } else {
-      goToEmailVerification();
-    }
+  void verificarRutaPagina() {
+    _authProvider.checkIfUserIsLogged(context);
   }
 
   Future<bool?> isEmailVerified() async {
@@ -138,12 +160,6 @@ class TakeFotoController {
       print('Error al verificar si el email está verificado: $e');
       return false;
     }
-  }
-
-  void goToEmailVerification(){
-    updateStatusVerificandoEmail();
-    Navigator.pushNamedAndRemoveUntil(context, "email_verification", (route) => false);
-
   }
 
   void goToMapClient(){
@@ -184,28 +200,6 @@ class TakeFotoController {
         };
       }
       await _clientProvider.update(data, userId);
-    }
-  }
-
-  void updateStatusVerificandoEmail() async {
-    String? userId = _authProvider.getUser()?.uid;
-    if (userId != null) {
-
-      Client? client = await _clientProvider.getById(userId);
-      if (client != null) {
-        Map<String, dynamic> data = {
-          'status': "verificando_email",
-        };
-        await _clientProvider.update(data, userId);
-      } else {
-        if (kDebugMode) {
-          print("Error: No se encontró el cliente para el ID $userId");
-        }
-      }
-    } else {
-      if (kDebugMode) {
-        print("Error: Usuario no autenticado o ID inválido.");
-      }
     }
   }
 }

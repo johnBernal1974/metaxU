@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'dart:async';
 
 import 'client_provider.dart';
 
 class MyAuthProvider{
   late FirebaseAuth _firebaseAuth;
+  StreamSubscription<User?>? _authSub;
+  bool _navigating = false;
 
 
   MyAuthProvider(){
@@ -65,108 +68,88 @@ class MyAuthProvider{
 
   //ajutado para que siempre estaen las preguntas de seguridad
   void checkIfUserIsLogged(BuildContext? context) {
-    if (context != null) {
-      FirebaseAuth.instance.authStateChanges().listen((User? user) async {
-        if (user != null) {
-          // Verificar si el correo electrónico está verificado
-          final providerIds = user.providerData.map((e) => e.providerId).toList();
-          final isGoogle = providerIds.contains('google.com');
+    if (context == null) return;
 
-          if (!isGoogle && !user.emailVerified) {
-            Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
-            return;
-          }
+    // ✅ evita múltiples listeners
+    _authSub?.cancel();
+    _navigating = false;
 
-          ClientProvider clientProvider = ClientProvider();
-          String? status = await clientProvider.getStatus();
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+      if (!context.mounted) return;
+      if (_navigating) return;
 
-          if (status == 'bloqueado') {
-            if (context.mounted) {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                'bloqueo_page',
-                    (route) => false,
-              );
-            }
-            return;
-          }
+      // 1) No logueado -> login
+      if (user == null) {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
+        return;
+      }
 
-          // Verificar foto perfil
-          String? fotoPerfilUsuario = await clientProvider.verificarFotoPerfil();
+      // 2) Email verificado solo si NO es Google
+      final providerIds = user.providerData.map((e) => e.providerId).toList();
+      final isGoogle = providerIds.contains('google.com');
 
-          if (fotoPerfilUsuario == "" || fotoPerfilUsuario == "rechazada") {
-            if (context.mounted) {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                'take_foto_perfil',
-                    (route) => false,
-              );
-            }
-            return;
-          }
+      if (!isGoogle && !user.emailVerified) {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'email_verification', (route) => false);
+        return;
+      }
 
-          // Si todas las fotos están verificadas, verificar si el usuario está viajando
-          String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
-          Client? client = await clientProvider.getById(userId);
+      final clientProvider = ClientProvider();
+      final userId = user.uid;
 
-          if (client != null) {
+      // 3) Traer el Client UNA SOLA VEZ (fuente de la verdad)
+      final Client? client = await clientProvider.getById(userId);
 
-            // ✅ NUEVO: Validación obligatoria de pregunta y respuesta
-            final pregunta = (client.preguntaPalabraClave ?? '').trim();
-            final respuesta = (client.palabraClave ?? '').trim();
+      if (!context.mounted) return;
+      if (_navigating) return;
 
-            if (pregunta.isEmpty || respuesta.isEmpty) {
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  'complete_security',
-                      (route) => false,
-                );
-              }
-              return;
-            }
+      if (client == null) {
+        // si no hay documento cliente, manda a login
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
+        return;
+      }
 
-            // ✅ Tu lógica normal
-            bool isTraveling = client.the00isTraveling;
+      // 4) Status bloqueado (usa el dato del cliente si lo tienes en el modelo)
+      // Si tu status viene en client.status, usa eso.
+      final status = (client.status ?? '').trim();
+      if (status == 'bloqueado') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'bloqueo_page', (route) => false);
+        return;
+      }
 
-            if (isTraveling) {
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  'travel_map_page',
-                      (route) => false,
-                );
-              }
-            } else {
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  'map_client',
-                      (route) => false,
-                );
-              }
-            }
-          } else {
-            // Si no se encuentra el cliente, redirigir a login (mejor que map_client)
-            if (context.mounted) {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                'login',
-                    (route) => false,
-              );
-            }
-          }
-        } else {
-          if (context.mounted) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              'login',
-                  (route) => false,
-            );
-          }
-        }
-      });
-    }
+      // 5) ✅ Foto obligatoria (robusta)
+      final foto = (client.the15FotoPerfilUsuario ?? '').trim();
+      final fotoTomada = client.fotoPerfilTomada ?? false;
+
+      if (!fotoTomada || foto.isEmpty || foto == 'rechazada') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'take_foto_perfil', (route) => false);
+        return;
+      }
+
+      // 6) ✅ Pregunta y respuesta obligatorias
+      final pregunta = (client.preguntaPalabraClave ?? '').trim();
+      final respuesta = (client.palabraClave ?? '').trim();
+
+      if (pregunta.isEmpty || respuesta.isEmpty) {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'complete_security', (route) => false);
+        return;
+      }
+
+      // 7) ✅ Viaje o mapa normal
+      final isTraveling = client.the00isTraveling;
+
+      _navigating = true;
+      if (isTraveling) {
+        Navigator.pushNamedAndRemoveUntil(context, 'travel_map_page', (route) => false);
+      } else {
+        Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+      }
+    });
   }
 
   Future<bool> signUp(String email, String password) async {
@@ -218,6 +201,10 @@ class MyAuthProvider{
     } on FirebaseAuthException {
       rethrow;
     }
+  }
+
+  void dispose() {
+    _authSub?.cancel();
   }
 
 

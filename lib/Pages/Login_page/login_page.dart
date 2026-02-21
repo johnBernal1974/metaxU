@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         backgroundColor: primary,
         iconTheme: const IconThemeData(color: negro, size: 30),
-        title: const Text("Registro", style: TextStyle(
+        title: const Text("Ingreso", style: TextStyle(
           fontWeight: FontWeight.w900,
           fontSize: 20
         ),),
@@ -61,53 +61,63 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const SizedBox(height: 30),
-                    const Center(
-                      child: Text(
-                        "Bienvenido",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-// ✅ PRIMERO: REGISTRO (siempre visible)
-                    SizedBox(
-                      width: 300,
-                      child: ElevatedButton(
-                        onPressed: _isLoading
-                            ? null
-                            : () async {
-                          FocusScope.of(context).unfocus();
-                          setState(() => _isLoading = true);
-                          try {
-                            final hasConnection = await connectionService.hasInternetConnection();
-                            if (!hasConnection) {
-                              await alertSinInternet();
-                              return;
-                            }
-                            if (context.mounted) {
-                              Navigator.pushNamed(context, 'register');
-                            }
-                          } finally {
-                            if (mounted) setState(() => _isLoading = false);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.0),
+                    if (!_showLoginForm) ...[
+                      const Center(
+                        child: Text(
+                          "Bienvenido",
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black54,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        ),
-                        child: const Text(
-                          "Registrarse Ahora",
-                          style: TextStyle(fontSize: 18, color: Colors.black, fontWeight: FontWeight.w800),
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 24),
+
+                      // ✅ BOTÓN REGISTRO
+                      SizedBox(
+                        width: 300,
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                            FocusScope.of(context).unfocus();
+                            setState(() => _isLoading = true);
+                            try {
+                              final hasConnection =
+                              await connectionService.hasInternetConnection();
+                              if (!hasConnection) {
+                                await alertSinInternet();
+                                return;
+                              }
+                              if (context.mounted) {
+                                Navigator.pushNamed(context, 'register');
+                              }
+                            } finally {
+                              if (mounted) setState(() => _isLoading = false);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                          ),
+                          child: const Text(
+                            "Registrarse Ahora",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 18),
+                    ],
+
 
                     const SizedBox(height: 18),
 
@@ -140,6 +150,82 @@ class _LoginPageState extends State<LoginPage> {
 
 // ✅ FORMULARIO DE LOGIN (solo si _showLoginForm == true)
                     if (_showLoginForm) ...[
+                      // ✅ BOTÓN GOOGLE
+                      SizedBox(
+                        width: 300,
+                        child: ElevatedButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                            FocusScope.of(context).unfocus();
+                            setState(() => _isLoading = true);
+                            try {
+                              final hasConnection =
+                              await connectionService.hasInternetConnection();
+                              if (!hasConnection) {
+                                await alertSinInternet();
+                                return;
+                              }
+
+                              // ✅ Login con Google
+                              await _controller.loginWithGoogle();
+                            } finally {
+                              if (mounted) setState(() => _isLoading = false);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            side: const BorderSide(color: Colors.black12),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Image.asset(
+                                'assets/logo_google.png',
+                                height: 22,
+                                width: 22,
+                                fit: BoxFit.contain,
+                              ),
+                              const SizedBox(width: 10),
+                              const Text(
+                                "Continuar con Google",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ✅ DIVISOR "o"
+                      const Row(
+                        children: [
+                          Expanded(child: Divider(color: Colors.black12)),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10),
+                            child: Text(
+                              "o",
+                              style: TextStyle(
+                                color: Colors.black45,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: Colors.black12)),
+                        ],
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // ✅ EMAIL
                       SizedBox(
                         width: 300,
                         child: TextField(
@@ -154,8 +240,10 @@ class _LoginPageState extends State<LoginPage> {
                           keyboardType: TextInputType.emailAddress,
                         ),
                       ),
+
                       const SizedBox(height: 16),
 
+                      // ✅ PASSWORD
                       SizedBox(
                         width: 300,
                         child: TextField(
@@ -182,6 +270,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 24),
 
+                      // ✅ BOTÓN LOGIN
                       SizedBox(
                         width: 300,
                         child: ElevatedButton(
@@ -191,7 +280,8 @@ class _LoginPageState extends State<LoginPage> {
                             FocusScope.of(context).unfocus();
                             setState(() => _isLoading = true);
                             try {
-                              final hasConnection = await connectionService.hasInternetConnection();
+                              final hasConnection =
+                              await connectionService.hasInternetConnection();
                               if (!hasConnection) {
                                 await alertSinInternet();
                                 return;
@@ -217,6 +307,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 16),
 
+                      // ✅ OLVIDÉ MI CONTRASEÑA
                       GestureDetector(
                         onTap: () async {
                           final hasConnection = await connectionService.hasInternetConnection();

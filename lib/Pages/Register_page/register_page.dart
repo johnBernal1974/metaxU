@@ -145,11 +145,24 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      // ✅ Solo guardamos email si viene, pero NO lo ponemos en TextFields ni lo validamos
+      // ✅ Guardamos email (pero NO autollenamos nombres/apellidos)
       email = user.email ?? "";
       emailConfirm = email;
 
-      // ✅ MUY IMPORTANTE: NO autollenar nombres/apellidos
+      // ✅ 1) Si ya existe en Firestore -> ir directo al mapa (o donde corresponda)
+      final existing = await _clientProvider.getById(user.uid);
+      if (existing != null) {
+        _progressDialog.hide();
+
+        Snackbar.showSnackbar(key.currentContext!, 'Bienvenido nuevamente 👋');
+
+        if (mounted) {
+          _authProvider.checkIfUserIsLogged(context);
+        }
+        return;
+      }
+
+      // ✅ 2) Si NO existe -> es nuevo -> lo llevamos a Nombres (sin autollenar)
       name = null;
       apellidos = null;
       nameController.clear();
@@ -157,7 +170,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       setState(() {
         _isGoogleFlow = true;
-        _currentPage = 1; // ✅ ir a "Nombres"
+        _currentPage = 1; // Nombres
       });
 
       _progressDialog.hide();
@@ -166,9 +179,7 @@ class _RegisterPageState extends State<RegisterPage> {
         1,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-      ).then((_) {
-        _handleFocusForPage(1);
-      });
+      );
     } catch (e) {
       _progressDialog.hide();
       if (kDebugMode) {
@@ -177,7 +188,6 @@ class _RegisterPageState extends State<RegisterPage> {
       Snackbar.showSnackbar(key.currentContext!, 'Error al iniciar con Google.');
     }
   }
-
 
   // Método para avanzar a la siguiente página
   void _nextPage() {
@@ -392,29 +402,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Usamos un post-frame callback para asegurarnos de que el foco se maneje después de la renderización
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   if (_currentPage == 1) {
-    //     FocusScope.of(context).requestFocus(_apellidosFocusNode);
-    //     // Asegúrate de que el teclado se muestre después de que el foco haya sido aplicado
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   } else if (_currentPage == 2) {
-    //     FocusScope.of(context).requestFocus(_emailFocusNode);
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   } else if (_currentPage == 3) {
-    //     FocusScope.of(context).requestFocus(_emailConfirmFocusNode);
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   } else if (_currentPage == 4) {
-    //     FocusScope.of(context).requestFocus(_celularFocusNode);
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   } else if (_currentPage == 5) {
-    //     FocusScope.of(context).requestFocus(_passwordFocusNode);
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   } else if (_currentPage == 6) {
-    //     FocusScope.of(context).requestFocus(_passwordDonfirmFocusNode);
-    //     SystemChannels.textInput.invokeMethod('TextInput.show');
-    //   }
-    // });
 
     return Scaffold(
       backgroundColor: blancoCards,

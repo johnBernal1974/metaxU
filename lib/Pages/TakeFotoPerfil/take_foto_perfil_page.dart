@@ -48,39 +48,53 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: primary,
-        iconTheme: const IconThemeData(color: negro, size: 30),
-        title: const Text("Foto de perfil", style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20
-        ),),
-        actions: const <Widget>[
-          Image(
+    return PopScope(
+      canPop: false, // 🚫 bloquea botón atrás físico y del AppBar
+      onPopInvoked: (didPop) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debes tomar la foto para continuar.'),
+          ),
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: primary,
+          iconTheme: const IconThemeData(color: negro, size: 30),
+          title: const Text(
+            "Foto de perfil",
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+            ),
+          ),
+          automaticallyImplyLeading: false, // 🔒 quita flecha atrás
+          actions: const <Widget>[
+            Image(
               height: 40.0,
               width: 100.0,
-              image: AssetImage('assets/metax_logo.png'))
-        ],
-      ),
-      body: Container(
-        padding: const EdgeInsets.only(left: 25, right: 25),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _cajonFotoPerfil(),
-              const SizedBox(height: 15),
-              _instruccionesFoto(),
-              const SizedBox(height: 15,),
-              _botonTomarFoto(),
-              const SizedBox(height: 10),
-              _continuarButton()
-            ],
+              image: AssetImage('assets/metax_logo.png'),
+            )
+          ],
+        ),
+        body: Container(
+          padding: const EdgeInsets.only(left: 25, right: 25),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _cajonFotoPerfil(),
+                const SizedBox(height: 15),
+                _instruccionesFoto(),
+                const SizedBox(height: 15),
+                _botonTomarFoto(),
+                const SizedBox(height: 10),
+                _continuarButton(),
+              ],
+            ),
           ),
         ),
       ),
-
     );
   }
 

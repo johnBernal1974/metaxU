@@ -128,6 +128,22 @@ class LoginController{
     }
   }
 
+  Future<void> loginWithGoogle() async {
+    try {
+      final cred = await _authProvider.signInWithGoogle();
+      if (cred == null) return; // canceló
+
+      // ✅ si todo bien, tu guard decide si manda a foto/mapa/etc
+      if (context.mounted) {
+        _authProvider.checkIfUserIsLogged(context);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Snackbar.showSnackbar(context, 'Error al iniciar con Google.');
+      }
+    }
+  }
+
 
 }
 

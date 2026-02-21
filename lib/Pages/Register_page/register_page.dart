@@ -1,11 +1,9 @@
 import 'package:apptaxis/providers/auth_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:progress_dialog_null_safe/progress_dialog_null_safe.dart';
 import 'dart:core';
 
 import '../../helpers/DateHelpers.dart';
@@ -31,7 +29,6 @@ class _RegisterPageState extends State<RegisterPage> {
   int _currentPage = 0;
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
-  late ProgressDialog _progressDialog;
   FocusNode _nameFocusNode = FocusNode();
   FocusNode _apellidosFocusNode = FocusNode();
   FocusNode _emailFocusNode = FocusNode();
@@ -83,6 +80,7 @@ class _RegisterPageState extends State<RegisterPage> {
   ];
 
   bool _isGoogleFlow = false;
+  bool _isLoading = false;
 
 
   @override
@@ -90,12 +88,8 @@ class _RegisterPageState extends State<RegisterPage> {
     super.initState();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
       _authProvider = MyAuthProvider();
-
       _clientProvider = ClientProvider();
-      _progressDialog = ProgressDialog(context);
      _checkConnection();
-
-
     });
   }
 
@@ -129,40 +123,42 @@ class _RegisterPageState extends State<RegisterPage> {
 
   //para crear con google
   Future<void> _signUpWithGoogleAndContinue() async {
-    _progressDialog.show();
+    if (_isLoading) return;
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
 
     try {
+      // ✅ deja pintar overlay antes de abrir Google chooser
+      await Future.delayed(const Duration(milliseconds: 80));
+
       final cred = await _authProvider.signInWithGoogle();
+      if (!mounted) return;
+
       if (cred == null) {
-        _progressDialog.hide(); // canceló
+        // canceló
         return;
       }
 
       final user = cred.user;
       if (user == null) {
-        _progressDialog.hide();
         Snackbar.showSnackbar(key.currentContext!, 'No se pudo obtener tu usuario de Google.');
         return;
       }
 
-      // ✅ Guardamos email (pero NO autollenamos nombres/apellidos)
       email = user.email ?? "";
       emailConfirm = email;
 
-      // ✅ 1) Si ya existe en Firestore -> ir directo al mapa (o donde corresponda)
       final existing = await _clientProvider.getById(user.uid);
+      if (!mounted) return;
+
       if (existing != null) {
-        _progressDialog.hide();
-
         Snackbar.showSnackbar(key.currentContext!, 'Bienvenido nuevamente 👋');
-
-        if (mounted) {
-          _authProvider.checkIfUserIsLogged(context);
-        }
+        _authProvider.checkIfUserIsLogged(context);
         return;
       }
 
-      // ✅ 2) Si NO existe -> es nuevo -> lo llevamos a Nombres (sin autollenar)
+      // Nuevo -> ir a nombres
       name = null;
       apellidos = null;
       nameController.clear();
@@ -170,22 +166,25 @@ class _RegisterPageState extends State<RegisterPage> {
 
       setState(() {
         _isGoogleFlow = true;
-        _currentPage = 1; // Nombres
+        _currentPage = 1;
       });
-
-      _progressDialog.hide();
 
       _pageController.animateToPage(
         1,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
+
+      _handleFocusForPage(1);
     } catch (e) {
-      _progressDialog.hide();
       if (kDebugMode) {
         print('🔥 ERROR Google Sign-In: $e');
       }
-      Snackbar.showSnackbar(key.currentContext!, 'Error al iniciar con Google.');
+      if (mounted) {
+        Snackbar.showSnackbar(key.currentContext!, 'Error al iniciar con Google.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -402,106 +401,119 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: blancoCards,
       key: key,
       appBar: AppBar(
         backgroundColor: primary,
         iconTheme: const IconThemeData(color: negro, size: 30),
-        title: const Text("Registro", style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20
-        )),
+        title: const Text(
+          "Registro",
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+        ),
         actions: const <Widget>[
           Image(
-              height: 40.0,
-              width: 100.0,
-              image: AssetImage('assets/metax_logo.png'))
+            height: 40.0,
+            width: 100.0,
+            image: AssetImage('assets/metax_logo.png'),
+          )
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Indicador de progreso
-          LinearProgressIndicator(
-            value: (_currentPage + 1) / 9,
-            backgroundColor: Colors.grey[300],
-            color: primary,
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
+          AbsorbPointer(
+            absorbing: _isLoading,
+            child: Column(
               children: [
-                _buildMetodoRegistroPage(), // ✅ nueva pagina 0
-                _buildNamePage(),           // ahora es pagina 1
-                _buildApellidosPage(),      // 2
-                _buildEmailPage(),          // 3
-                _buildEmailConfirmPage(),   // 4
-                _buildCelularPage(),        // 5
-                _buildPasswordPage(),       // 6
-                _buildPasswordConfirmPage(),// 7
-                _buildPalabraClave(),       // 8
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                if (_currentPage > 0)
-                  ElevatedButton(
-                    onPressed: _previousPage,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.keyboard_double_arrow_left, color: Colors.black, size: 16),
-                        Text(
-                          "Atrás",
-                          style: TextStyle(color: Colors.black),
-                        ),
-                      ],
-                    ),
-                  ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (_currentPage == 8) {
-                      bool hasConnection = await connectionService.hasInternetConnection();
-
-                      if (hasConnection) {
-                        _nextPage();   // ✅ ahora sí valida pregunta/respuesta
-                      } else {
-                        alertSinInternet();
-                      }
-                    } else {
-                      _nextPage();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Row(
+                LinearProgressIndicator(
+                  value: (_currentPage + 1) / 9,
+                  backgroundColor: Colors.grey[300],
+                  color: primary,
+                ),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      Text(
-                        _currentPage == 8 ? "Registrar" : "Siguiente",
-                        style: const TextStyle(color: Colors.black87),
+                      _buildMetodoRegistroPage(),
+                      _buildNamePage(),
+                      _buildApellidosPage(),
+                      _buildEmailPage(),
+                      _buildEmailConfirmPage(),
+                      _buildCelularPage(),
+                      _buildPasswordPage(),
+                      _buildPasswordConfirmPage(),
+                      _buildPalabraClave(),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (_currentPage > 0)
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _previousPage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.keyboard_double_arrow_left,
+                                  color: Colors.black, size: 16),
+                              Text("Atrás", style: TextStyle(color: Colors.black)),
+                            ],
+                          ),
+                        ),
+                      ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                          if (_currentPage == 8) {
+                            final hasConnection =
+                            await connectionService.hasInternetConnection();
+                            if (!hasConnection) {
+                              alertSinInternet();
+                              return;
+                            }
+                          }
+                          _nextPage();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              _currentPage == 8 ? "Registrar" : "Siguiente",
+                              style: const TextStyle(color: Colors.black87),
+                            ),
+                            const Icon(Icons.double_arrow_rounded,
+                                color: Colors.black, size: 16),
+                          ],
+                        ),
                       ),
-                      const Icon(Icons.double_arrow_rounded, color: Colors.black, size: 16),
                     ],
                   ),
                 ),
               ],
             ),
           ),
+
+          if (_isLoading)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0x55000000),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
         ],
       ),
     );
@@ -661,14 +673,14 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    _progressDialog.show();
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
 
     try {
       // ✅ Normaliza celular (solo números)
       final celNormalizado = (celular ?? "").replaceAll(RegExp(r'\D'), '');
 
       if (celNormalizado.length != 10) {
-        _progressDialog.hide();
         Snackbar.showSnackbar(
           key.currentContext!,
           'El número de celular no es válido.',
@@ -682,7 +694,6 @@ class _RegisterPageState extends State<RegisterPage> {
       if (_isGoogleFlow) {
         final user = _authProvider.getUser();
         if (user == null) {
-          _progressDialog.hide();
           Snackbar.showSnackbar(
             key.currentContext!,
             'Sesión inválida. Intenta con Google nuevamente.',
@@ -695,7 +706,6 @@ class _RegisterPageState extends State<RegisterPage> {
         // Flujo normal (correo/contraseña)
         bool isSignUp = await _authProvider.signUp(email!, password!);
         if (!isSignUp) {
-          _progressDialog.hide();
           return;
         }
         uid = _authProvider.getUser()!.uid;
@@ -704,8 +714,6 @@ class _RegisterPageState extends State<RegisterPage> {
       // ✅ 2) Si ya existe en Firestore, NO hacer registro de nuevo
       final existing = await _clientProvider.getById(uid);
       if (existing != null) {
-        _progressDialog.hide();
-
         Snackbar.showSnackbar(
           key.currentContext!,
           'Bienvenido nuevamente 👋',
@@ -720,7 +728,6 @@ class _RegisterPageState extends State<RegisterPage> {
       // ✅ 3) Solo para usuarios NUEVOS: validar celular duplicado
       final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
       if (existeCelular) {
-        _progressDialog.hide();
         Snackbar.showSnackbar(
           key.currentContext!,
           'Este número de celular ya está registrado. '
@@ -765,7 +772,6 @@ class _RegisterPageState extends State<RegisterPage> {
         await FirebaseAuth.instance.currentUser?.delete();
         await FirebaseAuth.instance.signOut();
 
-        _progressDialog.hide();
         Snackbar.showSnackbar(
           key.currentContext!,
           'No se pudo completar el registro. Inténtalo nuevamente.',
@@ -773,10 +779,8 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      _progressDialog.hide();
       _goTakeFotoPerfil();
     } catch (error) {
-      _progressDialog.hide();
 
       if (kDebugMode) {
         print('Error durante el registro: $error');

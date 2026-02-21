@@ -105,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
                             padding: const EdgeInsets.symmetric(vertical: 16.0),
                           ),
                           child: const Text(
-                            "Registrarse Ahora",
+                            "Registrate aquí",
                             style: TextStyle(
                               fontSize: 18,
                               color: Colors.black,

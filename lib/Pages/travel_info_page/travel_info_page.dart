@@ -100,7 +100,8 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             Align(
               alignment: Alignment.bottomCenter,
               child:  _apuntesAlConductor(),
-            )
+            ),
+
           ],
 
         ),
@@ -269,13 +270,21 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         vertical: 6.r,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1EBE71), // ✅ verde pro
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(20.r),
+
+                        // 🔥 borde primary
+                        border: Border.all(
+                          color: primary,
+                          width: 3,
+                        ),
+
+                        // 🔥 sombra más fina (elevación suave)
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            offset: const Offset(0, 3),
-                            blurRadius: 6,
+                            color: Colors.black.withOpacity(0.08),
+                            offset: const Offset(0, 2),
+                            blurRadius: 5,
                           ),
                         ],
                       ),
@@ -284,7 +293,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         child: headerText(
                           text: formattedTarifa,
                           fontSize: 16.r,
-                          color: Colors.white, // 👈 contraste pro
+                          color: Colors.black87,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -327,62 +336,74 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             width: double.infinity,
             height: 40.r,
             margin: EdgeInsets.only(left: 25.r, right: 25.r, bottom: 30.r),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1EBE71),
-                disabledBackgroundColor:
-                const Color(0xFF1EBE71).withOpacity(0.4),
-              ),
-             onPressed: _controller.canConfirmTrip
-                  ? () async {
+            child: OutlinedButton(
+              onPressed: (_controller.isCalculatingTrip || !_controller.canConfirmTrip)
+                  ? null
+                  : () async {
+                FocusScope.of(context).unfocus();
+
                 await connectionService.checkConnectionAndShowCard(
                   context,
                       () {
                     verificarCedulaInicial();
                   },
                 );
-              }
-                  : null,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // ⏳ Loader cuando aún no está listo
-                  if (_controller.isCalculatingTrip) ...[
+              },
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: primary, width: 1.5), // 👈 igual al OTP
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 10.r),
+              ),
+
+              // 🔥 MISMO patrón visual que OTP
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                child: _controller.isCalculatingTrip
+                    ? Row(
+                  key: const ValueKey('loading'),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     SizedBox(
-                      width: 16.r,
-                      height: 16.r,
+                      width: 14.r,
+                      height: 14.r,
                       child: const CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        valueColor: AlwaysStoppedAnimation<Color>(primary),
                       ),
                     ),
-                    SizedBox(width: 10.r),
+                    SizedBox(width: 8.r),
                     Text(
-                      'Calculando ruta…',
+                      'Calculando ruta...',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: primary,
                         fontSize: 14.r,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ] else ...[
-                    // ✅ Botón normal
+                  ],
+                )
+                    : Row(
+                  key: const ValueKey('idle'),
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
                     Icon(
                       Icons.check_circle,
-                      size: 28.r,
-                      color: Colors.white,
+                      size: 24.r,
+                      color: primary,
                     ),
-                    SizedBox(width: 10.r),
+                    SizedBox(width: 8.r),
                     Text(
                       'Confirmar Viaje',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.r,
-                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                        fontSize: 14.r,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ]
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -412,50 +433,54 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
   Widget _textApuntes() {
-    return GestureDetector(
-      onTap: () {
-        if (mounted) {
-          setState(() {
-            isVisibleCajonApuntesAlConductor = true;
-          });
-        }
-      },
-      child: Container(
-        margin: EdgeInsets.only(right: 10.r),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            ElevatedButton.icon(
+    return Container(
+      margin: EdgeInsets.only(right: 10.r),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          SizedBox(
+            height: 40.r,
+            child: OutlinedButton(
               onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    isVisibleCajonApuntesAlConductor = true;
-                  });
-                }
+                if (!mounted) return;
+                setState(() {
+                  isVisibleCajonApuntesAlConductor = true;
+                });
               },
-              icon: Icon(Icons.edit_note, size: 30.r, color: negroLetras),
-              label: Text(
-                'Apunte al conductor',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14.r,
-                  color: negroLetras,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary, // Cambia el color según tus preferencias
-                padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 8.r),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: primary, width: 1.5),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
+                  borderRadius: BorderRadius.circular(10.r),
                 ),
+                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
+              ),
+
+              // 🔥 mismo patrón visual
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.edit_note,
+                    size: 22.r,
+                    color: primary,
+                  ),
+                  SizedBox(width: 8.r),
+                  Text(
+                    'Apunte al conductor',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.r,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-
 
   Widget _apuntesAlConductor() {
     return Visibility(
@@ -517,64 +542,77 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 ),
                 SizedBox(height: 35.r),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1EBE71),
-                        elevation: 6,
-                      ),
+                    // 🔥 GUARDAR
+                    OutlinedButton(
                       onPressed: () {
-                        if (mounted) {
-                          setState(() {
-                            isVisibleCajonApuntesAlConductor = false;
-                          });
-                        }
+                        if (!mounted) return;
+
+                        setState(() {
+                          isVisibleCajonApuntesAlConductor = false;
+                        });
+
                         _obtenerApuntesAlConductor();
                         _controller.guardarApuntesConductor(apuntesAlConductor!);
                       },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: primary, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 14.r, vertical: 10.r),
+                      ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             'Guardar',
                             style: TextStyle(
-                              color: blanco,
-                              fontWeight: FontWeight.bold,
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w600,
                               fontSize: 14.r,
                             ),
                           ),
-                          SizedBox(width: 10.r),
+                          SizedBox(width: 8.r),
                           Icon(
-                            Icons.touch_app_outlined,
-                            size: 16.r,
-                            color: blanco,
+                            Icons.check_circle_outline,
+                            size: 18.r,
+                            color: primary,
                           ),
                         ],
                       ),
                     ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: rojo,
-                        elevation: 6,
-                      ),
+
+                    SizedBox(width: 10.r),
+
+                    // 🔴 CANCELAR
+                    OutlinedButton(
                       onPressed: () {
-                        if (mounted) {
-                          setState(() {
-                            isVisibleCajonApuntesAlConductor = false;
-                          });
-                        }
+                        if (!mounted) return;
+
+                        setState(() {
+                          isVisibleCajonApuntesAlConductor = false;
+                        });
                       },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red.shade400, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 14.r, vertical: 10.r),
+                      ),
                       child: Text(
                         'Cancelar',
                         style: TextStyle(
-                          color: blanco,
-                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade400,
+                          fontWeight: FontWeight.w600,
                           fontSize: 14.r,
                         ),
                       ),
                     ),
                   ],
-                ),
+                )
               ],
             ),
           ),
@@ -635,11 +673,43 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
             SizedBox(height: 10.r),
             Image.asset("assets/imagen_taxi.png", height: 100),
-            Text("Estamos buscando un taxi para ti.",
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24.r, color: negro),
-              textAlign: TextAlign.center,
+            Column(
+              children: [
+                Text(
+                  "Buscando un taxi\nque te lleve a:",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24.r, // 🔽 más compacto
+                    color: negro,
+                    height: 1.1
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                SizedBox(height: 8.r),
+                const Divider(color: Colors.black54, height: 1),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(width: 4.r),
+                    Flexible(
+                      child: Text(
+                        _controller.to ?? '', // 👈 destino
+                        style: TextStyle(
+                          fontSize: 14.r,
+                          color: negro,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 3,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            SizedBox(height: 10.r),
             Stack(
               alignment: Alignment.center,
               children: [
@@ -661,19 +731,45 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.r, color: negro),
             ),
             SizedBox(height: 50.r),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            OutlinedButton(
               onPressed: () {
-                if (mounted) {
-                  setState(() {
-                    isVisibleTarjetaSolicitandoConductor = false;
-                    _isSearching = false;
-                  });
-                }
+                if (!mounted) return;
+
+                setState(() {
+                  isVisibleTarjetaSolicitandoConductor = false;
+                  _isSearching = false;
+                });
+
                 _controller.deleteTravelInfo();
               },
-              icon: const Icon(Icons.cancel, color: blanco),
-              label: Text('Cancelar solicitud', style: TextStyle(color: blanco, fontSize: 16.r)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.red.shade400, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.r),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 12.r),
+              ),
+
+              // 🔥 mismo patrón visual que los otros
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cancel_outlined,
+                    size: 20.r,
+                    color: Colors.red.shade400,
+                  ),
+                  SizedBox(width: 8.r),
+                  Text(
+                    'Cancelar solicitud',
+                    style: TextStyle(
+                      color: Colors.red.shade400,
+                      fontSize: 14.r,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
 
           ],

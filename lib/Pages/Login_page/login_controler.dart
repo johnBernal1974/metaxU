@@ -1,182 +1,348 @@
-import 'package:flutter/material.dart';
-import '../../../../providers/auth_provider.dart';
-import '../../../../providers/client_provider.dart';
-import 'package:apptaxis/models/client.dart';
+import 'dart:async';
 
-import '../../helpers/session_manager.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
 import '../../helpers/snackbar.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/client_provider.dart';
 
 class LoginController {
   late BuildContext context;
-  GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
+  late Function refresh;
 
-  // ✅ Solo OTP
-  final TextEditingController celularController = TextEditingController();
-  final TextEditingController otpController = TextEditingController();
+  GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
 
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
 
+  // Controllers
+  final TextEditingController celularController = TextEditingController();
+  final TextEditingController otpController = TextEditingController();
+
+  // Focus (opcional si lo quieres)
+  final FocusNode celularFocusNode = FocusNode();
+  final FocusNode otpFocusNode = FocusNode();
+
+  // OTP
   String? _verificationId;
   bool otpEnviado = false;
-  bool isSendingOtp = false;
-  bool isVerifyingOtp = false;
+  bool otpVerificado = false;
 
-  late VoidCallback refresh;
+  // UI states
+  bool sendingOtp = false;
+  bool verifyingOtp = false;
 
-  Future? init(BuildContext context, VoidCallback refresh) {
+  // Errores
+  String? celularError;
+  String? otpError;
+
+  // Cooldowns
+  Timer? _resendTimer;
+  int resendSeconds = 0;
+  static const int resendCooldown = 30;
+
+  Timer? _deviceBlockTimer;
+  int deviceBlockSeconds = 0;
+  static const int deviceBlockCooldown = 120;
+
+  bool get canResend => !sendingOtp && resendSeconds == 0;
+  bool get deviceBlocked => deviceBlockSeconds > 0;
+  bool get isOtpComplete => otpController.text.trim().length == 6;
+
+  Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
-    return null;
-  }
-
-  void goToRegisterPage() {
-    Navigator.pushNamed(context, 'signup');
-  }
-
-  // Helpers
-  String _normalizeCel10(String raw) => raw.replaceAll(RegExp(r'\D'), '');
-  String _toE164Colombia(String cel10) => '+57$cel10';
-
-  Future<void> enviarOtp() async {
-    if (isSendingOtp) return;
-
-    final cel10 = _normalizeCel10(celularController.text);
-
-    if (cel10.isEmpty) {
-      Snackbar.showSnackbar(context, 'Ingresa tu número de celular');
-      return;
-    }
-    if (cel10.length != 10) {
-      Snackbar.showSnackbar(context, 'Este número de celular NO es válido');
-      return;
-    }
-
-    isSendingOtp = true;
-
-    await _authProvider.sendOtp(
-      phoneNumberE164: _toE164Colombia(cel10),
-      onCodeSent: (verificationId) {
-        _verificationId = verificationId;
-        otpEnviado = true;
-        isSendingOtp = false;
-        refresh();
-        Snackbar.showSnackbar(context, 'Te enviamos un código OTP');
-      },
-      onAutoVerified: () async {
-        // Si Android lo verifica solo, intentamos continuar flujo
-        isSendingOtp = false;
-        otpEnviado = true;
-        await _postAuthChecksAndEnter();
-      },
-      onError: (msg) {
-        isSendingOtp = false;
-        Snackbar.showSnackbar(context, msg);
-      },
-    );
-  }
-
-  Future<void> verificarOtpYEntrar() async {
-    if (isVerifyingOtp) return;
-
-    final code = otpController.text.trim();
-    if (!otpEnviado || _verificationId == null) {
-      Snackbar.showSnackbar(context, 'Primero solicita el código OTP');
-      return;
-    }
-    if (code.length != 6) {
-      Snackbar.showSnackbar(context, 'Ingresa el código de 6 dígitos');
-      return;
-    }
-
-    isVerifyingOtp = true;
-
-    try {
-      final cred = await _authProvider.verifyOtp(
-        verificationId: _verificationId!,
-        smsCode: code,
-      );
-
-      if (cred?.user == null) {
-        Snackbar.showSnackbar(context, 'No se pudo verificar el código');
-        return;
-      }
-
-      await _postAuthChecksAndEnter();
-    } catch (e) {
-      Snackbar.showSnackbar(context, 'Código incorrecto o expirado.');
-    } finally {
-      isVerifyingOtp = false;
-    }
-  }
-
-  /// ✅ Mantiene tu flujo actual: validar client, SessionManager, then checkIfUserIsLogged
-  Future<void> _postAuthChecksAndEnter() async {
-    final user = _authProvider.getUser();
-    if (user == null) {
-      Snackbar.showSnackbar(context, 'Sesión inválida. Intenta de nuevo.');
-      return;
-    }
-
-    final uid = user.uid;
-    Client? client = await _clientProvider.getById(uid);
-
-    // Si no existe doc Client -> NO pertenece
-    if (client == null) {
-      if (!context.mounted) return;
-
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text('Acceso denegado'),
-          content: const Text(
-            'Este usuario no pertenece a la aplicación. '
-                'Si crees que es un error, contacta al soporte.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Aceptar'),
-            ),
-          ],
-        ),
-      );
-
-      await _authProvider.signOut();
-      return;
-    }
-
-    // Session Guard (igual que antes)
-    try {
-      await SessionManager.loginGuard(collection: 'Clients');
-    } catch (e) {
-      if (context.mounted) {
-        Snackbar.showSnackbar(
-          context,
-          'Este usuario ya está logueado en otro dispositivo. '
-              'Por favor, cierre sesión allá o espere unos minutos.',
-        );
-      }
-      await _authProvider.signOut();
-      return;
-    }
-
-    SessionManager.startHeartbeat(collection: 'Clients');
-
-    if (context.mounted) {
-      _authProvider.checkIfUserIsLogged(context);
-    }
-  }
-
-  Future<void> cerrarSesion() async {
-    await _authProvider.signOut();
   }
 
   void dispose() {
     celularController.dispose();
     otpController.dispose();
+    celularFocusNode.dispose();
+    otpFocusNode.dispose();
+    _resendTimer?.cancel();
+    _deviceBlockTimer?.cancel();
+  }
+
+  // =========================
+  // Helpers
+  // =========================
+  String _normalizeCel10(String raw) => raw.replaceAll(RegExp(r'\D'), '');
+  String _toE164Colombia(String cel10) => '+57$cel10';
+
+  String _maskNumber(String number) {
+    final digits = number.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 4) return number;
+    return digits.replaceRange(3, digits.length - 3, '****');
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    resendSeconds = resendCooldown;
+    refresh();
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (resendSeconds <= 1) {
+        t.cancel();
+        resendSeconds = 0;
+      } else {
+        resendSeconds--;
+      }
+      refresh();
+    });
+  }
+
+  void _startDeviceBlockCooldown() {
+    _deviceBlockTimer?.cancel();
+    deviceBlockSeconds = deviceBlockCooldown;
+    refresh();
+
+    _deviceBlockTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (deviceBlockSeconds <= 1) {
+        t.cancel();
+        deviceBlockSeconds = 0;
+      } else {
+        deviceBlockSeconds--;
+      }
+      refresh();
+    });
+  }
+
+  // =========================
+  // SEND OTP
+  // =========================
+  Future<void> enviarOtp() async {
+    if (sendingOtp || deviceBlocked) return;
+
+    celularError = null;
+    otpError = null;
+    otpVerificado = false;
+    refresh();
+
+    final cel10 = _normalizeCel10(celularController.text);
+    if (cel10.isEmpty) {
+      celularError = "Por favor ingresa tu número de celular.";
+      refresh();
+      return;
+    }
+    if (cel10.length != 10) {
+      celularError = "Este número de celular NO es válido.";
+      refresh();
+      return;
+    }
+
+    sendingOtp = true;
+    refresh();
+
+    Timer? failSafe;
+    void stopLoading() {
+      failSafe?.cancel();
+      sendingOtp = false;
+      refresh();
+    }
+
+    // failsafe
+    failSafe = Timer(const Duration(seconds: 25), () {
+      otpError = "No pudimos enviar el código. Intenta de nuevo.";
+      sendingOtp = false;
+      refresh();
+    });
+
+    try {
+      final phone = _toE164Colombia(cel10);
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phone,
+        timeout: const Duration(seconds: 60),
+
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // A veces Android auto-verifica
+          try {
+            final cred = await FirebaseAuth.instance.signInWithCredential(credential);
+            final user = cred.user;
+            if (user == null) {
+              stopLoading();
+              return;
+            }
+
+            stopLoading();
+            otpEnviado = true;
+            otpVerificado = true;
+            otpError = null;
+            refresh();
+
+            await _entrarSiExiste(user);
+          } catch (_) {
+            stopLoading();
+          }
+        },
+
+        verificationFailed: (FirebaseAuthException e) {
+          stopLoading();
+
+          String msg;
+          if (e.code == 'too-many-requests') {
+            msg =
+            "Por seguridad, se bloqueó temporalmente el envío de códigos en este dispositivo.\nIntenta de nuevo más tarde.";
+            _startDeviceBlockCooldown();
+          } else {
+            msg = e.message ?? "No se pudo enviar el código. Intenta de nuevo.";
+          }
+
+          otpError = msg;
+          refresh();
+
+          if (kDebugMode) {
+            print("❌ verificationFailed: ${e.code} | ${e.message}");
+          }
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+          stopLoading();
+
+          _verificationId = verificationId;
+          otpEnviado = true;
+          otpError = null;
+
+          // Limpia OTP anterior por si era reintento
+          otpController.clear();
+          otpVerificado = false;
+
+          _startResendCooldown();
+          refresh();
+
+          // fuerza enfoque OTP (opcional)
+          Future.delayed(const Duration(milliseconds: 250), () {
+            if (!context.mounted) return;
+            FocusScope.of(context).requestFocus(otpFocusNode);
+          });
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {
+          stopLoading();
+          _verificationId = verificationId;
+          if (kDebugMode) {
+            print("⏳ codeAutoRetrievalTimeout: $verificationId");
+          }
+        },
+      );
+    } catch (e) {
+      stopLoading();
+      otpError = "Error enviando OTP. Intenta nuevamente.";
+      refresh();
+
+      if (kDebugMode) {
+        print("❌ Exception verifyPhoneNumber: $e");
+      }
+    }
+  }
+
+  // =========================
+  // VERIFY OTP + LOGIN
+  // =========================
+  Future<void> verificarOtpYEntrar() async {
+    if (verifyingOtp) return;
+
+    otpError = null;
+    refresh();
+
+    final code = otpController.text.trim();
+
+    if (code.length != 6) {
+      otpError = "Ingresa el código de 6 dígitos.";
+      refresh();
+      return;
+    }
+
+    if (_verificationId == null) {
+      otpError = "Primero solicita el código OTP.";
+      refresh();
+      return;
+    }
+
+    verifyingOtp = true;
+    refresh();
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: code,
+      );
+
+      final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCred.user;
+
+      if (user == null) {
+        otpError = "No se pudo verificar el código.";
+        otpVerificado = false;
+        return;
+      }
+
+      otpVerificado = true;
+      otpError = null;
+      refresh();
+
+      await _entrarSiExiste(user);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-verification-code') {
+        otpError = "Código incorrecto. Intenta de nuevo.";
+      } else if (e.code == 'session-expired') {
+        otpError = "El código expiró. Solicita uno nuevo.";
+      } else if (e.code == 'too-many-requests') {
+        otpError = "Demasiados intentos. Espera un momento e intenta de nuevo.";
+      } else {
+        otpError = e.message ?? "No se pudo verificar el código.";
+      }
+      otpVerificado = false;
+      refresh();
+    } catch (_) {
+      otpError = "No se pudo verificar el código. Intenta de nuevo.";
+      otpVerificado = false;
+      refresh();
+    } finally {
+      verifyingOtp = false;
+      refresh();
+    }
+  }
+
+  // =========================
+  // Entrar si existe en Firestore
+  // =========================
+  Future<void> _entrarSiExiste(User user) async {
+    final existing = await _clientProvider.getById(user.uid);
+
+    if (!context.mounted) return;
+
+    if (existing == null) {
+      // 🔴 No existe en tu Firestore: NO lo dejes entrar por login
+      Snackbar.showSnackbar(
+        key.currentContext!,
+        "Este número no está registrado. Regístrate primero.",
+      );
+      return;
+    }
+
+    // ✅ Existe: entra al flujo normal (foto/mapa/etc)
+    Snackbar.showSnackbarNegro(
+      key.currentContext!,
+      "Ingresando...",
+    );
+
+    _authProvider.checkIfUserIsLogged(context);
+  }
+
+  // =========================
+  // UI helpers
+  // =========================
+  void resetOtpFlow() {
+    _verificationId = null;
+    otpEnviado = false;
+    otpVerificado = false;
+    otpError = null;
+    otpController.clear();
+    refresh();
   }
 }

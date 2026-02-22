@@ -93,10 +93,29 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) {
+    SchedulerBinding.instance.addPostFrameCallback((_) async {
       _authProvider = MyAuthProvider();
       _clientProvider = ClientProvider();
       _checkConnection();
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final existing = await _clientProvider.getById(user.uid);
+
+        // ✅ Si NO hay doc, obligamos OTP de nuevo:
+        if (existing == null) {
+          await FirebaseAuth.instance.signOut();
+          if (!mounted) return;
+          // se queda en página 0, normal
+          return;
+        }
+
+        // ✅ Si SÍ hay doc, entonces no debería estar en register realmente,
+        // pero por si llega aquí, redirige al flujo normal:
+        if (!mounted) return;
+        _authProvider.checkIfUserIsLogged(context);
+        return;
+      }
     });
   }
 
@@ -266,13 +285,13 @@ class _RegisterPageState extends State<RegisterPage> {
             otpError = null;
           });
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Código enviado al ${_maskNumber(celularController.text)}"),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Código enviado al ${_maskNumber(celularController.text)}"),
+          //     backgroundColor: Colors.green,
+          //     duration: const Duration(seconds: 2),
+          //   ),
+          // );
 
           _startResendCooldown();
           _goToPage(1);
@@ -424,52 +443,52 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 18),
 
           // ✅ Tarjeta superior (look premium)
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  primary.withOpacity(0.85),
-                  primary.withOpacity(0.35),
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.phone_android,
+                    size: 45,
+                    color: Colors.black,
+                  ),
+                  SizedBox(width: 2),
+                  Flexible(
+                    child: Text(
+                      "Crea tu cuenta con tu número de celular",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                        height: 1.1,
+                      ),
+                    ),
+                  ),
                 ],
               ),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.center, // 👈 centra verticalmente
-              children: [
-                Text(
-                  "Crea tu cuenta con tu número de celular",
-                  textAlign: TextAlign.center, // 👈 centra el texto
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                    height: 1.1,
-                  ),
+              SizedBox(height: 8),
+              Text(
+                "Te enviaremos un código por mensaje de texto para verificarlo.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  "Te enviaremos un código por mensaje de texto para verificarlo.",
-                  textAlign: TextAlign.center, // 👈 centra el texto
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
 
           const SizedBox(height: 18),
 
           // ✅ Input celular
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
@@ -494,57 +513,63 @@ class _RegisterPageState extends State<RegisterPage> {
                 labelText: "Número de celular",
                 hintText: "Ingresar número",
                 errorText: celularError,
-                prefixIcon: const Icon(Icons.phone_android, color: primary),
+                prefixIcon: const Icon(Icons.phone_android, color: Colors.grey),
               ),
             ),
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 35),
 
           // ✅ Botón enviar OTP con loader + texto + bloqueo
-          ElevatedButton(
+          OutlinedButton(
             onPressed: (_sendingOtp || _deviceBlocked)
                 ? null
                 : () async {
               FocusScope.of(context).unfocus();
               await _sendOtp();
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: primary, width: 1.5), // 👈 borde
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 10),
             ),
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 160),
+              duration: const Duration(milliseconds: 150),
               child: _sendingOtp
-                  ?  Row(
+                  ? Row(
                 key: const ValueKey('sending'),
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(
-                    height: 18,
-                    width: 18,
+                    height: 14,
+                    width: 14,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                      valueColor: AlwaysStoppedAnimation<Color>(primary),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Text(
-                    key: const ValueKey('idle'),
-                    _deviceBlocked ? "Espera ${_deviceBlockSeconds}s" : "Solicitar código",
-                    style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900),
+                    _deviceBlocked
+                        ? "Espera ${_deviceBlockSeconds}s"
+                        : "Enviando...",
+                    style: const TextStyle(
+                      color: primary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               )
                   : const Text(
-                key: ValueKey('idle'),
                 "Solicitar código",
+                key: ValueKey('idle'),
                 style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  color: Colors.black54,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1077,7 +1102,7 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 10),
           Text(
-            "Ingresa el código de 6 dígitos que enviamos al $numeroMostrado.",
+            "Ingresa el código de 6 dígitos que enviamos al ${_maskNumber(celularController.text)}.",
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,

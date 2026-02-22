@@ -26,6 +26,13 @@ class SessionManager {
 
     await FirebaseFirestore.instance.runTransaction((tx) async {
       final snap = await tx.get(ref);
+
+      // ✅ CLAVE: si NO existe el documento del perfil, NO lo crees aquí.
+      // Esto evita que se creen documentos “fantasma” con isLoggedIn/deviceId...
+      if (!snap.exists) {
+        throw Exception('PROFILE_NOT_FOUND');
+      }
+
       final data = (snap.data() ?? {});
 
       final bool isLoggedIn = (data['isLoggedIn'] == true);
@@ -42,20 +49,18 @@ class SessionManager {
           ? true
           : now.difference(lastSeen).inSeconds > sessionTimeoutSeconds;
 
-      // ✅ Caso 1: no hay sesión → entra
-      // ✅ Caso 2: misma instalación → entra
-      // ✅ Caso 3: otra instalación pero sesión expirada → entra (toma control)
       // ❌ Caso 4: otra instalación y sesión viva → bloquea
       if (isLoggedIn && !isSameDevice && !sessionExpired) {
         throw Exception('Ya hay una sesión activa en otro dispositivo');
       }
 
-      tx.set(ref, {
+      // ✅ Como el doc existe, usamos UPDATE (no set merge)
+      tx.update(ref, {
         'isLoggedIn': true,
         'deviceId': deviceId,
         'sessionId': sessionId,
         'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      });
     });
   }
 

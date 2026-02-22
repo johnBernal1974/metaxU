@@ -400,7 +400,7 @@ class _MapClientPageState extends State<MapClientPage> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.black87, width: 2),
+                    border: Border.all(color: primary, width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.4),
@@ -423,7 +423,7 @@ class _MapClientPageState extends State<MapClientPage> {
                       SizedBox(height: 2),
                       Icon(
                         Icons.favorite,
-                        color: Colors.red,
+                        color: Colors.grey,
                         size: 18,
                       ),
                     ],
@@ -601,11 +601,8 @@ class _MapClientPageState extends State<MapClientPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      elevation: 6,
-                    ),
+                  // ✅ CONFIRMAR
+                  OutlinedButton(
                     onPressed: () {
                       _controller.centerPosition();
                       setState(() {
@@ -616,42 +613,73 @@ class _MapClientPageState extends State<MapClientPage> {
                         _controller.requestDriver();
                       });
                     },
-                    child:const Text(
-                      'Confirmar',
-                      style: TextStyle(
-                        color: negro,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: primary, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
                       ),
+                      padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 10.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 16.r,
+                          color: primary,
+                        ),
+                        SizedBox(width: 6.r),
+                        Text(
+                          'Confirmar',
+                          style: TextStyle(
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.r,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      elevation: 6,
-                    ),
+
+                  // 🔴 CANCELAR
+                  OutlinedButton(
                     onPressed: () {
                       _controller.centerPosition();
-                      //_controller.to = '¿A dónde quieres ir?';
-                      if (mounted) {
-                        setState(() {
-                          bottomMaps= 270;
-                          if (isVisiblePinBusquedaDestino) {
-                            isVisiblePinBusquedaDestino = false;
-                          }
-                          isVisibleCajoncambiandoDireccionDestino = false;
-                          isVisibleADondeVamos = true;
-                          isVisibleBotonPinBusquedaDestino = true;
-                        });
-                      }
+                      if (!mounted) return;
+
+                      setState(() {
+                        bottomMaps = 270;
+                        isVisiblePinBusquedaDestino = false;
+                        isVisibleCajoncambiandoDireccionDestino = false;
+                        isVisibleADondeVamos = true;
+                        isVisibleBotonPinBusquedaDestino = true;
+                      });
                     },
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(
-                        color: negro,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.red.shade400, width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.r),
                       ),
+                      padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 10.r),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.cancel_outlined,
+                          size: 16.r,
+                          color: Colors.red.shade400,
+                        ),
+                        SizedBox(width: 6.r),
+                        Text(
+                          'Cancelar',
+                          style: TextStyle(
+                            color: Colors.red.shade400,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12.r,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

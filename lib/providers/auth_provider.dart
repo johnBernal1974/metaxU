@@ -109,9 +109,13 @@ class MyAuthProvider {
       if (_navigating) return;
 
       if (client == null) {
-        // Si no hay documento cliente, manda a login
+        // ✅ Hay user Auth pero no existe documento Firestore
+        // 👉 Fuerza que vuelva a pedir OTP en register
+        await _firebaseAuth.signOut();
+
+        if (!context.mounted) return;
         _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(context, 'register', (_) => false);
         return;
       }
 

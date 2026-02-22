@@ -65,7 +65,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     final okInternet = await connectionService.hasInternetConnection();
 
     if (!okInternet) {
-      if(context.mounted){
+      if (context.mounted) {
         connectionService.showPersistentConnectionCard(
           context,
               () {
@@ -102,15 +102,15 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
       _navigated = true;
       _authProvider.checkIfUserIsLogged(context);
+
     } catch (e) {
       if (!mounted) return;
 
-      // ✅ 1) Si fue un fallo por conectividad real, NO cierres sesión ni navegues al login.
+      // ✅ Si fue un fallo por conectividad real, NO cierres sesión ni navegues al login.
       final okInternet = await connectionService.hasInternetConnection();
 
       if (!okInternet) {
-        if(context.mounted){
-          // mostramos banner y reintentamos cuando vuelva internet
+        if (context.mounted) {
           connectionService.showPersistentConnectionCard(
             context,
                 () {
@@ -124,10 +124,27 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
           _msgEstado = 'Conexión inestable. Esperando internet para validar sesión...';
         });
 
-        return; // ✅ importantísimo: NO signOut, NO login
+        return; // ✅ NO signOut, NO login
       }
 
-      // ✅ 2) Si sí hay internet, entonces es error real (sesión activa en otro equipo u otro fallo)
+      final err = e.toString();
+
+      // ✅ NUEVO: Usuario autenticado pero SIN documento en Firestore
+      // -> NO creamos doc fantasma, mandamos a completar registro
+      if (err.contains('PROFILE_NOT_FOUND')) {
+        if (!mounted) return;
+
+        setState(() {
+          _esperandoInternet = false;
+          _msgEstado = '';
+        });
+
+        _navigated = true;
+        Navigator.pushNamedAndRemoveUntil(context, 'register', (_) => false);
+        return;
+      }
+
+      // ✅ Si sí hay internet, entonces es error real (sesión activa u otro fallo)
       SessionManager.stopHeartbeat();
       await _authProvider.signOut();
 
@@ -136,7 +153,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            e.toString().contains('Ya hay una sesión activa')
+            err.contains('Ya hay una sesión activa')
                 ? 'Tu cuenta ya está abierta en otro dispositivo. Cierra sesión allá o espera 1 minuto e intenta de nuevo.'
                 : 'No se pudo validar tu sesión. Intenta nuevamente.',
           ),

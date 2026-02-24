@@ -82,7 +82,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: Column(
                         children: [
                           Text(
-                            "¡La más cordial bienvenida!",
+                            "¡Cordial bienvenida!",
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w900,

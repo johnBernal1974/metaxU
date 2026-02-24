@@ -159,9 +159,13 @@ class _MapClientPageState extends State<MapClientPage> {
   Future<void> checkForUpdate() async {
     try {
       AppUpdateInfo updateInfo = await InAppUpdate.checkForUpdate();
-      print('Estado de la actualización: ${updateInfo.updateAvailability}');
+      if (kDebugMode) {
+        print('Estado de la actualización: ${updateInfo.updateAvailability}');
+      }
       if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
-        print('¡*****************Actualización disponible!*************');
+        if (kDebugMode) {
+          print('¡*****************Actualización disponible!*************');
+        }
         await InAppUpdate.performImmediateUpdate();
       } else {
         if (kDebugMode) {

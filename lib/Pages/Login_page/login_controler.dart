@@ -317,10 +317,25 @@ class LoginController {
     if (!context.mounted) return;
 
     if (existing == null) {
-      // 🔴 No existe en tu Firestore: NO lo dejes entrar por login
       Snackbar.showSnackbar(
         key.currentContext!,
         "Este número no está registrado. Regístrate primero.",
+      );
+
+      final rawPhone = user.phoneNumber ?? '';
+      final phoneSinCodigo = rawPhone.startsWith('+57')
+          ? rawPhone.replaceFirst('+57', '')
+          : rawPhone.replaceAll(RegExp(r'^\+\d{1,3}'), ''); // fallback
+
+
+      // ✅ Reemplaza el login por el registro (para que no vuelva atrás al OTP)
+      Navigator.pushReplacementNamed(
+        context,
+        'register',
+        arguments: {
+          'uid': user.uid,
+          'phone': phoneSinCodigo, // opcional pero recomendado
+        },
       );
       return;
     }

@@ -149,6 +149,25 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+
+    final phone = args?['phone'] as String?;
+
+    if (phone != null && celularController.text.isEmpty) {
+      final clean = phone.replaceAll(RegExp(r'\D'), ''); // deja solo dígitos
+      final cel10 = clean.startsWith('57') && clean.length >= 12
+          ? clean.substring(2) // quita 57 si viene pegado
+          : clean;
+
+      celularController.text = cel10;
+      celular = cel10; // importante para que tu variable también quede limpia
+    }
+  }
+
+  @override
   void dispose() {
     nameController.dispose();
     apellidosController.dispose();
@@ -284,14 +303,6 @@ class _RegisterPageState extends State<RegisterPage> {
             _otpSent = true;
             otpError = null;
           });
-
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text("Código enviado al ${_maskNumber(celularController.text)}"),
-          //     backgroundColor: Colors.green,
-          //     duration: const Duration(seconds: 2),
-          //   ),
-          // );
 
           _startResendCooldown();
           _goToPage(1);
@@ -1040,51 +1051,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Página Celular (envía OTP al dar siguiente)
-  Widget _buildCelularPage() {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text(
-            "¿Cuál es tu número de celular?",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            "Te enviaremos un código de verificación (OTP).",
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black38),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: celularController,
-            focusNode: _celularFocusNode,
-            onChanged: (value) => celular = value,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: "Celular",
-              hintText: "Ej: 3001234567",
-              errorText: celularError,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              suffixIcon: _sendingOtp
-                  ? const Padding(
-                padding: EdgeInsets.all(12.0),
-                child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_otpSent)
-            const Text(
-              "Ya enviamos un OTP. Pulsa “Siguiente” para ingresarlo.",
-              style: TextStyle(color: Colors.black54, fontSize: 12),
-            ),
-        ],
-      ),
-    );
-  }
 
   // Página OTP
   Widget _buildOtpPage() {

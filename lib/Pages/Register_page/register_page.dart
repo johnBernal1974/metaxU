@@ -193,11 +193,13 @@ class _RegisterPageState extends State<RegisterPage> {
   String _toE164Colombia(String cel10) => '+57$cel10';
 
   Future<void> _sendOtp() async {
-    if (_sendingOtp) return;
+    if (_sendingOtp || _deviceBlocked) return;
 
     setState(() {
       celularError = null;
       otpError = null;
+      _otpVerified = false;
+      _otpSent = false;
     });
 
     final cel10 = _normalizeCel10(celularController.text);
@@ -224,47 +226,71 @@ class _RegisterPageState extends State<RegisterPage> {
       if (mounted) setState(() => _sendingOtp = false);
     }
 
-    // ✅ Si en X segundos no llegó codeSent ni failed, suelta y muestra mensaje
     failSafe = Timer(const Duration(seconds: 25), () {
       if (!mounted) return;
       setState(() {
         _sendingOtp = false;
         otpError = "No pudimos enviar el código. Intenta de nuevo.";
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No se pudo enviar el código. Revisa tu señal e intenta otra vez."),
-          backgroundColor: Colors.red,
-        ),
-      );
     });
 
     try {
       // =========================
-      // ✅ 1) GATE ANTES DE OTP (REGISTER CLIENT)
+      // ✅ 1) GATE (INTENTO SIGNUP)
+      //    Si ya existe, hacemos fallback a LOGIN
       // =========================
+      bool allowOtp = false;
+      bool isExistingClient = false;
+
       try {
         await checkPhoneRoleBeforeOtp(
           cel10: cel10,
           targetRole: "client",
           action: "signup",
         );
+        allowOtp = true; // nuevo cliente permitido
       } catch (e) {
-        // Si NO está permitido (ej: ya existe como cliente o es conductor), NO enviamos OTP
-        stopLoading();
+        final msg = e.toString().replaceFirst('Exception: ', '').toLowerCase();
 
-        final msg = e.toString().replaceFirst('Exception: ', '');
-        setState(() {
-          otpError = msg.isNotEmpty
-              ? msg
-              : "No puedes registrarte con este número. Verifica e intenta nuevamente.";
-        });
+        // Si ya existe como cliente -> fallback a login (permitir OTP para entrar)
+        final looksLikeAlreadyExists =
+            msg.contains('ya está registrado') ||
+                msg.contains('ya tienes cuenta') ||
+                msg.contains('inicia sesión') ||
+                msg.contains('already') ||
+                msg.contains('exists');
+
+        if (looksLikeAlreadyExists) {
+          try {
+            await checkPhoneRoleBeforeOtp(
+              cel10: cel10,
+              targetRole: "client",
+              action: "login",
+            );
+            allowOtp = true;
+            isExistingClient = true;
+          } catch (e2) {
+            stopLoading();
+            final msg2 = e2.toString().replaceFirst('Exception: ', '');
+            setState(() => otpError = msg2.isNotEmpty ? msg2 : "No pudimos validar el número.");
+            return;
+          }
+        } else {
+          // otros casos (ej: es conductor, etc.) -> bloquear
+          stopLoading();
+          setState(() => otpError = e.toString().replaceFirst('Exception: ', ''));
+          return;
+        }
+      }
+
+      if (!allowOtp) {
+        stopLoading();
+        setState(() => otpError = "No puedes continuar con este número.");
         return;
       }
 
       // =========================
-      // ✅ 2) SI PASA EL GATE, ENVÍA OTP NORMAL
+      // ✅ 2) ENVÍO OTP
       // =========================
       final phone = _toE164Colombia(cel10);
 
@@ -273,25 +299,33 @@ class _RegisterPageState extends State<RegisterPage> {
         timeout: const Duration(seconds: 60),
 
         verificationCompleted: (PhoneAuthCredential credential) async {
-          // Android puede auto-verificar
           try {
             final cred = await FirebaseAuth.instance.signInWithCredential(credential);
             final user = cred.user;
-            if (!mounted || user == null) return;
+            if (!mounted || user == null) {
+              stopLoading();
+              return;
+            }
 
             stopLoading();
 
             setState(() {
-              _otpVerified = true;
               _otpSent = true;
+              _otpVerified = true;
               otpError = null;
             });
 
+            // Si era existente, entra directo
+            if (isExistingClient) {
+              _authProvider.checkIfUserIsLogged(context);
+              return;
+            }
+
+            // si no era existente, continúa registro
             final redirected = await _redirectIfAlreadyRegistered(user);
             if (redirected) return;
 
-            _goToPage(2);
-            _handleFocusForPage(2);
+            await _goToPage(2);
           } catch (_) {
             stopLoading();
           }
@@ -324,18 +358,19 @@ class _RegisterPageState extends State<RegisterPage> {
           setState(() {
             _verificationId = verificationId;
             _otpSent = true;
+            _otpVerified = false;
             otpError = null;
           });
 
+          otpController.clear();
           _startResendCooldown();
+
           _goToPage(1);
-          _handleFocusForPage(1);
         },
 
         codeAutoRetrievalTimeout: (String verificationId) {
           if (!mounted) return;
           stopLoading();
-
           _verificationId = verificationId;
 
           if (kDebugMode) {
@@ -346,15 +381,7 @@ class _RegisterPageState extends State<RegisterPage> {
     } catch (e) {
       if (!mounted) return;
       stopLoading();
-
       setState(() => otpError = "Error enviando OTP. Intenta nuevamente.");
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(otpError!),
-          backgroundColor: Colors.red,
-        ),
-      );
 
       if (kDebugMode) {
         print("❌ Exception verifyPhoneNumber: $e");
@@ -387,19 +414,16 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _verifyOtp() async {
     if (_verifyingOtp) return;
 
-    // Limpia error anterior
     setState(() => otpError = null);
 
     final code = otpController.text.trim();
-
-    // Validaciones rápidas
     if (code.length != 6) {
       setState(() => otpError = "Ingresa el código de 6 dígitos.");
       return;
     }
 
     if (_verificationId == null) {
-      setState(() => otpError = "Primero solicita el código OTP.");
+      setState(() => otpError = "Primero debes solicitar el código.");
       return;
     }
 
@@ -412,31 +436,43 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       final userCred = await FirebaseAuth.instance.signInWithCredential(credential);
+      final user = userCred.user;
       if (!mounted) return;
 
-      if (userCred.user == null) {
-        setState(() => otpError = "No se pudo verificar el código.");
+      if (user == null) {
+        setState(() {
+          otpError = "No se pudo verificar el código.";
+          _otpVerified = false;
+        });
         return;
       }
 
-      // ✅ OTP correcto
+      // ✅ Match: el cel verificado debe ser el mismo que el input
+      final cel10 = _normalizeCel10(celularController.text);
+      final authDigits = (user.phoneNumber ?? '').replaceAll(RegExp(r'\D'), '');
+      if (authDigits.isNotEmpty && !authDigits.endsWith(cel10)) {
+        setState(() {
+          otpError = "El número verificado no coincide con el ingresado.";
+          _otpVerified = false;
+        });
+        return;
+      }
+
+      // ✅ OTP ok
       setState(() {
         _otpVerified = true;
         _otpCode = code;
         otpError = null;
       });
 
-      final user = userCred.user!;
+      // ✅ Si ya tiene doc -> salir de register
       final redirected = await _redirectIfAlreadyRegistered(user);
       if (redirected) return;
 
-      // ✅ opcional: mini delay para que el usuario vea el "✅ correcto"
-      await Future.delayed(const Duration(milliseconds: 250));
+      // ✅ Ir a nombres
+      await Future.delayed(const Duration(milliseconds: 180));
       if (!mounted) return;
-
-      // ya verificado, seguimos
-      _goToPage(2);
-      _handleFocusForPage(2);
+      await _goToPage(2);
 
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -635,24 +671,34 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<bool> _redirectIfAlreadyRegistered(User user) async {
-    final existing = await _clientProvider.getById(user.uid);
+    try {
+      final existing = await _clientProvider.getById(user.uid);
 
-    if (!mounted) return true;
+      if (!mounted) return true;
 
-    if (existing != null) {
-      setState(() => _alreadyRegistered = true);
+      if (existing != null) {
+        setState(() => _alreadyRegistered = true);
 
-      Snackbar.showSnackbar(
-        key.currentContext!,
-        'Ya tienes cuenta. Ingresando...',
-      );
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Ya tienes cuenta. Ingresando...',
+        );
 
-      _authProvider.checkIfUserIsLogged(context);
+        _authProvider.checkIfUserIsLogged(context);
+        return true;
+      }
+
+      setState(() => _alreadyRegistered = false);
+      return false;
+    } catch (_) {
+      // Si falla Firestore por red, mejor NO dejarlo avanzar
+      if (!mounted) return true;
+      setState(() {
+        _alreadyRegistered = false;
+        otpError = "No pudimos validar tu registro. Revisa tu conexión e intenta de nuevo.";
+      });
       return true;
     }
-
-    setState(() => _alreadyRegistered = false);
-    return false;
   }
 
   // =========================
@@ -785,7 +831,7 @@ class _RegisterPageState extends State<RegisterPage> {
   // Registro final (Firestore)
   // =========================
   void _register() async {
-    // validaciones finales
+    // Validaciones visuales finales
     setState(() {
       questionError = null;
       answerError = null;
@@ -799,40 +845,85 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
+    Future<void> _stopLoading() async {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+
     try {
-      if (!_otpVerified || FirebaseAuth.instance.currentUser == null) {
+      // 1) Debe estar verificado OTP y existir sesión
+      final user = FirebaseAuth.instance.currentUser;
+      if (!_otpVerified || user == null) {
+        await _stopLoading();
         Snackbar.showSnackbar(key.currentContext!, 'Primero verifica tu número con OTP.');
         return;
       }
 
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-      final celNormalizado = _normalizeCel10(celular ?? "");
-
-      // 1) Si ya existe por UID -> entrar
-      final existing = await _clientProvider.getById(uid);
-      if (existing != null) {
-        Snackbar.showSnackbar(key.currentContext!, 'Bienvenido nuevamente 👋');
-        if (context.mounted) _authProvider.checkIfUserIsLogged(context);
+      // 2) Celular limpio (10 dígitos)
+      final cel10 = _normalizeCel10(celularController.text);
+      if (cel10.length != 10) {
+        await _stopLoading();
+        Snackbar.showSnackbar(key.currentContext!, 'Número inválido. Debe tener 10 dígitos.');
         return;
       }
 
-      // 2) Evitar duplicado por celular (por si cambian de cuenta)
-      final existeCelular = await _clientProvider.existsByCelular(celNormalizado);
-      if (existeCelular) {
+      // 3) Re-validación con Cloud Function (seguridad extra)
+      try {
+        await checkPhoneRoleBeforeOtp(
+          cel10: cel10,
+          targetRole: "client",
+          action: "signup",
+        );
+      } catch (e) {
+        await _stopLoading();
+        final msg = e.toString().replaceFirst('Exception: ', '');
         Snackbar.showSnackbar(
           key.currentContext!,
-          'Este número de celular ya está registrado. Intenta iniciar sesión o recuperar tu cuenta.',
+          msg.isNotEmpty ? msg : 'No puedes registrarte con este número.',
         );
         return;
       }
 
-      // 3) Crear en Firestore
+      // 4) Confirmar que el phone del Auth coincide con el input (anti-cambio)
+      final authDigits = (user.phoneNumber ?? '').replaceAll(RegExp(r'\D'), '');
+      if (authDigits.isNotEmpty && !authDigits.endsWith(cel10)) {
+        await _stopLoading();
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'El número verificado no coincide con el que ingresaste.',
+        );
+        return;
+      }
+
+      final uid = user.uid;
+
+      // 5) Si ya existe doc por UID => entrar
+      final existingByUid = await _clientProvider.getById(uid);
+      if (existingByUid != null) {
+        await _stopLoading();
+        Snackbar.showSnackbar(key.currentContext!, 'Ya tienes cuenta. Ingresando...');
+        if (context.mounted) _authProvider.checkIfUserIsLogged(context);
+        return;
+      }
+
+      // 6) Anti-duplicado por celular (por si crean otro UID con el mismo número)
+      final existsByCel = await _clientProvider.existsByCelular(cel10);
+      if (existsByCel) {
+        await _stopLoading();
+        Snackbar.showSnackbar(
+          key.currentContext!,
+          'Este número ya está registrado. Inicia sesión o recupera tu cuenta.',
+        );
+        return;
+      }
+
+      // 7) Crear doc Client
       final client = Client(
         id: uid,
-        the01Nombres: name ?? "",
-        the02Apellidos: apellidos ?? "",
-        the06Email: "", // ✅ ya no usamos correo
-        the07Celular: celNormalizado,
+        the01Nombres: (name ?? "").trim(),
+        the02Apellidos: (apellidos ?? "").trim(),
+        the06Email: "",
+        the07Celular: cel10,
         the09Genero: "",
         the15FotoPerfilUsuario: "",
         the17Bono: 0,
@@ -848,7 +939,7 @@ class _RegisterPageState extends State<RegisterPage> {
         the41SuspendidoPorCancelaciones: false,
         fotoPerfilTomada: false,
         palabraClave: (answer ?? "").trim(),
-        preguntaPalabraClave: selectedQuestion ?? "",
+        preguntaPalabraClave: (selectedQuestion ?? "").trim(),
         the16CedulaFrontalUsuario: "",
         cedulaFrontalTomada: false,
         the23CedulaReversoUsuario: "",
@@ -856,12 +947,16 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       await _clientProvider.create(client);
+
+      await _stopLoading();
+
+      // 8) Continuar al flujo de fotos
       _goTakeFotoPerfil();
+
     } catch (e) {
-      if (kDebugMode) print('Error durante el registro OTP: $e');
+      await _stopLoading();
+      if (kDebugMode) print('❌ Error durante el registro OTP: $e');
       Snackbar.showSnackbar(key.currentContext!, 'Ocurrió un error durante el registro.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 

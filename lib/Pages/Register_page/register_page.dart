@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'dart:core';
 
 import '../../helpers/DateHelpers.dart';
+import '../../helpers/check_phone_role_helper.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/client_provider.dart';
@@ -240,6 +241,31 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
+      // =========================
+      // ✅ 1) GATE ANTES DE OTP (REGISTER CLIENT)
+      // =========================
+      try {
+        await checkPhoneRoleBeforeOtp(
+          cel10: cel10,
+          targetRole: "client",
+          action: "signup",
+        );
+      } catch (e) {
+        // Si NO está permitido (ej: ya existe como cliente o es conductor), NO enviamos OTP
+        stopLoading();
+
+        final msg = e.toString().replaceFirst('Exception: ', '');
+        setState(() {
+          otpError = msg.isNotEmpty
+              ? msg
+              : "No puedes registrarte con este número. Verifica e intenta nuevamente.";
+        });
+        return;
+      }
+
+      // =========================
+      // ✅ 2) SI PASA EL GATE, ENVÍA OTP NORMAL
+      // =========================
       final phone = _toE164Colombia(cel10);
 
       await FirebaseAuth.instance.verifyPhoneNumber(
@@ -277,17 +303,14 @@ class _RegisterPageState extends State<RegisterPage> {
 
           String msg;
           if (e.code == 'too-many-requests') {
-            msg = "Por seguridad, se bloqueó temporalmente el envío de códigos en este dispositivo.\nIntenta de nuevo más tarde.";
-            _startDeviceBlockCooldown(); // 👇 lo agregamos abajo
+            msg =
+            "Por seguridad, se bloqueó temporalmente el envío de códigos en este dispositivo.\nIntenta de nuevo más tarde.";
+            _startDeviceBlockCooldown();
           } else {
             msg = e.message ?? "No se pudo enviar el código. Intenta de nuevo.";
           }
 
           setState(() => otpError = msg);
-
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(content: Text(msg), backgroundColor: Colors.red),
-          // );
 
           if (kDebugMode) {
             print("❌ verificationFailed: ${e.code} | ${e.message}");

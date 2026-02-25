@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../helpers/check_phone_role_helper.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/client_provider.dart';
@@ -138,6 +139,7 @@ class LoginController {
     refresh();
 
     Timer? failSafe;
+
     void stopLoading() {
       failSafe?.cancel();
       sendingOtp = false;
@@ -152,6 +154,29 @@ class LoginController {
     });
 
     try {
+      // =========================
+      // ✅ 1) GATE ANTES DE OTP
+      // =========================
+      try {
+        await checkPhoneRoleBeforeOtp(
+          cel10: cel10,
+          targetRole: "client",
+          action: "login",
+        );
+      } catch (e) {
+        stopLoading(); // ✅ cancela failsafe y apaga loader
+
+        final msg = e.toString().replaceFirst('Exception: ', '').trim();
+        otpError = msg.isNotEmpty
+            ? msg
+            : "Este número no esta disponible para ingresar como cliente. Verifica e intenta nuevamente.";
+        refresh();
+        return; // ✅ NO enviar OTP
+      }
+
+      // =========================
+      // ✅ 2) SI PASA EL GATE, ENVÍA OTP NORMAL
+      // =========================
       final phone = _toE164Colombia(cel10);
 
       await FirebaseAuth.instance.verifyPhoneNumber(
@@ -250,6 +275,13 @@ class LoginController {
     refresh();
 
     final code = otpController.text.trim();
+    final cel10Input = _normalizeCel10(celularController.text);
+
+    if (cel10Input.length != 10) {
+      otpError = "Número de celular inválido.";
+      refresh();
+      return;
+    }
 
     if (code.length != 6) {
       otpError = "Ingresa el código de 6 dígitos.";
@@ -278,14 +310,54 @@ class LoginController {
       if (user == null) {
         otpError = "No se pudo verificar el código.";
         otpVerificado = false;
+        refresh();
         return;
       }
 
+      // =========================
+      // ✅ 1) Re-GATE post-auth (extra seguridad)
+      // =========================
+      try {
+        await checkPhoneRoleBeforeOtp(
+          cel10: cel10Input,
+          targetRole: "client",
+          action: "login",
+        );
+      } catch (e) {
+        // Si falló gate post-auth => cierra sesión y muestra motivo
+        try {
+          await _authProvider.signOut();
+        } catch (_) {}
+
+        otpError = e.toString().replaceFirst('Exception: ', '');
+        otpVerificado = false;
+        refresh();
+        return;
+      }
+
+      // =========================
+      // ✅ 2) Confirmar que el phone del Auth coincide con el input
+      // =========================
+      final authDigits = (user.phoneNumber ?? '').replaceAll(RegExp(r'\D'), '');
+      // Para +57XXXXXXXXXX -> authDigits termina en cel10
+      if (authDigits.isNotEmpty && !authDigits.endsWith(cel10Input)) {
+        try {
+          await _authProvider.signOut();
+        } catch (_) {}
+
+        otpError = "El número verificado no coincide con el que ingresaste.";
+        otpVerificado = false;
+        refresh();
+        return;
+      }
+
+      // ✅ OK
       otpVerificado = true;
       otpError = null;
       refresh();
 
       await _entrarSiExiste(user);
+
     } on FirebaseAuthException catch (e) {
       if (e.code == 'invalid-verification-code') {
         otpError = "Código incorrecto. Intenta de nuevo.";
@@ -317,24 +389,33 @@ class LoginController {
     if (!context.mounted) return;
 
     if (existing == null) {
+      // ✅ IMPORTANTÍSIMO: si está autenticado pero NO hay doc en Clients,
+      // cerramos sesión para evitar quedar con una sesión "huérfana".
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+
       Snackbar.showSnackbar(
         key.currentContext!,
         "Este número no está registrado. Regístrate primero.",
       );
 
+      // ✅ Tomar teléfono para precargar el registro
       final rawPhone = user.phoneNumber ?? '';
       final phoneSinCodigo = rawPhone.startsWith('+57')
           ? rawPhone.replaceFirst('+57', '')
           : rawPhone.replaceAll(RegExp(r'^\+\d{1,3}'), ''); // fallback
 
-
       // ✅ Reemplaza el login por el registro (para que no vuelva atrás al OTP)
+      if (!context.mounted) return;
+
       Navigator.pushReplacementNamed(
         context,
         'register',
         arguments: {
-          'uid': user.uid,
-          'phone': phoneSinCodigo, // opcional pero recomendado
+          // ❗️uid ya no es confiable después del signOut,
+          // mejor NO enviarlo (o envíalo solo si lo usas para UI).
+          'phone': phoneSinCodigo,
         },
       );
       return;

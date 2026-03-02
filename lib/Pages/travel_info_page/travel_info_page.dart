@@ -10,6 +10,7 @@ import '../../helpers/FormValidators.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/header_text.dart';
 import '../../src/colors/colors.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class ClientTravelInfoPage extends StatefulWidget {
@@ -39,21 +40,80 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   final ConnectionService connectionService = ConnectionService();
   bool _loadingRoute = true;
 
+  String _metodoPagoSeleccionado = 'Efectivo';
 
+  String _caracteristicaSeleccionada = 'No';
+
+  final List<String> _caracteristicasVehiculo = [
+    'No', // 👈 default
+    'Aire acondicionado',
+    'Vidrios polarizados',
+    'Con baúl',
+    'Porta bicicletas',
+    'Silla de ruedas',
+    'Con mascota',
+  ];
+
+  String _tipoServicioSeleccionado = 'standard'; // 'standard' | 'vip'
+
+  int _valorVipExtra = 0;
+  bool _cargandoValorVip = false;
 
 
 
   @override
   void initState() {
     super.initState();
+
     _loadingRoute = true;
+
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       await connectionService.checkConnectionAndShowCard(context, () async {
+
         if (mounted) setState(() => _loadingRoute = true);
+
         await _controller.init(context, refresh);
+
+        // ✅ AQUÍ llamas el valor VIP
+        await _cargarValorVip();
+
         if (mounted) setState(() => _loadingRoute = false);
       });
     });
+  }
+
+  Future<void> _cargarValorVip() async {
+    if (_cargandoValorVip) return;
+
+    try {
+      _cargandoValorVip = true;
+
+      final snap = await FirebaseFirestore.instance
+          .collection('Prices')
+          .limit(1)
+          .get();
+
+      if (snap.docs.isNotEmpty) {
+        final data = snap.docs.first.data();
+        final raw = data['valor_vip'];
+
+        int parsed = 0;
+        if (raw is int) parsed = raw;
+        if (raw is double) parsed = raw.toInt();
+        if (raw is String) parsed = int.tryParse(raw) ?? 0;
+
+        if (mounted) {
+          setState(() => _valorVipExtra = parsed);
+        }
+      } else {
+        // Si no hay docs, queda en 0
+        if (mounted) setState(() => _valorVipExtra = 0);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _valorVipExtra = 0);
+    } finally {
+      _cargandoValorVip = false;
+    }
   }
 
   @override
@@ -65,8 +125,11 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   @override
   Widget build(BuildContext context) {
     ScreenUtil.init(context, designSize: const Size(375, 812));
-    tarifa = _controller.total?.toInt() ?? 0;
-    formattedTarifa= FormatUtils.formatCurrency(tarifa!);
+    final base = _controller.total?.toInt() ?? 0;
+    final esVip = _tipoServicioSeleccionado == 'vip';
+
+    tarifa = base + (esVip ? _valorVipExtra : 0);
+    formattedTarifa = FormatUtils.formatCurrency(tarifa!);
     String from = _controller.from;
     String to = _controller.to;
     return WillPopScope(
@@ -83,10 +146,13 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               alignment: Alignment.topCenter,
               child: _googleMapsWidget(),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child:  _cardInfoViaje(from, to),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(
+              top: false,
+              child: _cardInfoViaje(from, to),
             ),
+          ),
             Align(
               alignment: Alignment.topLeft,
               child: _buttonVolverAtras(),
@@ -96,14 +162,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               alignment: Alignment.bottomCenter,
               child: _tarjetaSolicitandoConductor(),
             ),
-
-            Align(
-              alignment: Alignment.bottomCenter,
-              child:  _apuntesAlConductor(),
-            ),
-
           ],
-
         ),
 
       ),
@@ -120,7 +179,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   Widget _googleMapsWidget() {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.50,
+      height: MediaQuery.of(context).size.height * 0.45,
       child: GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
@@ -160,7 +219,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   Widget _cardInfoViaje(String from, String to){
     return Container(
-      height: MediaQuery.of(context).size.height * 0.50,
+      height: MediaQuery.of(context).size.height * 0.55,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.only(
@@ -306,26 +365,31 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
           const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
           const SizedBox(height: 15),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              Image.asset("assets/imagen_taxi.png", height: 60),
-              _textApuntes (),
-            ],
+          // ✅ MÉTODOS DE PAGO (fila independiente)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.r),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Método de pago',
+                  style: TextStyle(
+                    fontSize: 12.r,
+                    fontWeight: FontWeight.w800,
+                    color: negro,
+                  ),
+                ),
+                SizedBox(height: 6.r),
+                _metodoPagoSelector(),
+              ],
+            ),
           ),
-
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(5.r),
-            margin: EdgeInsets.only(top: 15.r, left: 10.r, right: 10.r),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              color: grisClaro, // Cambia el color de fondo del contenedor a blanco
-            ),
-            child: Text(_con.text.isNotEmpty ? _con.text : 'Sin apuntes', style: TextStyle(
-                fontSize: 14.r, color: negroLetras, fontWeight: FontWeight.w600
-            ),
-                maxLines: 2),
+          const SizedBox(height: 15),
+          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
+          const SizedBox(height: 15),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12.r),
+            child: _textApuntes(),
           ),
 
           Expanded(
@@ -335,7 +399,11 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           Container(
             width: double.infinity,
             height: 40.r,
-            margin: EdgeInsets.only(left: 25.r, right: 25.r, bottom: 30.r),
+            margin: EdgeInsets.only(
+              left: 25.r,
+              right: 25.r,
+              bottom: MediaQuery.of(context).padding.bottom + 45.r, // ✅ SAFE AREA
+            ),
             child: OutlinedButton(
               onPressed: (_controller.isCalculatingTrip || !_controller.canConfirmTrip)
                   ? null
@@ -350,7 +418,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 );
               },
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: primary, width: 1.5), // 👈 igual al OTP
+                side: const BorderSide(color: primary, width: 1.5), // 👈 igual al OTP
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -391,15 +459,15 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                     Icon(
                       Icons.check_circle,
                       size: 24.r,
-                      color: primary,
+                      color: Colors.black,
                     ),
                     SizedBox(width: 8.r),
                     Text(
-                      'Confirmar Viaje',
+                      'SOLICITAR SERVICIO',
                       style: TextStyle(
-                        color: Colors.black54,
+                        color: Colors.black,
                         fontSize: 14.r,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -408,6 +476,147 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _selectorTipoServicio() {
+    return Row(
+      children: [
+        _buildTipoServicioItem(
+          id: 'standard',
+          titulo: 'Básico',
+        ),
+        // SizedBox(width: 10.r),
+        // _buildTipoServicioItem(
+        //   id: 'vip',
+        //   titulo: 'VIP',
+        // ),
+      ],
+    );
+  }
+
+  Widget _buildTipoServicioItem({
+    required String id,
+    required String titulo,
+  }) {
+    final bool seleccionado = _tipoServicioSeleccionado == id;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (!mounted) return;
+        setState(() => _tipoServicioSeleccionado = id);
+      },
+      child: Container(
+        width: 120,
+        padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 8.r),
+        decoration: BoxDecoration(
+          color: seleccionado ? primary.withOpacity(0.10) : Colors.white,
+          borderRadius: BorderRadius.circular(14.r),
+          border: Border.all(
+            color: seleccionado ? primary : Colors.grey.shade300,
+            width: 1.4,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              titulo,
+              style: TextStyle(
+                fontSize: 10.r,
+                fontWeight: FontWeight.w800,
+                color: negro,
+              ),
+            ),
+            SizedBox(height: 6.r),
+            Image.asset(
+              "assets/imagen_taxi.png", // ✅ por ahora el mismo asset
+              height: 38.r,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metodoPagoSelector() {
+    return Row(
+      children: [
+        _buildMetodoPagoItem('Efectivo'),
+        SizedBox(width: 8.r),
+        _buildMetodoPagoItem('Nequi'),
+        SizedBox(width: 8.r),
+        _buildMetodoPagoItem('Daviplata'),
+      ],
+    );
+  }
+
+  Widget _buildMetodoPagoItem(String metodo) {
+    final bool seleccionado = _metodoPagoSeleccionado == metodo;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _metodoPagoSeleccionado = metodo;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 6.r),
+        decoration: BoxDecoration(
+          color: seleccionado ? primary.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: seleccionado ? primary : Colors.grey.shade300,
+            width: 1.3,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 🔘 Círculo tipo radio
+            Container(
+              width: 14.r,
+              height: 14.r,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: seleccionado ? primary : Colors.grey,
+                  width: 2,
+                ),
+              ),
+              child: seleccionado
+                  ? Center(
+                child: Container(
+                  width: 6.r,
+                  height: 6.r,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: primary,
+                  ),
+                ),
+              )
+                  : null,
+            ),
+            SizedBox(width: 6.r),
+            Text(
+              metodo,
+              style: TextStyle(
+                fontSize: 12.r,
+                fontWeight: FontWeight.w700,
+                color: negro,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -433,47 +642,57 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
   Widget _textApuntes() {
-    return Container(
-      margin: EdgeInsets.only(right: 10.r),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.r),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start, // ✅ TODO a la izquierda
         children: [
-          SizedBox(
-            height: 40.r,
-            child: OutlinedButton(
-              onPressed: () {
-                if (!mounted) return;
-                setState(() {
-                  isVisibleCajonApuntesAlConductor = true;
-                });
-              },
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: primary, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
-              ),
+          Text(
+            '¿Requieres algo especial para este viaje?',
+            style: TextStyle(
+              fontSize: 12.r,
+              fontWeight: FontWeight.w800,
+              color: negro,
+            ),
+          ),
+          SizedBox(height: 6.r),
 
-              // 🔥 mismo patrón visual
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.edit_note,
-                    size: 22.r,
-                    color: primary,
-                  ),
-                  SizedBox(width: 8.r),
-                  Text(
-                    'Apunte al conductor',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14.r,
-                      color: Colors.black54,
+          // 🔥 Contenedor ancho completo
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(horizontal: 12.r),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: primary, width: 1.3),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _caracteristicaSeleccionada,
+                isExpanded: true, // ✅ CLAVE para que ocupe todo el ancho
+                icon: Icon(
+                  Icons.keyboard_arrow_down,
+                  color: primary,
+                  size: 22.r,
+                ),
+                items: _caracteristicasVehiculo.map((c) {
+                  return DropdownMenuItem<String>(
+                    value: c,
+                    child: Text(
+                      c,
+                      textAlign: TextAlign.left, // ✅ texto a la izquierda
+                      style: TextStyle(
+                        fontSize: 13.r,
+                        fontWeight: FontWeight.w700,
+                        color: negro,
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _caracteristicaSeleccionada = value);
+                },
               ),
             ),
           ),
@@ -482,157 +701,28 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     );
   }
 
-  Widget _apuntesAlConductor() {
-    return Visibility(
-      visible: isVisibleCajonApuntesAlConductor,
-      child: SingleChildScrollView(
-        child: Container(
-          margin: const EdgeInsets.only(top: 50),
-          height: MediaQuery.of(context).size.height * 0.6,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            color: blanco,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: gris,
-                offset: Offset(3, -2),
-                blurRadius: 10,
-              )
-            ],
-          ),
-          child: Container(
-            padding: EdgeInsets.all(20.r),
-            child: Column(
-              children: [
-                Text(
-                  "Escribe al conductor alguna información importante para tu viaje.",
-                  style: TextStyle(
-                    fontSize: 16.r,
-                    color: negro,
-                    fontWeight: FontWeight.w900,
-                  ),
-                  maxLines: 2,
-                ),
-                SizedBox(height: 30.r),
-                TextField(
-                  maxLength: 80,
-                  autofocus: true,
-                  showCursor: true,
-                  controller: _con,
-                  textCapitalization: TextCapitalization.sentences,
-                  cursorColor: primary,
-                  decoration: InputDecoration(
-                    enabledBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: primary),
-                    ),
-                    focusedBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: primary),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _con.clear();
-                      },
-                    ),
-                  ),
-                ),
-                SizedBox(height: 35.r),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    // 🔥 GUARDAR
-                    OutlinedButton(
-                      onPressed: () {
-                        if (!mounted) return;
-
-                        setState(() {
-                          isVisibleCajonApuntesAlConductor = false;
-                        });
-
-                        _obtenerApuntesAlConductor();
-                        _controller.guardarApuntesConductor(apuntesAlConductor!);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primary, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 14.r, vertical: 10.r),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Guardar',
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14.r,
-                            ),
-                          ),
-                          SizedBox(width: 8.r),
-                          Icon(
-                            Icons.check_circle_outline,
-                            size: 18.r,
-                            color: primary,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(width: 10.r),
-
-                    // 🔴 CANCELAR
-                    OutlinedButton(
-                      onPressed: () {
-                        if (!mounted) return;
-
-                        setState(() {
-                          isVisibleCajonApuntesAlConductor = false;
-                        });
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.red.shade400, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 14.r, vertical: 10.r),
-                      ),
-                      child: Text(
-                        'Cancelar',
-                        style: TextStyle(
-                          color: Colors.red.shade400,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14.r,
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _obtenerApuntesAlConductor(){
-    apuntesAlConductor = _con.text;
-  }
 
   void verificarCedulaInicial() {
-    if (mounted) { // Verifica si el widget está montado
+    if (mounted) {
       setState(() {
         isVisibleTarjetaSolicitandoConductor = true;
       });
     }
+
     _startSearch();
-    _controller.createTravelInfo();
+
+    final base = _controller.total?.toInt() ?? 0;
+    final esVip = _tipoServicioSeleccionado == 'vip';
+    final tarifaFinal = base + (esVip ? _valorVipExtra : 0);
+
+    _controller.createTravelInfo(
+      tipoServicio: _tipoServicioSeleccionado,
+      valorVipExtra: esVip ? _valorVipExtra : 0,
+      tarifaFinal: tarifaFinal,
+      metodoPago: _metodoPagoSeleccionado,
+      caracteristicaVehiculo: _caracteristicaSeleccionada, // ✅ corregido
+    );
+
     _controller.getNearbyDrivers();
   }
 
@@ -678,10 +768,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 Text(
                   "Buscando un taxi\nque te lleve a:",
                   style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 24.r, // 🔽 más compacto
-                    color: negro,
-                    height: 1.1
+                      fontWeight: FontWeight.w900,
+                      fontSize: 24.r, // 🔽 más compacto
+                      color: negro,
+                      height: 1.1
                   ),
                   textAlign: TextAlign.center,
                 ),

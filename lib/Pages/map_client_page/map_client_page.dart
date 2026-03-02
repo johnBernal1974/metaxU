@@ -270,10 +270,11 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
   Widget _letrerosADondeVamos () {
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
     return Visibility(
       visible: isVisibleADondeVamos,
       child: Container(
-        height: 300.r, // Utiliza una función para calcular la altura dinámicamente
+        height: 300.r + bottomSafe,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.only(
@@ -297,7 +298,7 @@ class _MapClientPageState extends State<MapClientPage> {
             ),
           ],
         ),
-        padding: EdgeInsets.only(top: 15.r),
+        padding: EdgeInsets.only(top: 15.r, bottom: bottomSafe),
         child: Column(
           children: [
             Container(
@@ -506,8 +507,6 @@ class _MapClientPageState extends State<MapClientPage> {
     );
   }
 
-
-
   Future alertSinInternet (){
     return showDialog(
       context: context,
@@ -529,7 +528,9 @@ class _MapClientPageState extends State<MapClientPage> {
   }
 
 
-  Widget _cajonCambiandoDirecciondeDestino (){
+  Widget _cajonCambiandoDirecciondeDestino() {
+    final bottomSafe = MediaQuery.of(context).padding.bottom; // ✅ SAFE AREA
+
     return Visibility(
       visible: isVisibleCajoncambiandoDireccionDestino,
       child: Container(
@@ -546,7 +547,7 @@ class _MapClientPageState extends State<MapClientPage> {
               primary,
               blancoCards,
             ],
-            stops: [0.0, 0.7], // 👈 mitad y mitad
+            stops: [0.0, 0.7],
           ),
           boxShadow: [
             BoxShadow(
@@ -557,7 +558,8 @@ class _MapClientPageState extends State<MapClientPage> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          // ✅ aquí está el ajuste clave
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 50 + bottomSafe),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -570,38 +572,41 @@ class _MapClientPageState extends State<MapClientPage> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 20),
-              Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on, // Cambia la imagen por el icono de bandera
-                        color: Colors.green, // Color verde para el icono
-                        size: 20, // Ajusta el tamaño del icono al mismo que tenía la imagen
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _controller.to ?? '',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  )
 
+              const SizedBox(height: 20),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _controller.to ?? '',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
               SizedBox(height: 20),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -622,16 +627,14 @@ class _MapClientPageState extends State<MapClientPage> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.r),
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 10.r),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.r, vertical: 10.r),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.check_circle_outline,
-                          size: 16.r,
-                          color: primary,
-                        ),
+                        Icon(Icons.check_circle_outline,
+                            size: 16.r, color: primary),
                         SizedBox(width: 6.r),
                         Text(
                           'Confirmar',
@@ -660,20 +663,19 @@ class _MapClientPageState extends State<MapClientPage> {
                       });
                     },
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.red.shade400, width: 1.5),
+                      side:
+                      BorderSide(color: Colors.red.shade400, width: 1.5),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.r),
                       ),
-                      padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 10.r),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.r, vertical: 10.r),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.cancel_outlined,
-                          size: 16.r,
-                          color: Colors.red.shade400,
-                        ),
+                        Icon(Icons.cancel_outlined,
+                            size: 16.r, color: Colors.red.shade400),
                         SizedBox(width: 6.r),
                         Text(
                           'Cancelar',
@@ -953,25 +955,24 @@ class _MapClientPageState extends State<MapClientPage> {
     );
   }
 
-  Widget _botonBuscarEnElMapaDestino(){
+  Widget _botonBuscarEnElMapaDestino() {
+    final bottomSafe = MediaQuery.of(context).padding.bottom; // ✅ SAFE AREA abajo
+
     return Visibility(
       visible: isVisibleBotonPinBusquedaDestino,
       child: GestureDetector(
         onTap: () async {
-          // Verificar conexión a Internet antes de ejecutar la acción
-          bool hasConnection = await connectionService.hasInternetConnection();
+          final hasConnection = await connectionService.hasInternetConnection();
 
           if (hasConnection) {
-            // Si hay conexión, ejecuta la acción de ir a "Olvidaste tu contraseña"
             if (mounted) {
               setState(() {
-                bottomMaps = 170;
+                bottomMaps = 210;
                 isVisiblePinBusquedaDestino = true;
                 isVisibleBotonPinBusquedaDestino = false;
                 isVisibleCajoncambiandoDireccionDestino = true;
                 isVisibleADondeVamos = false;
 
-                // Llamar setLocationdraggableInfo solo cuando el icono es visible
                 if (isVisiblePinBusquedaDestino) {
                   _controller.setLocationdraggableInfo();
                 }
@@ -981,19 +982,20 @@ class _MapClientPageState extends State<MapClientPage> {
             alertSinInternet();
           }
         },
-
         child: Container(
-          height:  ScreenUtil().setSp(40),
+          height: ScreenUtil().setSp(40),
           width: ScreenUtil().setSp(100),
-          margin: const EdgeInsets.only(bottom: 350),
+
+          // ✅ antes: const EdgeInsets.only(bottom: 350)
+          margin: EdgeInsets.only(bottom: 350 + bottomSafe),
+
           padding: const EdgeInsets.all(8),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                bottomLeft: Radius.circular(24)
+              topLeft: Radius.circular(24),
+              bottomLeft: Radius.circular(24),
             ),
-
             boxShadow: [
               BoxShadow(
                 offset: Offset(5.0, 3.0),
@@ -1002,13 +1004,19 @@ class _MapClientPageState extends State<MapClientPage> {
               )
             ],
           ),
-
           child: Row(
             children: [
-              Image.asset('assets/icono_buscar_posicion.png', width: 35, height: 35),
-              const Text('Mapa', style: TextStyle(fontSize: 10, color: negro, fontWeight: FontWeight.w900))
+              Image.asset('assets/icono_buscar_posicion.png',
+                  width: 35, height: 35),
+              const Text(
+                'Mapa',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: negro,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ],
-
           ),
         ),
       ),

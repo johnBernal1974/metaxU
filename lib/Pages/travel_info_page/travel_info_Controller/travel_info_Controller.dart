@@ -85,6 +85,8 @@ class TravelInfoController{
   //para internet
   final ConnectionService connectionService = ConnectionService();
 
+  int contadorApi = 0;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -98,6 +100,7 @@ class TravelInfoController{
 
 
   Future<void> init(BuildContext context, Function refresh) async {
+    print('🔥 INIT EJECUTADO');
     this.context = context;
     this.refresh = refresh;
 
@@ -123,14 +126,17 @@ class TravelInfoController{
       toLatlng = arguments['tolatlng'];
 
       // ✅ Todo lo que requiere internet va aquí
-      await connectionService.checkConnectionAndShowCard(context, () {
-        // No pongas await aquí porque el callback es VoidCallback
-        Future.microtask(() async {
-          updateMap();
-          animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
-          await getGoogleMapsDirections(fromLatlng, toLatlng);
+      if(context.mounted){
+        await connectionService.checkConnectionAndShowCard(context, () {
+          // No pongas await aquí porque el callback es VoidCallback
+          Future.microtask(() async {
+            updateMap();
+            animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
+            print('🚀 init() está llamando getGoogleMapsDirections');
+            await getGoogleMapsDirections(fromLatlng, toLatlng);
+          });
         });
-      });
+      }
     } else {
       if (kDebugMode) {
         print('Error: Los argumentos son nulos');
@@ -293,24 +299,12 @@ class TravelInfoController{
   }
 
   Future<void> fitBounds(LatLngBounds bounds, BuildContext context) async {
-    GoogleMapController controller = await _mapController.future;
-    if(context.mounted){
-      double padding = MediaQuery.of(context).size.height * 0.1; // 10% del alto de la pantalla
-      // Calcular el tamaño de la distancia entre los marcadores
-      double distance = _calculateDistance(fromLatlng, toLatlng);
-      // Si la distancia es muy pequeña, ajustar el zoom
-      if (distance < 0.001) { // Puedes ajustar este valor según sea necesario
-        await controller.animateCamera(CameraUpdate.newLatLngZoom(
-          LatLng(
-            (fromLatlng.latitude + toLatlng.latitude) / 2,
-            (fromLatlng.longitude + toLatlng.longitude) / 2,
-          ),
-          15.0, // Ajusta el nivel de zoom deseado
-        ));
-      } else {
-        await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, padding));
-      }
-    }
+    if (!context.mounted) return;
+
+    await runAfterMapReady((c) async {
+      final padding = MediaQuery.of(context).size.height * 0.1;
+      await c.animateCamera(CameraUpdate.newLatLngBounds(bounds, padding));
+    });
   }
 
   Future<GoogleMapController?> _waitMapController({int msTimeout = 2500}) async {
@@ -406,14 +400,26 @@ class TravelInfoController{
 
   void onMapCreated(GoogleMapController controller) async {
     controller.setMapStyle(utilsMap.mapStyle);
-    if (!_mapController.isCompleted) {
-      _mapController.complete(controller);
+
+    // ✅ si ya había uno, resetea y guarda el nuevo controller
+    if (_mapController.isCompleted) {
+      _mapController = Completer<GoogleMapController>();
     }
-   // await setPolylines(); // Asegúrate de que esto no dependa de _mapController ya completado a menos que necesario
+    _mapController.complete(controller);
+
+    if (kDebugMode) {
+      print('🗺️ MAP CREADO NUEVO controller: ${DateTime.now()}');
+    }
   }
 
 
   Future<void> getGoogleMapsDirections(LatLng from, LatLng to) async {
+    contadorApi++;
+    print('🧮 API getDirections llamada #$contadorApi | ${DateTime.now()}');
+    print('🟢 LLAMANDO API getDirections');
+    print('FROM: ${from.latitude}, ${from.longitude}');
+    print('TO: ${to.latitude}, ${to.longitude}');
+    print('TIMESTAMP: ${DateTime.now()}');
     final ok = await connectionService.hasInternetConnection();
     if (!ok) return;
     try {
@@ -426,6 +432,7 @@ class TravelInfoController{
       });
 
       final data = Map<String, dynamic>.from(res.data);
+      print('✅ RESPUESTA API OK');
 
       if (data['ok'] != true) {
         if (kDebugMode) print('getDirections failed: $data');
@@ -463,9 +470,27 @@ class TravelInfoController{
     }
   }
 
+  Future<void> runAfterMapReady(Future<void> Function(GoogleMapController c) action) async {
+    // Espera a que el mapa se cree
+    final controller = await _waitMapController(msTimeout: 6000);
+    if (controller == null) {
+      if (kDebugMode) print('❌ runAfterMapReady: controller null');
+      return;
+    }
+
+    // Espera al primer frame + un tick
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    try {
+      await action(controller);
+    } catch (e) {
+      if (kDebugMode) print('❌ runAfterMapReady error: $e');
+    }
+  }
+
   Future<void> setPolylinesFromEncoded(String encodedPolyline) async {
     clearMap();
-
+    print('🧭 Dibujando polylines');
     final decoded = PolylinePoints().decodePolyline(encodedPolyline);
     points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
@@ -653,14 +678,17 @@ class TravelInfoController{
   }
 
   Future<void> animateCameraToPosition(double latitude, double longitude) async {
-    GoogleMapController controller = await _mapController.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(
-      CameraPosition(
-        bearing: 0,
-        target: LatLng(latitude, longitude),
-        zoom: 15,
-      ),
-    ));
+    await runAfterMapReady((c) async {
+      await c.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            bearing: 0,
+            target: LatLng(latitude, longitude),
+            zoom: 15,
+          ),
+        ),
+      );
+    });
   }
 
   Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
@@ -835,28 +863,47 @@ class TravelInfoController{
   }
 
 
-  void createTravelInfo() async {
-    TravelInfo travelInfo = TravelInfo(
-        id: _authProvider.getUser()!.uid,
-        status: 'created',
-        idDriver: "",
-        from: from,
-        to: to,
-        idTravelHistory: "",
-        fromLat: fromLatlng.latitude,
-        fromLng: fromLatlng.longitude,
-        toLat: toLatlng.latitude,
-        toLng: toLatlng.longitude,
-        tarifa: total!,
-        tarifaDescuento: 0,
-        tarifaInicial: total!,
-        distancia: distancia.toDouble(),
-        tiempoViaje: tiempoEnMinutos,
-        horaInicioViaje: null,
-        horaSolicitudViaje: Timestamp.now(),
-        horaFinalizacionViaje: null,
-        apuntes: apuntesAlConductor ?? ''
+  void createTravelInfo({
+    required String tipoServicio,
+    required int valorVipExtra,
+    required int tarifaFinal,
+    required String metodoPago,
+    required String caracteristicaVehiculo,
+  }) async {
+    final user = _authProvider.getUser();
+    if (user == null) return;
+
+    final travelInfo = TravelInfo(
+      id: user.uid,
+      status: 'created',
+      idDriver: "",
+      from: from,
+      to: to,
+      idTravelHistory: "",
+      fromLat: fromLatlng.latitude,
+      fromLng: fromLatlng.longitude,
+      toLat: toLatlng.latitude,
+      toLng: toLatlng.longitude,
+
+      // ✅ Aquí usas la tarifa final (vip + extra)
+      tarifa: tarifaFinal.toDouble(),
+      tarifaDescuento: 0,
+      tarifaInicial: tarifaFinal.toDouble(),
+
+      distancia: distancia.toDouble(),
+      tiempoViaje: tiempoEnMinutos,
+      horaInicioViaje: null,
+      horaSolicitudViaje: Timestamp.now(),
+      horaFinalizacionViaje: null,
+      apuntes: apuntesAlConductor ?? '',
+
+      // ✅ NUEVOS CAMPOS
+      tipoServicio: tipoServicio,
+      valorVipExtra: valorVipExtra,
+      metodoPago: metodoPago,
+      caracteristicaVehiculo: caracteristicaVehiculo,
     );
+
     await _travelInfoProvider.create(travelInfo);
     _checkDriverResponse();
   }

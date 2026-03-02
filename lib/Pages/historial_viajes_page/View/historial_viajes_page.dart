@@ -498,10 +498,10 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
   }
 
   Widget _summaryExtra() {
-    final totalViajes = _items.length;
-    final total = _items.fold<double>(0.0, (sum, x) => sum + x.tarifa);
-    final maxTarifa = _items.isEmpty ? 0.0 : _items.map((e) => e.tarifa).reduce((a, b) => a > b ? a : b);
-    final minTarifa = _items.isEmpty ? 0.0 : _items.map((e) => e.tarifa).reduce((a, b) => a < b ? a : b);
+    if (_items.isEmpty) return const SizedBox.shrink();
+
+    final maxTarifa = _items.map((e) => e.tarifa).reduce((a, b) => a > b ? a : b);
+    final minTarifa = _items.map((e) => e.tarifa).reduce((a, b) => a < b ? a : b);
 
     final formatter = NumberFormat.currency(
       locale: 'es_CO',
@@ -517,21 +517,35 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: gris, width: 0.5),
+        border: Border.all(color: grisMedio, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Viajes cargados: $totalViajes', style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text('Total: ${formatter.format(total)}'),
-          Text('Mayor tarifa: ${formatter.format(maxTarifa)}'),
-          Text('Menor tarifa: ${formatter.format(minTarifa)}'),
-          const SizedBox(height: 6),
-          const Text(
-            'Nota: el resumen se calcula con los viajes cargados en pantalla. '
-                'Si quieres el mes completo sin scrollear, lo hacemos con una consulta agregada.',
-            style: TextStyle(fontSize: 10, color: gris),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
+              children: [
+                const TextSpan(text: 'Tu viaje más económico: '),
+                TextSpan(
+                  text: formatter.format(minTarifa),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
+              children: [
+                const TextSpan(text: 'Tu viaje más alto: '),
+                TextSpan(
+                  text: formatter.format(maxTarifa),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -558,7 +572,6 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
 
     final totalViajes = _items.length;
     final total = _items.fold<double>(0.0, (sum, x) => sum + x.tarifa);
-    final promedio = totalViajes == 0 ? 0.0 : total / totalViajes;
 
     final formatter = NumberFormat.currency(
       locale: 'es_CO',
@@ -569,18 +582,42 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
     );
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: gris, width: 0.5),
+        border: Border.all(color: grisMedio, width: 1),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text('Viajes: $totalViajes', style: const TextStyle(fontWeight: FontWeight.w700))),
-          Expanded(child: Text('Total: ${formatter.format(total)}', style: const TextStyle(fontWeight: FontWeight.w700))),
-          Expanded(child: Text('Prom: ${formatter.format(promedio)}', style: const TextStyle(fontWeight: FontWeight.w700))),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
+              children: [
+                const TextSpan(text: 'Viajes realizados: '),
+                TextSpan(
+                  text: '$totalViajes',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
+              children: [
+                const TextSpan(text: 'Total de pagos: '),
+                TextSpan(
+                  text: formatter.format(total),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+          ),
+
         ],
       ),
     );

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../src/colors/colors.dart';
+import '../travel_info_page/travel_info_Controller/travel_info_Controller.dart';
 
 class HomePorteriaPage extends StatefulWidget {
   const HomePorteriaPage({super.key});
@@ -17,6 +19,8 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  final TravelInfoController _travelController = TravelInfoController();
+
   String nombrePorteria = "";
   String nombreConjunto = "";
   String direccion = "";
@@ -26,6 +30,10 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
   final TextEditingController usuarioController = TextEditingController();
   final TextEditingController aptoController = TextEditingController();
+
+  double? latPorteria;
+  double? lngPorteria;
+
 
   final List<String> _caracteristicasVehiculo = [
     'No',
@@ -40,6 +48,13 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _travelController.init(context, () {
+        setState(() {});
+      });
+    });
+
     _loadPorteria();
   }
 
@@ -63,7 +78,36 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       nombrePorteria = data["nombrePorteria"] ?? "";
       nombreConjunto = data["nombreConjunto"] ?? "";
       direccion = data["direccion"] ?? "";
+
+      latPorteria = data["lat"];
+      lngPorteria = data["lng"];
     });
+
+    print("====== PORTERIA CARGADA ======");
+    print("Porteria: $nombrePorteria");
+    print("Direccion: $direccion");
+    print("Lat: $latPorteria");
+    print("Lng: $lngPorteria");
+    print("===============================");
+
+    /// CONFIGURAR ORIGEN PARA GEO FIRE
+    _travelController.from = direccion;
+
+    _travelController.fromLatlng = LatLng(
+      latPorteria!,
+      lngPorteria!,
+    );
+
+    print("Preparando GeoFire...");
+    print("FromLatLng: ${_travelController.fromLatlng}");
+
+    /// OBTENER RADIO DE BUSQUEDA
+    _travelController.obtenerRadiodeBusqueda();
+
+    print("Radio de búsqueda: ${_travelController.radioDeBusqueda}");
+
+    /// BUSCAR CONDUCTORES CERCANOS
+    _travelController.getNearbyDriversPorteria();
   }
 
   @override
@@ -135,8 +179,6 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                   ),
                 ),
 
-
-
                 /// =========================
                 /// DIRECCION
                 /// =========================
@@ -151,18 +193,11 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                 ),
 
                 SizedBox(height: 15.r),
-                StreamBuilder<QuerySnapshot>(
-                  stream: _firestore
-                      .collection("Locations")
-                      .where("status", isEqualTo: "driver_available")
-                      .snapshots(),
-                  builder: (context, snapshot) {
+                Builder(
+                  builder: (context) {
+                    print("UI taxis cerca: ${_travelController.nearbyDrivers.length}");
 
-                    if (!snapshot.hasData) {
-                      return const SizedBox();
-                    }
-
-                    final taxisCerca = snapshot.data!.docs.length;
+                    final taxisCerca = _travelController.nearbyDrivers.length;
 
                     final texto = taxisCerca == 0
                         ? "No hay taxis disponibles"
@@ -173,8 +208,13 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                     final colorBorde =
                     taxisCerca == 0 ? Colors.red.shade300 : Colors.green;
 
+                    final icono =
+                    taxisCerca == 0
+                        ? Icons.warning_amber_rounded
+                        : Icons.local_taxi;
+
                     return Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
+                      padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 10.r),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10.r),
@@ -183,14 +223,27 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                           width: 1.5,
                         ),
                       ),
-                      child: Text(
-                        texto,
-                        style: TextStyle(
-                          fontSize: 14.r,
-                          fontWeight: FontWeight.w900,
-                          color: negro,
-                        ),
-                        textAlign: TextAlign.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+
+                          Icon(
+                            icono,
+                            color: negro,
+                            size: 20.r,
+                          ),
+
+                          SizedBox(width: 8.r),
+
+                          Text(
+                            texto,
+                            style: TextStyle(
+                              fontSize: 14.r,
+                              fontWeight: FontWeight.w900,
+                              color: negro,
+                            ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -230,10 +283,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                   width: double.infinity,
                   height: 42.r,
                   child: OutlinedButton(
-                    onPressed: () {
-
-                      /// luego conectaremos con solicitud
-                    },
+                    onPressed: _solicitarServicio,
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: primary, width: 1.5),
                       shape: RoundedRectangleBorder(
@@ -312,6 +362,8 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     );
   }
 
+
+
   Widget _buildUsuarioField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,6 +391,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
           child: TextField(
             controller: usuarioController,
+            textCapitalization: TextCapitalization.words,
             style: TextStyle(
               fontSize: 13.r,
               fontWeight: FontWeight.w700,
@@ -523,5 +576,70 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _solicitarServicio() async {
+
+    if (usuarioController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Debes escribir el nombre del usuario")),
+      );
+      return;
+    }
+
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    /// 1️⃣ CREAR TRAVEL REQUEST
+    final docRef = await _firestore.collection("TravelRequests").add({
+
+      "tipoSolicitud": "porteria",
+      "porteriaId": uid,
+
+      "nombreConjunto": nombreConjunto,
+      "nombrePorteria": nombrePorteria,
+      "direccion": direccion,
+
+      "lat": latPorteria,
+      "lng": lngPorteria,
+
+      "usuario": usuarioController.text.trim(),
+      "apto": aptoController.text.trim(),
+
+      "metodoPago": _metodoPagoSeleccionado,
+      "caracteristica": _caracteristicaSeleccionada,
+
+      "status": "created",
+      "timestamp": FieldValue.serverTimestamp(),
+
+    });
+
+    final requestId = docRef.id;
+
+    await _firestore.collection("TravelInfo").doc(requestId).set({
+
+      "from": direccion,
+      "fromLat": latPorteria,
+      "fromLng": lngPorteria,
+
+      "status": "created",
+      "tipoSolicitud": "porteria",
+
+      "timestamp": FieldValue.serverTimestamp(),
+
+    });
+
+    /// 3️⃣ ACTIVAR BUSQUEDA DE CONDUCTORES
+
+    _travelController.from = direccion;
+
+    _travelController.fromLatlng = LatLng(
+      latPorteria!,
+      lngPorteria!,
+    );
+
+   _travelController.obtenerRadiodeBusqueda();
+
+    _travelController.getNearbyDriversPorteria();
   }
 }

@@ -87,6 +87,8 @@ class TravelInfoController{
 
   int contadorApi = 0;
 
+  StreamSubscription? _streamSubscriptionPorteria;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -142,6 +144,21 @@ class TravelInfoController{
         print('Error: Los argumentos son nulos');
       }
     }
+  }
+
+
+  // INIT SOLO PARA PORTERIA
+  void initPorteria(BuildContext context, Function refresh) {
+    this.context = context;
+    this.refresh = refresh;
+
+    _geofireProvider = GeofireProvider();
+    _pricesProvider = PricesProvider();
+    _driverProvider = DriverProvider();
+
+    _authProvider = MyAuthProvider();
+    _pushNotificationsProvider = PushNotificationsProvider();
+    _travelInfoProvider = TravelInfoProvider();
   }
 
 
@@ -763,6 +780,41 @@ class TravelInfoController{
     });
   }
 
+
+
+  void getNearbyDriversPorteria() {
+
+    serviceAccepted = false;
+
+    Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
+      fromLatlng.latitude,
+      fromLatlng.longitude,
+      radioDeBusqueda ?? 1,
+    );
+
+    _streamSubscriptionPorteria = stream.listen((List<DocumentSnapshot> documentList) {
+
+      _streamSubscriptionPorteria?.cancel();
+
+      if (documentList.isNotEmpty) {
+
+        nearbyDrivers = documentList.map((d) => d.id).toList();
+
+        print("PORTERIA encontró ${nearbyDrivers.length} taxis");
+
+        _attemptToSendNotificationPorteria(nearbyDrivers, 0);
+
+      } else {
+
+        print("PORTERIA no encontró taxis");
+
+      }
+
+    });
+
+  }
+
+
   void _attemptToSendNotification(List<String> driverIds, int index) {
     if (index >= driverIds.length || serviceAccepted) {
       if (kDebugMode) {
@@ -943,6 +995,91 @@ class TravelInfoController{
       }
       return false;
     }
+  }
+
+  //PARA PORTERIA
+
+  Future<bool> sendNotificationPorteria(String token) async {
+
+    final data = {
+      'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+      'tipoSolicitud': 'porteria',
+
+      'origin': from,
+      'originLat': fromLatlng.latitude.toString(),
+      'originLng': fromLatlng.longitude.toString(),
+
+      'mensaje': 'Servicio solicitado desde portería'
+    };
+
+    try {
+
+      await _pushNotificationsProvider.sendMessage(token, data);
+
+      if (kDebugMode) {
+        print("Notificación PORTERIA enviada correctamente");
+      }
+
+      await Future.delayed(const Duration(seconds: 20));
+
+      return false;
+
+    } catch (e) {
+
+      if (kDebugMode) {
+        print("Error enviando notificación portería: $e");
+      }
+
+      return false;
+
+    }
+  }
+
+  void _attemptToSendNotificationPorteria(List<String> driverIds, int index) {
+
+    if (index >= driverIds.length || serviceAccepted) {
+
+      print('No hay más conductores disponibles.');
+      notifiedDrivers.clear();
+      return;
+
+    }
+
+    String driverId = driverIds[index];
+
+    if (notifiedDrivers.contains(driverId)) {
+      _attemptToSendNotificationPorteria(driverIds, index + 1);
+      return;
+    }
+
+    notifiedDrivers.add(driverId);
+
+    print("Enviando notificación PORTERIA a $driverId");
+
+    _driverProvider.getById(driverId).then((driver) async {
+
+      if (driver?.token != null) {
+
+        bool accepted = await sendNotificationPorteria(driver!.token);
+
+        if (accepted) {
+
+          serviceAccepted = true;
+          print("Conductor aceptó servicio portería");
+
+        } else {
+
+          print("Conductor no aceptó, probando siguiente...");
+        }
+
+      } else {
+
+        print("Driver sin token");
+      }
+
+      _attemptToSendNotificationPorteria(driverIds, index + 1);
+
+    });
   }
 
 }

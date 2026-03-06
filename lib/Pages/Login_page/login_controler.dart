@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,9 @@ class LoginController {
   bool get canResend => !sendingOtp && resendSeconds == 0;
   bool get deviceBlocked => deviceBlockSeconds > 0;
   bool get isOtpComplete => otpController.text.trim().length == 6;
+
+
+  DocumentSnapshot? porteriaEncontrada;
 
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -135,6 +139,18 @@ class LoginController {
       return;
     }
 
+    // 🔵 PASO 1: VERIFICAR QUE EL TELÉFONO EXISTA EN PORTERIAS
+    porteriaEncontrada = await buscarPorteriaPorTelefono(cel10);
+
+    if (porteriaEncontrada == null) {
+      celularError = "Este número no pertenece a una portería registrada.";
+      refresh();
+      return;
+    }
+
+    print("Conjunto encontrado**************************: ${porteriaEncontrada!['nombreConjunto']}");
+
+
     sendingOtp = true;
     refresh();
 
@@ -157,22 +173,22 @@ class LoginController {
       // =========================
       // ✅ 1) GATE ANTES DE OTP
       // =========================
-      try {
-        await checkPhoneRoleBeforeOtp(
-          cel10: cel10,
-          targetRole: "client",
-          action: "login",
-        );
-      } catch (e) {
-        stopLoading(); // ✅ cancela failsafe y apaga loader
-
-        final msg = e.toString().replaceFirst('Exception: ', '').trim();
-        otpError = msg.isNotEmpty
-            ? msg
-            : "Este número no esta disponible para ingresar como cliente. Verifica e intenta nuevamente.";
-        refresh();
-        return; // ✅ NO enviar OTP
-      }
+      // try {
+      //   await checkPhoneRoleBeforeOtp(
+      //     cel10: cel10,
+      //     targetRole: "client",
+      //     action: "login",
+      //   );
+      // } catch (e) {
+      //   stopLoading(); // ✅ cancela failsafe y apaga loader
+      //
+      //   final msg = e.toString().replaceFirst('Exception: ', '').trim();
+      //   otpError = msg.isNotEmpty
+      //       ? msg
+      //       : "Este número no esta disponible para ingresar como cliente. Verifica e intenta nuevamente.";
+      //   refresh();
+      //   return; // ✅ NO enviar OTP
+      // }
 
       // =========================
       // ✅ 2) SI PASA EL GATE, ENVÍA OTP NORMAL
@@ -317,23 +333,23 @@ class LoginController {
       // =========================
       // ✅ 1) Re-GATE post-auth (extra seguridad)
       // =========================
-      try {
-        await checkPhoneRoleBeforeOtp(
-          cel10: cel10Input,
-          targetRole: "client",
-          action: "login",
-        );
-      } catch (e) {
-        // Si falló gate post-auth => cierra sesión y muestra motivo
-        try {
-          await _authProvider.signOut();
-        } catch (_) {}
-
-        otpError = e.toString().replaceFirst('Exception: ', '');
-        otpVerificado = false;
-        refresh();
-        return;
-      }
+      // try {
+      //   await checkPhoneRoleBeforeOtp(
+      //     cel10: cel10Input,
+      //     targetRole: "client",
+      //     action: "login",
+      //   );
+      // } catch (e) {
+      //   // Si falló gate post-auth => cierra sesión y muestra motivo
+      //   try {
+      //     await _authProvider.signOut();
+      //   } catch (_) {}
+      //
+      //   otpError = e.toString().replaceFirst('Exception: ', '');
+      //   otpVerificado = false;
+      //   refresh();
+      //   return;
+      // }
 
       // =========================
       // ✅ 2) Confirmar que el phone del Auth coincide con el input
@@ -384,13 +400,71 @@ class LoginController {
   // Entrar si existe en Firestore
   // =========================
   Future<void> _entrarSiExiste(User user) async {
+
+    final uid = user.uid;
+    final telefono = user.phoneNumber;
+
+    // ============================
+    // 1️⃣ SI ES PORTERIA
+    // ============================
+    if (porteriaEncontrada != null) {
+
+      try {
+        final data = porteriaEncontrada!.data() as Map<String, dynamic>;
+
+        await FirebaseFirestore.instance
+            .collection("UsuariosPorteria")
+            .doc(uid)
+            .set({
+
+          /// referencia
+          "idPorteria": porteriaEncontrada!.id,
+
+          /// datos de la porteria
+          "nombrePorteria": data["nombrePorteria"],
+          "nombreConjunto": data["nombreConjunto"],
+          "direccion": data["direccion"],
+          "barrio": data["barrio"],
+          "ciudad": data["ciudad"],
+          "lat": data["lat"],
+          "lng": data["lng"],
+          "tipoPorteria": data["tipoPorteria"],
+          "activa": data["activa"],
+
+          /// telefono usuario
+          "telefono": telefono,
+
+          /// control
+          "fechaRegistro": FieldValue.serverTimestamp(),
+          "tipoUsuario": "porteria",
+
+        }, SetOptions(merge: true));
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error guardando porteria: $e");
+        }
+      }
+
+      if (!context.mounted) return;
+
+      Snackbar.showSnackbarNegro(
+        key.currentContext!,
+        "Ingresando portería...",
+      );
+
+      Navigator.pushReplacementNamed(context, 'home_porteria');
+      return;
+    }
+
+    // ============================
+    // 2️⃣ FLUJO CLIENTE
+    // ============================
     final existing = await _clientProvider.getById(user.uid);
 
     if (!context.mounted) return;
 
     if (existing == null) {
-      // ✅ IMPORTANTÍSIMO: si está autenticado pero NO hay doc en Clients,
-      // cerramos sesión para evitar quedar con una sesión "huérfana".
+
       try {
         await FirebaseAuth.instance.signOut();
       } catch (_) {}
@@ -400,28 +474,28 @@ class LoginController {
         "Este número no está registrado. Regístrate primero.",
       );
 
-      // ✅ Tomar teléfono para precargar el registro
       final rawPhone = user.phoneNumber ?? '';
+
       final phoneSinCodigo = rawPhone.startsWith('+57')
           ? rawPhone.replaceFirst('+57', '')
-          : rawPhone.replaceAll(RegExp(r'^\+\d{1,3}'), ''); // fallback
+          : rawPhone.replaceAll(RegExp(r'^\+\d{1,3}'), '');
 
-      // ✅ Reemplaza el login por el registro (para que no vuelva atrás al OTP)
       if (!context.mounted) return;
 
       Navigator.pushReplacementNamed(
         context,
         'register',
         arguments: {
-          // ❗️uid ya no es confiable después del signOut,
-          // mejor NO enviarlo (o envíalo solo si lo usas para UI).
           'phone': phoneSinCodigo,
         },
       );
+
       return;
     }
 
-    // ✅ Existe: entra al flujo normal (foto/mapa/etc)
+    // ============================
+    // 3️⃣ CLIENTE EXISTENTE
+    // ============================
     Snackbar.showSnackbarNegro(
       key.currentContext!,
       "Ingresando...",
@@ -440,5 +514,23 @@ class LoginController {
     otpError = null;
     otpController.clear();
     refresh();
+  }
+
+
+
+  // para porterias
+
+  Future<DocumentSnapshot?> buscarPorteriaPorTelefono(String telefono) async {
+    final query = await FirebaseFirestore.instance
+        .collection('Porterias')
+        .where('telefono', isEqualTo: telefono)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) {
+      return null;
+    }
+
+    return query.docs.first;
   }
 }

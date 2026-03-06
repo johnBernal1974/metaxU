@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -92,25 +93,48 @@ class MyAuthProvider {
       if (!context.mounted) return;
       if (_navigating) return;
 
-      // 1) No logueado -> login
+      // 1️⃣ No logueado -> login
       if (user == null) {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
         return;
       }
 
-      final clientProvider = ClientProvider();
       final userId = user.uid;
 
-      // 2) Traer el Client (fuente de la verdad)
+      /// ==============================
+      /// 2️⃣ VERIFICAR SI ES PORTERIA
+      /// ==============================
+
+      final porteriaDoc = await FirebaseFirestore.instance
+          .collection("UsuariosPorteria")
+          .doc(userId)
+          .get();
+
+      if (!context.mounted) return;
+      if (_navigating) return;
+
+      if (porteriaDoc.exists) {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+            context,
+            'home_porteria',
+                (route) => false
+        );
+        return;
+      }
+
+      /// ==============================
+      /// 3️⃣ CLIENTE NORMAL
+      /// ==============================
+
+      final clientProvider = ClientProvider();
       final Client? client = await clientProvider.getById(userId);
 
       if (!context.mounted) return;
       if (_navigating) return;
 
       if (client == null) {
-        // ✅ Hay user Auth pero no existe documento Firestore
-        // 👉 Fuerza que vuelva a pedir OTP en register
         await _firebaseAuth.signOut();
 
         if (!context.mounted) return;
@@ -119,7 +143,7 @@ class MyAuthProvider {
         return;
       }
 
-      // 3) Status bloqueado
+      /// 4️⃣ Status bloqueado
       final status = (client.status ?? '').trim();
       if (status == 'bloqueado') {
         _navigating = true;
@@ -127,7 +151,7 @@ class MyAuthProvider {
         return;
       }
 
-      // 4) Foto obligatoria
+      /// 5️⃣ Foto obligatoria
       final foto = (client.the15FotoPerfilUsuario ?? '').trim();
       final fotoTomada = client.fotoPerfilTomada ?? false;
 
@@ -137,7 +161,7 @@ class MyAuthProvider {
         return;
       }
 
-      // 5) Pregunta y respuesta obligatorias
+      /// 6️⃣ Pregunta y respuesta obligatorias
       final pregunta = (client.preguntaPalabraClave ?? '').trim();
       final respuesta = (client.palabraClave ?? '').trim();
 
@@ -147,7 +171,7 @@ class MyAuthProvider {
         return;
       }
 
-      // 6) Viaje o mapa normal
+      /// 7️⃣ Viaje o mapa normal
       final isTraveling = client.the00isTraveling;
 
       _navigating = true;
@@ -156,6 +180,7 @@ class MyAuthProvider {
       } else {
         Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
       }
+
     });
   }
 

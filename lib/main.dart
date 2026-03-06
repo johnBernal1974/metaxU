@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'Pages/Forgot_PasswordPage/forgot_password_page.dart';
 import 'Pages/Login_page/login_page.dart';
+import 'Pages/Porterias/HomePorteriaPage.dart';
 import 'Pages/Register_page/register_page.dart';
 import 'Pages/Splash_page/splash.dart';
 import 'Pages/TakeFotoCedula/upload_cedula_page.dart';
@@ -102,6 +103,9 @@ class MyApp extends StatelessWidget {
         'after_calification_page': (context) => const AfterCalificationPage(),
         'complete_security': (context) => const CompleteSecurityPage(),
         'upload_cedula': (context) => const UploadCedulaPage(),
+
+        //porterias
+        'home_porteria': (context) => const HomePorteriaPage(),
 
 
       },

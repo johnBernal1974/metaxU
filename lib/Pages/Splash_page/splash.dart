@@ -48,6 +48,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   }
 
   void _checkConnectionAndAuthenticate() async {
+
     final isLoggedIn = await _authProvider.isUserLoggedIn();
 
     if (!isLoggedIn) {
@@ -65,6 +66,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
     final okInternet = await connectionService.hasInternetConnection();
 
     if (!okInternet) {
+
       if (context.mounted) {
         connectionService.showPersistentConnectionCard(
           context,
@@ -75,23 +77,51 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       }
 
       if (!mounted) return;
+
       setState(() {
         _esperandoInternet = true;
         _msgEstado = 'Sin internet. Esperando conexión...';
       });
+
       return;
     }
 
     connectionService.hide();
 
     if (!mounted) return;
+
     setState(() {
       _esperandoInternet = true;
       _msgEstado = 'Validando sesión...';
     });
 
     try {
-      await SessionManager.loginGuard(collection: 'Clients');
+
+      /// ===================================
+      /// 1️⃣ Intentar validar como CLIENTE
+      /// ===================================
+
+      try {
+
+        await SessionManager.loginGuard(collection: 'Clients');
+
+      } catch (e) {
+
+        final err = e.toString();
+
+        /// ===================================
+        /// 2️⃣ Si no existe en Clients → probar PORTERIA
+        /// ===================================
+
+        if (err.contains('PROFILE_NOT_FOUND')) {
+
+          await SessionManager.loginGuard(collection: 'UsuariosPorteria');
+
+        } else {
+          rethrow;
+        }
+
+      }
 
       if (!mounted) return;
 
@@ -101,15 +131,20 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       });
 
       _navigated = true;
+
+      /// Este método ya decide si va a:
+      /// map_client o home_porteria
       _authProvider.checkIfUserIsLogged(context);
 
     } catch (e) {
+
       if (!mounted) return;
 
-      // ✅ Si fue un fallo por conectividad real, NO cierres sesión ni navegues al login.
       final okInternet = await connectionService.hasInternetConnection();
 
+      /// Si fue falla de internet → no cerrar sesión
       if (!okInternet) {
+
         if (context.mounted) {
           connectionService.showPersistentConnectionCard(
             context,
@@ -121,17 +156,18 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
         setState(() {
           _esperandoInternet = true;
-          _msgEstado = 'Conexión inestable. Esperando internet para validar sesión...';
+          _msgEstado =
+          'Conexión inestable. Esperando internet para validar sesión...';
         });
 
-        return; // ✅ NO signOut, NO login
+        return;
       }
 
       final err = e.toString();
 
-      // ✅ NUEVO: Usuario autenticado pero SIN documento en Firestore
-      // -> NO creamos doc fantasma, mandamos a completar registro
+      /// Usuario autenticado pero sin perfil
       if (err.contains('PROFILE_NOT_FOUND')) {
+
         if (!mounted) return;
 
         setState(() {
@@ -140,11 +176,17 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         });
 
         _navigated = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'register', (_) => false);
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'register',
+              (_) => false,
+        );
+
         return;
       }
 
-      // ✅ Si sí hay internet, entonces es error real (sesión activa u otro fallo)
+      /// Error real → cerrar sesión
       SessionManager.stopHeartbeat();
       await _authProvider.signOut();
 

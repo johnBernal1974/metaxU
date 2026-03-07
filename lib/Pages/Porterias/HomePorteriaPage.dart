@@ -24,6 +24,8 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   String nombrePorteria = "";
   String nombreConjunto = "";
   String direccion = "";
+  String ciudad = "";
+  String barrio = "";
 
   String _metodoPagoSeleccionado = 'Efectivo';
   String _caracteristicaSeleccionada = 'No';
@@ -78,17 +80,12 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       nombrePorteria = data["nombrePorteria"] ?? "";
       nombreConjunto = data["nombreConjunto"] ?? "";
       direccion = data["direccion"] ?? "";
+      ciudad = data["ciudad"] ?? "";
+      barrio = data["barrio"] ?? "";
 
       latPorteria = data["lat"];
       lngPorteria = data["lng"];
     });
-
-    print("====== PORTERIA CARGADA ======");
-    print("Porteria: $nombrePorteria");
-    print("Direccion: $direccion");
-    print("Lat: $latPorteria");
-    print("Lng: $lngPorteria");
-    print("===============================");
 
     /// CONFIGURAR ORIGEN PARA GEO FIRE
     _travelController.from = direccion;
@@ -97,26 +94,15 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       latPorteria!,
       lngPorteria!,
     );
-
-    print("Preparando GeoFire...");
-    print("FromLatLng: ${_travelController.fromLatlng}");
-
-    /// OBTENER RADIO DE BUSQUEDA
-    _travelController.obtenerRadiodeBusqueda();
-
-    print("Radio de búsqueda: ${_travelController.radioDeBusqueda}");
-
-    /// BUSCAR CONDUCTORES CERCANOS
-    _travelController.getNearbyDriversPorteria();
   }
 
   @override
   Widget build(BuildContext context) {
-
     ScreenUtil.init(context, designSize: const Size(375, 812));
 
     return Scaffold(
       backgroundColor: grisMapa,
+      drawer: _menuPorteria(),
 
       body: SafeArea(
         child: SingleChildScrollView(
@@ -128,143 +114,81 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
 
-                /// =========================
-                /// TAXI
-                /// =========================
-
-                Image.asset(
-                  "assets/imagen_taxi.png",
-                  height: 50.r,
-                ),
-
-                /// =========================
-                /// LOGO METAX
-                /// =========================
-
-                Image.asset(
-                  "assets/metax_logo.png",
-                  height: 45.r,
-                ),
-
-                SizedBox(height: 10.r),
-
-                /// =========================
-                /// NOMBRE CONJUNTO
-                /// =========================
-
-                Text(
-                  nombreConjunto,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16.r,
-                    fontWeight: FontWeight.w900,
-                    color: negro,
-                    height: 1.1
-                  ),
-                ),
-
-                SizedBox(height: 4.r),
-
-                /// =========================
-                /// NOMBRE PORTERIA
-                /// =========================
-
-                Text(
-                  "Portería $nombrePorteria",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14.r,
-                    fontWeight: FontWeight.w700,
-                    color: negro,
-                  ),
-                ),
-
-                /// =========================
-                /// DIRECCION
-                /// =========================
-
-                Text(
-                  direccion,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12.r,
-                    color: Colors.black,
-                  ),
-                ),
-
-                SizedBox(height: 15.r),
+                /// HEADER (MENU + LOGO)
                 Builder(
                   builder: (context) {
-                    print("UI taxis cerca: ${_travelController.nearbyDrivers.length}");
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
 
-                    final taxisCerca = _travelController.nearbyDrivers.length;
-
-                    final texto = taxisCerca == 0
-                        ? "No hay taxis disponibles"
-                        : taxisCerca == 1
-                        ? "1 taxi disponible cerca"
-                        : "$taxisCerca taxis disponibles cerca";
-
-                    final colorBorde =
-                    taxisCerca == 0 ? Colors.red.shade300 : Colors.green;
-
-                    final icono =
-                    taxisCerca == 0
-                        ? Icons.warning_amber_rounded
-                        : Icons.local_taxi;
-
-                    return Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 10.r),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10.r),
-                        border: Border.all(
-                          color: colorBorde,
-                          width: 1.5,
+                        IconButton(
+                          icon: const Icon(
+                            Icons.menu,
+                            size: 28,
+                          ),
+                          onPressed: () {
+                            Scaffold.of(context).openDrawer();
+                          },
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
 
-                          Icon(
-                            icono,
-                            color: negro,
-                            size: 20.r,
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
+                          decoration: BoxDecoration(
+                            color: primary,
+                            borderRadius: BorderRadius.circular(12.r),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-
-                          SizedBox(width: 8.r),
-
-                          Text(
-                            texto,
-                            style: TextStyle(
-                              fontSize: 14.r,
-                              fontWeight: FontWeight.w900,
-                              color: negro,
-                            ),
+                          child: Image.asset(
+                            "assets/metax_logo2.png",
+                            height: 25.r,
                           ),
-                        ],
-                      ),
+                        ),
+
+                        /// espacio para balancear el Row
+                        SizedBox(width: 40.r),
+
+                      ],
                     );
                   },
                 ),
 
-                SizedBox(height: 20.r),
+                SizedBox(height: 10.r),
 
-                /// =========================
-                /// METODO DE PAGO
-                /// =========================
+                /// NOMBRE CONJUNTO
+                Text(
+                  nombreConjunto,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18.r,
+                    fontWeight: FontWeight.w900,
+                    color: negro,
+                    height: 1.1,
+                  ),
+                ),
+
+                /// NOMBRE PORTERIA
+                Text(
+                  "Portería $nombrePorteria",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12.r,
+                    fontWeight: FontWeight.w700,
+                    color: negro,
+                  ),
+                ),
+                SizedBox(height: 15.r),
 
                 _metodoPagoSelector(),
 
                 SizedBox(height: 10.r),
 
-                /// =========================
-                /// CARACTERISTICAS
-                /// =========================
-
                 _selectorCaracteristicas(),
-
 
                 SizedBox(height: 10.r),
 
@@ -273,19 +197,21 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                 SizedBox(height: 12.r),
 
                 _buildAptoField(),
-                SizedBox(height: 20.r),
 
-                /// =========================
+                SizedBox(height: 40.r),
+
                 /// BOTON SOLICITAR SERVICIO
-                /// =========================
-
                 SizedBox(
                   width: double.infinity,
-                  height: 42.r,
-                  child: OutlinedButton(
-                    onPressed: _solicitarServicio,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: primary, width: 1.5),
+                  height: 44.r,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      await _solicitarServicio();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      elevation: 4,
+                      shadowColor: Colors.black26,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.r),
                       ),
@@ -295,8 +221,8 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                       children: [
 
                         Icon(
-                          Icons.local_taxi,
-                          color: negro,
+                          Icons.send_to_mobile,
+                          color: Colors.black,
                           size: 22.r,
                         ),
 
@@ -307,15 +233,15 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                           style: TextStyle(
                             fontSize: 14.r,
                             fontWeight: FontWeight.w900,
-                            color: negro,
+                            color: Colors.black,
                           ),
                         ),
+
                       ],
                     ),
                   ),
                 ),
 
-                /// margen inferior seguro para gestos
                 SizedBox(height: 30.r),
 
               ],
@@ -326,9 +252,141 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     );
   }
 
-  /// ===============================
-  /// METODO DE PAGO
-  /// ===============================
+  Widget _menuPorteria() {
+    return Drawer(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 140,
+            child: DrawerHeader(
+              padding: EdgeInsets.zero,
+              margin: EdgeInsets.zero,
+              decoration: const BoxDecoration(
+                color: primary,
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    Text(
+                      nombreConjunto,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      "Portería $nombrePorteria",
+
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        height: 1
+                      ),
+                    ),
+                    Text(
+                      direccion,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10.r,
+                        color: Colors.black,
+                      ),
+                    ),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+
+                        Text(
+                          barrio,
+                          style: TextStyle(
+                            fontSize: 10.r,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black,
+                          ),
+                        ),
+
+                        SizedBox(width: 6.r),
+
+                        Text(
+                          "-",
+                          style: TextStyle(
+                            fontSize: 10.r,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black54,
+                          ),
+                        ),
+
+                        SizedBox(width: 6.r),
+
+                        Text(
+                          ciudad,
+                          style: TextStyle(
+                            fontSize: 10.r,
+                            color: Colors.black,
+                          ),
+                        ),
+
+                      ],
+                    ),
+
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.send_to_mobile),
+            title: const Text("Solicitar servicio"),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.local_taxi),
+            title: const Text("Viajes activos"),
+            onTap: () {
+              Navigator.pushNamed(context, "viajes_porteria");
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text("Historial"),
+            onTap: () {
+              Navigator.pushNamed(context, "historial_porteria");
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.support_agent),
+            title: const Text("Contacto"),
+            onTap: () {
+              Navigator.pushNamed(context, "contacto_porteria");
+            },
+          ),
+
+          const Spacer(),
+
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text("Cerrar sesión"),
+            onTap: () async {
+              await FirebaseAuth.instance.signOut();
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+        ],
+      ),
+    );
+  }
 
   Widget _metodoPagoSelector() {
     return Column(
@@ -337,7 +395,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
         /// TITULO
         Text(
-          "Método de pago",
+          "Selecciona el método de pago",
           style: TextStyle(
             fontSize: 12.r,
             fontWeight: FontWeight.w800,
@@ -363,14 +421,13 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   }
 
 
-
   Widget _buildUsuarioField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
 
         Text(
-          "Usuario",
+          "Nombre del pasajero",
           style: TextStyle(
             fontSize: 12.r,
             fontWeight: FontWeight.w800,
@@ -514,10 +571,6 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     );
   }
 
-  /// ===============================
-  /// CARACTERISTICAS
-  /// ===============================
-
   Widget _selectorCaracteristicas() {
 
     return Column(
@@ -526,7 +579,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
         /// TITULO
         Text(
-          "Características del vehículo",
+          "¿Algún requerimiento especial?",
           style: TextStyle(
             fontSize: 12.r,
             fontWeight: FontWeight.w800,
@@ -610,7 +663,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "caracteristica": _caracteristicaSeleccionada,
 
       "status": "created",
-      "timestamp": FieldValue.serverTimestamp(),
+      "timestamp": Timestamp.now(),
 
     });
 
@@ -625,7 +678,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "status": "created",
       "tipoSolicitud": "porteria",
 
-      "timestamp": FieldValue.serverTimestamp(),
+      "timestamp": Timestamp.now(),
 
     });
 
@@ -642,4 +695,5 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
     _travelController.getNearbyDriversPorteria();
   }
+
 }

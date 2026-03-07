@@ -139,16 +139,34 @@ class LoginController {
       return;
     }
 
-    // 🔵 PASO 1: VERIFICAR QUE EL TELÉFONO EXISTA EN PORTERIAS
+    // 🔵 PASO 1: BUSCAR SI ES PORTERIA
     porteriaEncontrada = await buscarPorteriaPorTelefono(cel10);
 
+// 🔵 PASO 2: SI NO ES PORTERIA, BUSCAR CLIENTE
+    bool clienteExiste = false;
+
     if (porteriaEncontrada == null) {
-      celularError = "Este número no pertenece a una portería registrada.";
+      final clientQuery = await FirebaseFirestore.instance
+          .collection('Clients')
+          .where('07_Celular', isEqualTo: cel10)
+          .limit(1)
+          .get();
+
+      if (clientQuery.docs.isNotEmpty) {
+        clienteExiste = true;
+      }
+    }
+
+// 🔵 PASO 3: SI NO ES NINGUNO
+    if (porteriaEncontrada == null && !clienteExiste) {
+      celularError = "Este número no está registrado.";
       refresh();
       return;
     }
 
-    print("Conjunto encontrado**************************: ${porteriaEncontrada!['nombreConjunto']}");
+    if (porteriaEncontrada != null) {
+      print("Conjunto encontrado**************************: ${porteriaEncontrada!['nombreConjunto']}");
+    }
 
 
     sendingOtp = true;
@@ -173,22 +191,24 @@ class LoginController {
       // =========================
       // ✅ 1) GATE ANTES DE OTP
       // =========================
-      // try {
-      //   await checkPhoneRoleBeforeOtp(
-      //     cel10: cel10,
-      //     targetRole: "client",
-      //     action: "login",
-      //   );
-      // } catch (e) {
-      //   stopLoading(); // ✅ cancela failsafe y apaga loader
-      //
-      //   final msg = e.toString().replaceFirst('Exception: ', '').trim();
-      //   otpError = msg.isNotEmpty
-      //       ? msg
-      //       : "Este número no esta disponible para ingresar como cliente. Verifica e intenta nuevamente.";
-      //   refresh();
-      //   return; // ✅ NO enviar OTP
-      // }
+      if (porteriaEncontrada == null) {
+        try {
+          await checkPhoneRoleBeforeOtp(
+            cel10: cel10,
+            targetRole: "client",
+            action: "login",
+          );
+        } catch (e) {
+          stopLoading();
+
+          final msg = e.toString().replaceFirst('Exception: ', '').trim();
+          otpError = msg.isNotEmpty
+              ? msg
+              : "Este número no está disponible para ingresar.";
+          refresh();
+          return;
+        }
+      }
 
       // =========================
       // ✅ 2) SI PASA EL GATE, ENVÍA OTP NORMAL
@@ -501,7 +521,7 @@ class LoginController {
       "Ingresando...",
     );
 
-    _authProvider.checkIfUserIsLogged(context);
+    Navigator.pushReplacementNamed(context, 'map_client');
   }
 
   // =========================

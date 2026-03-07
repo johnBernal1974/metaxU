@@ -89,6 +89,8 @@ class TravelInfoController{
 
   StreamSubscription? _streamSubscriptionPorteria;
 
+  String? requestId;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -1001,38 +1003,36 @@ class TravelInfoController{
 
   Future<bool> sendNotificationPorteria(String token) async {
 
+    final doc = await FirebaseFirestore.instance
+        .collection("TravelRequests")
+        .doc(requestId)
+        .get();
+
+    final dataRequest = doc.data();
+
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
       'tipoSolicitud': 'porteria',
 
-      'origin': from,
-      'originLat': fromLatlng.latitude.toString(),
-      'originLng': fromLatlng.longitude.toString(),
+      'origin': dataRequest?["direccion"],
+
+      'originLat': dataRequest?["lat"].toString(),
+      'originLng': dataRequest?["lng"].toString(),
+
+      'nombreConjunto': dataRequest?["nombreConjunto"] ?? '',
+      'metodoPago': dataRequest?["metodoPago"] ?? '',
+      'caracteristica': dataRequest?["caracteristica"] ?? '',
+      'barrio': dataRequest?["barrio"] ?? "",
+      'id': requestId ?? '',
 
       'mensaje': 'Servicio solicitado desde portería'
     };
 
-    try {
+    await _pushNotificationsProvider.sendMessage(token, data);
 
-      await _pushNotificationsProvider.sendMessage(token, data);
+    await Future.delayed(const Duration(seconds: 20));
 
-      if (kDebugMode) {
-        print("Notificación PORTERIA enviada correctamente");
-      }
-
-      await Future.delayed(const Duration(seconds: 20));
-
-      return false;
-
-    } catch (e) {
-
-      if (kDebugMode) {
-        print("Error enviando notificación portería: $e");
-      }
-
-      return false;
-
-    }
+    return false;
   }
 
   void _attemptToSendNotificationPorteria(List<String> driverIds, int index) {

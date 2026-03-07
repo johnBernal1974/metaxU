@@ -257,7 +257,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       child: Column(
         children: [
           SizedBox(
-            height: 140,
+            height: 200,
             child: DrawerHeader(
               padding: EdgeInsets.zero,
               margin: EdgeInsets.zero,
@@ -275,8 +275,9 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                       nombreConjunto,
                       style: const TextStyle(
                         color: Colors.black87,
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        height: 1.1
                       ),
                     ),
                     Text(
@@ -377,10 +378,18 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
             leading: const Icon(Icons.logout),
             title: const Text("Cerrar sesión"),
             onTap: () async {
+
               await FirebaseAuth.instance.signOut();
+
+              if (context.mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  'login',
+                      (route) => false,
+                );
+              }
             },
           ),
-
           const SizedBox(height: 20),
 
         ],
@@ -668,6 +677,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     });
 
     final requestId = docRef.id;
+    _travelController.requestId = requestId;
 
     await _firestore.collection("TravelInfo").doc(requestId).set({
 

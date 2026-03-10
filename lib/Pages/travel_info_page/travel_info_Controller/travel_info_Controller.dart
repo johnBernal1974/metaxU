@@ -681,7 +681,7 @@ class TravelInfoController{
       Price price = await _pricesProvider.getAll();
       radioDeBusqueda = price.theRadioDeBusqueda;
       if (kDebugMode) {
-        print("Radio de busqueda: $radioDeBusqueda");
+        print("**************************Radio de busqueda: $radioDeBusqueda **************************");
       }
       refresh();
     } catch (e) {

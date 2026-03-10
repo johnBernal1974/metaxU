@@ -659,6 +659,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "porteriaId": uid,
 
       "nombreConjunto": nombreConjunto,
+      "barrio": barrio,
       "nombrePorteria": nombrePorteria,
       "direccion": direccion,
 

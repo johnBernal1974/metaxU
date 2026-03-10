@@ -73,6 +73,7 @@ dependencies:
   cloud_functions: ^4.6.8
   google_sign_in: ^6.2.1
   pin_code_fields: ^8.0.1
+  vibration: ^1.8.4
 
   firebase_app_check: ^0.2.1+17
 
@@ -124,7 +125,6 @@ flutter:
   assets:
     - assets/
     - assets/audio/
-    - assets/audio/te_has_desconectado.mp3
 
 
   #   - images/a_dot_ham.jpeg

@@ -103,6 +103,121 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     return Scaffold(
       backgroundColor: grisMapa,
       drawer: _menuPorteria(),
+      floatingActionButton: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 20, right: 16),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection("TravelRequests")
+                .where(
+              "porteriaId",
+              isEqualTo: FirebaseAuth.instance.currentUser?.uid,
+            )
+                .snapshots(),
+            builder: (context, snapshot) {
+
+              int cantidad = 0;
+              bool taxiEsperando = false;
+
+              if (snapshot.hasData) {
+
+                final docs = snapshot.data!.docs.where((doc) {
+
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data["status"];
+
+                  return status == "created" ||
+                      status == "accepted" ||
+                      status == "driver_on_the_way" ||
+                      status == "driver_is_waiting";
+
+                }).toList();
+
+                cantidad = docs.length;
+
+                taxiEsperando = docs.any((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  return data["status"] == "driver_is_waiting";
+                });
+
+              }
+
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 400),
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: taxiEsperando
+                      ? Colors.green
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(35),
+                  boxShadow: [
+                    BoxShadow(
+                      color: taxiEsperando
+                          ? Colors.green.withOpacity(0.6)
+                          : Colors.black.withOpacity(0.15),
+                      blurRadius: taxiEsperando ? 18 : 8,
+                      spreadRadius: taxiEsperando ? 2 : 0,
+                    )
+                  ],
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(35),
+                  onTap: () {
+                    Navigator.pushNamed(context, "viajes_porteria");
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+
+                      Center(
+                        child: Text(
+                          "Solicitudes",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: taxiEsperando
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        ),
+                      ),
+
+                      if (cantidad > 0)
+                        Positioned(
+                          right: 1,
+                          top: 1,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 18,
+                              minHeight: 18,
+                            ),
+                            child: Text(
+                              "$cantidad",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
 
       body: SafeArea(
         child: SingleChildScrollView(
@@ -241,7 +356,6 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                     ),
                   ),
                 ),
-
                 SizedBox(height: 30.r),
 
               ],
@@ -642,17 +756,25 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
   Future<void> _solicitarServicio() async {
 
+    /// validar nombre del usuario
     if (usuarioController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Debes escribir el nombre del usuario")),
+        const SnackBar(
+          content: Text("Debes escribir el nombre del usuario"),
+        ),
       );
       return;
     }
+
+    /// guardar valores antes de limpiar
+    final usuario = usuarioController.text.trim();
+    final apto = aptoController.text.trim();
 
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
     /// 1️⃣ CREAR TRAVEL REQUEST
+
     final docRef = await _firestore.collection("TravelRequests").add({
 
       "tipoSolicitud": "porteria",
@@ -666,19 +788,21 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "lat": latPorteria,
       "lng": lngPorteria,
 
-      "usuario": usuarioController.text.trim(),
-      "apto": aptoController.text.trim(),
+      "usuario": usuario,
+      "apto": apto,
 
       "metodoPago": _metodoPagoSeleccionado,
       "caracteristica": _caracteristicaSeleccionada,
 
       "status": "created",
-      "timestamp": Timestamp.now(),
-
+      "timestamp": FieldValue.serverTimestamp(),
     });
 
     final requestId = docRef.id;
+
     _travelController.requestId = requestId;
+
+    /// 2️⃣ CREAR TRAVEL INFO
 
     await _firestore.collection("TravelInfo").doc(requestId).set({
 
@@ -689,11 +813,10 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "status": "created",
       "tipoSolicitud": "porteria",
 
-      "timestamp": Timestamp.now(),
-
+      "timestamp": FieldValue.serverTimestamp(),
     });
 
-    /// 3️⃣ ACTIVAR BUSQUEDA DE CONDUCTORES
+    /// 3️⃣ INICIAR BUSQUEDA DE CONDUCTORES
 
     _travelController.from = direccion;
 
@@ -702,9 +825,114 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       lngPorteria!,
     );
 
-   _travelController.obtenerRadiodeBusqueda();
-
+    _travelController.obtenerRadiodeBusqueda();
     _travelController.getNearbyDriversPorteria();
+
+    /// 4️⃣ LIMPIAR CAMPOS
+    usuarioController.clear();
+    aptoController.clear();
+
+    /// 5️⃣ MOSTRAR ALERT
+    _mostrarServicioSolicitado(context, usuario, apto);
+  }
+
+  void _mostrarServicioSolicitado(
+      BuildContext context,
+      String usuario,
+      String apto,
+      ) {
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+
+        return AlertDialog(
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+
+          title: const Text(
+            "Servicio solicitado",
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+
+              const SizedBox(height: 5),
+
+              Text(
+                "Servicio solicitado para:",
+                style: TextStyle(
+                  fontSize: 14.r,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+                usuario,
+                style: TextStyle(
+                  fontSize: 18.r,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+
+              if (apto.isNotEmpty)
+                Text(
+                  "Apto: $apto",
+                  style: TextStyle(
+                    fontSize: 14.r,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+              const SizedBox(height: 15),
+
+              Text(
+                "Esperando respuesta del conductor...",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13.r,
+                  color: Colors.black54,
+                ),
+              ),
+
+            ],
+          ),
+
+          actions: [
+
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text(
+                  "Entendido",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+          ],
+        );
+      },
+    );
   }
 
 }

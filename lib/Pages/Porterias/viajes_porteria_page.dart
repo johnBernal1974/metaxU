@@ -3,11 +3,25 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:vibration/vibration.dart';
 
-class ViajesPorteriaPage extends StatelessWidget {
+class ViajesPorteriaPage extends StatefulWidget {
+  const ViajesPorteriaPage({super.key});
 
+  @override
+  State<ViajesPorteriaPage> createState() => _ViajesPorteriaPageState();
+}
+
+class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final AudioPlayer _player = AudioPlayer();
+
+  /// evitar repetir sonido muchas veces
+  final Set<String> taxisNotificados = {};
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +43,7 @@ class ViajesPorteriaPage extends StatelessWidget {
         stream: _firestore
             .collection("TravelRequests")
             .where("porteriaId", isEqualTo: uid)
+            .orderBy("timestamp", descending: true)
             .snapshots(),
 
         builder: (context, snapshot) {
@@ -62,7 +77,21 @@ class ViajesPorteriaPage extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
 
-              final data = docs[index].data() as Map<String, dynamic>;
+              final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
+              final requestId = doc.id;
+              final status = data["status"];
+
+              /// reproducir sonido cuando el taxi llega
+              if (status == "driver_is_waiting" && !taxisNotificados.contains(requestId)) {
+
+                taxisNotificados.add(requestId);
+
+                _reproducirTaxiLlegada();
+
+                _vibrarTaxiLlegado();
+
+              }
 
               return _cardSolicitud(context, data);
             },
@@ -71,6 +100,46 @@ class ViajesPorteriaPage extends StatelessWidget {
       ),
     );
   }
+  @override
+  void initState() {
+    super.initState();
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    try {
+      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
+    } catch (e) {
+      debugPrint("Error cargando sonido: $e");
+    }
+  }
+
+  Future<void> _vibrarTaxiLlegado() async {
+
+    if (await Vibration.hasVibrator() ?? false) {
+
+      Vibration.vibrate(
+        duration: 600,
+        amplitude: 128,
+      );
+
+    }
+
+  }
+
+  Future<void> _reproducirTaxiLlegada() async {
+    try {
+
+      await _player.stop();
+
+      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
+
+      await _player.play();
+
+    } catch (e) {
+      debugPrint("Error reproduciendo sonido: $e");
+    }
+  }
 
   Widget _cardSolicitud(BuildContext context, Map<String, dynamic> data) {
 
@@ -78,6 +147,13 @@ class ViajesPorteriaPage extends StatelessWidget {
     final apto = data["apto"] ?? "";
     final status = data["status"] ?? "created";
 
+    final bool taxiLlego = status == "driver_is_waiting";
+
+    final conductor = data["nombreConductor"] ?? "";
+    final placa = data["placa"] ?? "";
+    final celular = data["celularConductor"] ?? "";
+
+    /// estado del viaje
     String textoEstado = "Buscando conductor";
     Color colorEstado = Colors.orange;
 
@@ -92,10 +168,18 @@ class ViajesPorteriaPage extends StatelessWidget {
     }
 
     if (status == "driver_is_waiting") {
-      textoEstado = "El Taxi ha llegado";
-      colorEstado = Colors.black54;
+      textoEstado = "El taxi ha llegado";
+      colorEstado = Colors.black87;
     }
 
+    /// color de fondo animado
+    Color backgroundColor = Colors.white;
+
+    if (status == "driver_is_waiting") {
+      backgroundColor = Colors.green.withOpacity(0.12);
+    }
+
+    /// fecha
     final Timestamp? ts = data["timestamp"];
     String fechaHora = "";
 
@@ -104,48 +188,85 @@ class ViajesPorteriaPage extends StatelessWidget {
       fechaHora = DateFormat('dd/MM/yyyy hh:mm a').format(date);
     }
 
-    return Card(
-      margin: EdgeInsets.only(bottom: 10.r),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10.r),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      margin: EdgeInsets.only(bottom: 12.r),
+      decoration: BoxDecoration(
+        color: taxiLlego
+            ? Colors.green.withOpacity(0.12)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(12.r),
+        boxShadow: [
+          BoxShadow(
+            color: taxiLlego
+                ? Colors.green.withOpacity(0.35)
+                : Colors.black.withOpacity(0.08),
+            blurRadius: taxiLlego ? 24 : 6,
+            spreadRadius: taxiLlego ? 2 : 0,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
-      child: ListTile(
-
-        onTap: () {
-          _verDatosConductor(context, data);
-        },
-
-        title: Text(
-          usuario,
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 14.r,
-          ),
-        ),
-
-        subtitle: Column(
+      child: Padding(
+        padding: EdgeInsets.all(12.r),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            if (apto.isNotEmpty)
-              Text("Apto: $apto", style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                height: 1
-              )),
+            /// fila principal
+            Row(
+              children: [
 
-            Text(
-              "Solicitud: $fechaHora",
-              style: TextStyle(
-                fontSize: 10.r,
-                color: Colors.black,
-              ),
+                Image.asset(
+                  "assets/imagen_taxi.png",
+                  height: 32,
+                ),
+
+                SizedBox(width: 10.r),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      Text(
+                        usuario,
+                        style: TextStyle(
+                          fontSize: 15.r,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+
+                      if (apto.isNotEmpty)
+                        Text(
+                          "Apto: $apto",
+                          style: TextStyle(
+                            fontSize: 12.r,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+
+                      SizedBox(height: 3.r),
+
+                      Text(
+                        fechaHora,
+                        style: TextStyle(
+                          fontSize: 10.r,
+                          color: Colors.black54,
+                        ),
+                      ),
+
+                    ],
+                  ),
+                ),
+              ],
             ),
 
-            SizedBox(height: 4.r),
+            SizedBox(height: 10.r),
 
+            /// estado del viaje
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 8.r, vertical: 3.r),
+              padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 5.r),
               decoration: BoxDecoration(
                 color: colorEstado.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(6.r),
@@ -154,11 +275,85 @@ class ViajesPorteriaPage extends StatelessWidget {
                 textoEstado,
                 style: TextStyle(
                   fontSize: 12.r,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                   color: colorEstado,
                 ),
               ),
             ),
+
+            /// datos del conductor
+            if (conductor.isNotEmpty) ...[
+
+              SizedBox(height: 10.r),
+              Divider(),
+              SizedBox(height: 5.r),
+
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 18),
+                  SizedBox(width: 6.r),
+                  Expanded(
+                    child: Text(
+                      conductor,
+                      style: TextStyle(
+                        fontSize: 13.r,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 6.r),
+
+              Row(
+                children: [
+                  const Icon(Icons.directions_car, size: 18),
+                  SizedBox(width: 6.r),
+                  Text(
+                    "Placa: $placa",
+                    style: TextStyle(
+                      fontSize: 13.r,
+                    ),
+                  ),
+                ],
+              ),
+
+              if (celular.isNotEmpty) ...[
+
+                SizedBox(height: 10.r),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12.r,
+                        vertical: 6.r,
+                      ),
+                    ),
+                    onPressed: () {
+                      _verDatosConductor(context, data);
+                    },
+                    icon: const Icon(
+                      Icons.phone,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      "Llamar",
+                      style: TextStyle(
+                        fontSize: 12.r,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+
+              ],
+            ],
+
           ],
         ),
       ),

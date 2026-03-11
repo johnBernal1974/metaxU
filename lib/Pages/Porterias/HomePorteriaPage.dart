@@ -830,11 +830,17 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
     /// 1️⃣ VALIDAR NOMBRE
     if (usuarioController.text.trim().isEmpty) {
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Debes escribir el nombre del usuario"),
         ),
       );
+
+      setState(() {
+        _solicitandoServicio = false;
+      });
+
       return;
     }
 
@@ -869,6 +875,10 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           ),
         );
       }
+
+      setState(() {
+        _solicitandoServicio = false;
+      });
 
       return;
     }
@@ -936,7 +946,9 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       _mostrarServicioSolicitado(context, usuario, apto);
     }
 
-    _solicitandoServicio = false;
+    setState(() {
+      _solicitandoServicio = false;
+    });
   }
 
   void _mostrarServicioSolicitado(

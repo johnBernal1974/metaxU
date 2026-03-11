@@ -101,11 +101,24 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                   final data = doc.data() as Map<String, dynamic>;
                   final status = data["status"];
 
+                  final Timestamp? cancelledAt = data["cancelledAt"];
+
+                  if (status == "cancelled" && cancelledAt != null) {
+
+                    final diff = DateTime.now().difference(cancelledAt.toDate()).inSeconds;
+
+                    /// si ya pasaron 4 segundos no se muestra
+                    if (diff > 4) {
+                      return false;
+                    }
+                  }
+
                   return status == "created" ||
                       status == "accepted" ||
                       status == "driver_on_the_way" ||
                       status == "driver_is_waiting" ||
-                      status == "no_driver_found";
+                      status == "no_driver_found" ||
+                      status == "cancelled";
 
                 }).toList();
 
@@ -242,6 +255,11 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
     if (status == "no_driver_found") {
       textoEstado = "No aceptado";
       colorEstado = Colors.red;
+    }
+
+    if (status == "cancelled") {
+      textoEstado = "Viaje cancelado";
+      colorEstado = Colors.grey;
     }
 
 
@@ -387,7 +405,79 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                   ),
 
                 ],
-              )
+              ),
+
+            ],
+
+            if (status == "accepted" || status == "driver_on_the_way" || status == "driver_is_waiting") ...[
+
+              SizedBox(height: 10.r),
+
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                ),
+                icon: const Icon(Icons.cancel, color: Colors.red, size: 15),
+                label: const Text(
+                  "Cancelar servicio",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: () async {
+
+                  final confirmar = await showDialog<bool>(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        title: const Text(
+                          "Cancelar servicio",
+                          style: TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        content: const Text(
+                          "¿Estás seguro de cancelar este servicio?",
+                        ),
+                        actions: [
+
+                          TextButton(
+                            child: const Text("No"),
+                            onPressed: () {
+                              Navigator.pop(context, false);
+                            },
+                          ),
+
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text(
+                              "Sí, cancelar",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context, true);
+                            },
+                          ),
+
+                        ],
+                      );
+                    },
+                  );
+
+                  if (confirmar == true) {
+                    await _cancelarSolicitud(requestId);
+                  }
+
+                },
+              ),
 
             ],
 
@@ -474,12 +564,23 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   Future<void> _cancelarSolicitud(String requestId) async {
 
-    await FirebaseFirestore.instance
-        .collection("TravelRequests")
-        .doc(requestId)
-        .update({
-      "status": "cancelled"
+    final firestore = FirebaseFirestore.instance;
+
+    final batch = firestore.batch();
+
+    final requestRef = firestore.collection("TravelRequests").doc(requestId);
+    final travelInfoRef = firestore.collection("TravelInfo").doc(requestId);
+
+    batch.update(requestRef, {
+      "status": "cancelled",
+      "cancelledAt": FieldValue.serverTimestamp(),
     });
+
+    batch.update(travelInfoRef, {
+      "status": "cancelled",
+    });
+
+    await batch.commit();
 
   }
 

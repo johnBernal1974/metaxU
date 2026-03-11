@@ -91,6 +91,8 @@ class TravelInfoController{
 
   String? requestId;
 
+  Timer? _timeoutBusqueda;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -788,13 +790,42 @@ class TravelInfoController{
 
     serviceAccepted = false;
 
+    _timeoutBusqueda?.cancel();
+
+    _timeoutBusqueda = Timer(const Duration(seconds: 25), () async {
+
+      final doc = await FirebaseFirestore.instance
+          .collection("TravelRequests")
+          .doc(requestId)
+          .get();
+
+      if (!doc.exists) return;
+
+      final data = doc.data() as Map<String, dynamic>;
+      final status = data["status"];
+
+      if (status == "created") {
+
+        print("Ningún conductor aceptó");
+
+        await FirebaseFirestore.instance
+            .collection("TravelRequests")
+            .doc(requestId)
+            .update({
+          "status": "no_driver_found"
+        });
+
+      }
+
+    });
+
     Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
       fromLatlng.latitude,
       fromLatlng.longitude,
       radioDeBusqueda ?? 1,
     );
 
-    _streamSubscriptionPorteria = stream.listen((List<DocumentSnapshot> documentList) {
+    _streamSubscriptionPorteria = stream.listen((List<DocumentSnapshot> documentList) async {
 
       _streamSubscriptionPorteria?.cancel();
 
@@ -810,10 +841,55 @@ class TravelInfoController{
 
         print("PORTERIA no encontró taxis");
 
+        /// cancelar timeout porque no se usará
+        _timeoutBusqueda?.cancel();
+
+        /// eliminar solicitud inmediatamente
+        if (requestId != null) {
+
+          await FirebaseFirestore.instance
+              .collection("TravelRequests")
+              .doc(requestId)
+              .delete();
+
+          await FirebaseFirestore.instance
+              .collection("TravelInfo")
+              .doc(requestId)
+              .delete();
+
+        }
+
       }
 
     });
 
+  }
+
+  Future<bool> hayConductoresEnRadio() async {
+
+    final stream = _geofireProvider.getNearbyDrivers(
+      fromLatlng.latitude,
+      fromLatlng.longitude,
+      radioDeBusqueda ?? 1,
+    );
+
+    final completer = Completer<bool>();
+
+    late StreamSubscription sub;
+
+    sub = stream.listen((List<DocumentSnapshot> docs) {
+
+      sub.cancel();
+
+      if (docs.isEmpty) {
+        completer.complete(false);
+      } else {
+        completer.complete(true);
+      }
+
+    });
+
+    return completer.future;
   }
 
 

@@ -5,6 +5,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:vibration/vibration.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../src/colors/colors.dart';
 
 class ViajesPorteriaPage extends StatefulWidget {
   const ViajesPorteriaPage({super.key});
@@ -36,67 +39,109 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Viajes activos"),
+        backgroundColor: primary,
+        title: const Text("Viajes activos", style: TextStyle(
+          fontWeight: FontWeight.w700
+        ),),
       ),
 
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection("TravelRequests")
-            .where("porteriaId", isEqualTo: uid)
-            .orderBy("timestamp", descending: true)
-            .snapshots(),
+      body: Column(
+        children: [
 
-        builder: (context, snapshot) {
+          /// BOTON NUEVO SERVICIO
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.r, 12.r, 16.r, 6.r),
+            child: SizedBox(
+              width: double.infinity,
+              height: 40.r,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.black),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                ),
+                icon: const Icon(Icons.add, color: Colors.black),
+                label: const Text(
+                  "Solicitar nuevo servicio",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    "home_porteria",
+                        (route) => false,
+                  );
+                },
+              ),
+            ),
+          ),
 
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
+          /// LISTA DE VIAJES
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection("TravelRequests")
+                  .where("porteriaId", isEqualTo: uid)
+                  .orderBy("timestamp", descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
 
-          final docs = snapshot.data!.docs.where((doc) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
 
-            final data = doc.data() as Map<String, dynamic>;
-            final status = data["status"];
+                final docs = snapshot.data!.docs.where((doc) {
 
-            return status == "created" ||
-                status == "accepted" ||
-                status == "driver_on_the_way" ||
-                status == "driver_is_waiting";
+                  final data = doc.data() as Map<String, dynamic>;
+                  final status = data["status"];
 
-          }).toList();
+                  return status == "created" ||
+                      status == "accepted" ||
+                      status == "driver_on_the_way" ||
+                      status == "driver_is_waiting" ||
+                      status == "no_driver_found";
 
-          if (docs.isEmpty) {
-            return const Center(
-              child: Text("No hay viajes activos"),
-            );
-          }
+                }).toList();
 
-          return ListView.builder(
-            padding: EdgeInsets.all(16.r),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Text("No hay viajes activos"),
+                  );
+                }
 
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final requestId = doc.id;
-              final status = data["status"];
+                return ListView.builder(
+                  padding: EdgeInsets.all(16.r),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
 
-              /// reproducir sonido cuando el taxi llega
-              if (status == "driver_is_waiting" && !taxisNotificados.contains(requestId)) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final requestId = doc.id;
+                    final status = data["status"];
 
-                taxisNotificados.add(requestId);
+                    if (status == "driver_is_waiting" &&
+                        !taxisNotificados.contains(requestId)) {
 
-                _reproducirTaxiLlegada();
+                      taxisNotificados.add(requestId);
 
-                _vibrarTaxiLlegado();
+                      _reproducirTaxiLlegada();
+                      _vibrarTaxiLlegado();
+                    }
 
-              }
+                    return _cardSolicitud(context, requestId, data);
+                  },
+                );
+              },
+            ),
+          ),
 
-              return _cardSolicitud(context, data);
-            },
-          );
-        },
+        ],
       ),
     );
   }
@@ -104,6 +149,30 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   void initState() {
     super.initState();
     _initAudio();
+  }
+
+  Future<void> _llamarConductor(String telefono) async {
+
+    final Uri uri = Uri(
+      scheme: 'tel',
+      path: telefono,
+    );
+
+    await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+  }
+
+  String _formatearPlaca(String placa) {
+
+    if (placa.length == 6) {
+      return "${placa.substring(0,3)}-${placa.substring(3)}";
+    }
+
+    return placa;
+
   }
 
   Future<void> _initAudio() async {
@@ -141,7 +210,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
     }
   }
 
-  Widget _cardSolicitud(BuildContext context, Map<String, dynamic> data) {
+  Widget _cardSolicitud(BuildContext context, String requestId, Map<String, dynamic> data) {
 
     final usuario = data["usuario"] ?? "";
     final apto = data["apto"] ?? "";
@@ -153,7 +222,6 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
     final placa = data["placa"] ?? "";
     final celular = data["celularConductor"] ?? "";
 
-    /// estado del viaje
     String textoEstado = "Buscando conductor";
     Color colorEstado = Colors.orange;
 
@@ -171,15 +239,13 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
       textoEstado = "El taxi ha llegado";
       colorEstado = Colors.black87;
     }
-
-    /// color de fondo animado
-    Color backgroundColor = Colors.white;
-
-    if (status == "driver_is_waiting") {
-      backgroundColor = Colors.green.withOpacity(0.12);
+    if (status == "no_driver_found") {
+      textoEstado = "No aceptado";
+      colorEstado = Colors.red;
     }
 
-    /// fecha
+
+
     final Timestamp? ts = data["timestamp"];
     String fechaHora = "";
 
@@ -213,145 +279,191 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            /// fila principal
+            /// DATOS DEL USUARIO
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-
-                Image.asset(
-                  "assets/imagen_taxi.png",
-                  height: 32,
+                Text(
+                  usuario,
+                  style: TextStyle(
+                    fontSize: 15.r,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
+                if (apto.isNotEmpty)
+                  Text(
+                    "Apto: $apto",
+                    style: TextStyle(
+                      fontSize: 14.r,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+              ],
+            ),
+            SizedBox(height: 8.r),
 
-                SizedBox(width: 10.r),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  fechaHora,
+                  style: TextStyle(
+                    fontSize: 12.r,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w400
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 5.r),
+                  decoration: BoxDecoration(
+                    color: colorEstado.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6.r),
+                  ),
+                  child: Text(
+                    textoEstado,
+                    style: TextStyle(
+                      fontSize: 12.r,
+                      fontWeight: FontWeight.w800,
+                      color: colorEstado,
+                    ),
+                  ),
+                ),
+              ],
+            ),
 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            if (status == "no_driver_found") ...[
 
-                      Text(
-                        usuario,
+              SizedBox(height: 10.r),
+
+              Row(
+                children: [
+
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.green, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 8.r),
+                      ),
+                      onPressed: () {
+                        _volverASolicitar(requestId, data);
+                      },
+                      child: Text(
+                        "Solicitar nuevamente",
                         style: TextStyle(
-                          fontSize: 15.r,
-                          fontWeight: FontWeight.w900,
+                          color: Colors.green,
+                          fontSize: 12.r,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ),
+                  ),
 
-                      if (apto.isNotEmpty)
+                  SizedBox(width: 8.r),
+
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.black54, width: 1.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.r),
+                        ),
+                        padding: EdgeInsets.symmetric(vertical: 8.r),
+                      ),
+                      onPressed: () {
+                        _cancelarSolicitud(data["requestId"]);
+                      },
+                      child: Text(
+                        "Cancelar",
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 12.r,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                ],
+              )
+
+            ],
+
+            /// DATOS DEL CONDUCTOR
+            if (conductor.isNotEmpty) ...[
+
+              SizedBox(height: 12.r),
+
+              const Divider(color: Colors.black54),
+
+              SizedBox(height: 8.r),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+
+                  /// TAXI
+                  Image.asset(
+                    "assets/imagen_taxi.png",
+                    height: 36,
+                  ),
+
+                  SizedBox(width: 10.r),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        /// NOMBRE CONDUCTOR
                         Text(
-                          "Apto: $apto",
+                          conductor,
                           style: TextStyle(
-                            fontSize: 12.r,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14.r,
+                            fontWeight: FontWeight.w700,
+                            height: 1
                           ),
                         ),
 
-                      SizedBox(height: 3.r),
+                        SizedBox(height: 6.r),
 
-                      Text(
-                        fechaHora,
-                        style: TextStyle(
-                          fontSize: 10.r,
-                          color: Colors.black54,
+                        /// PLACA
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8.r,
+                            vertical: 3.r,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black),
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _formatearPlaca(placa),
+                            style: TextStyle(
+                              fontSize: 14.r,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                         ),
-                      ),
 
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            SizedBox(height: 10.r),
-
-            /// estado del viaje
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 5.r),
-              decoration: BoxDecoration(
-                color: colorEstado.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(6.r),
-              ),
-              child: Text(
-                textoEstado,
-                style: TextStyle(
-                  fontSize: 12.r,
-                  fontWeight: FontWeight.w800,
-                  color: colorEstado,
-                ),
-              ),
-            ),
-
-            /// datos del conductor
-            if (conductor.isNotEmpty) ...[
-
-              SizedBox(height: 10.r),
-              Divider(),
-              SizedBox(height: 5.r),
-
-              Row(
-                children: [
-                  const Icon(Icons.person, size: 18),
-                  SizedBox(width: 6.r),
-                  Expanded(
-                    child: Text(
-                      conductor,
-                      style: TextStyle(
-                        fontSize: 13.r,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      ],
                     ),
                   ),
+
+                  /// ICONO LLAMAR
+                  if (celular.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.phone, color: Colors.black),
+                      onPressed: () {
+                        _llamarConductor(celular);
+                      },
+                    ),
+
                 ],
               ),
-
-              SizedBox(height: 6.r),
-
-              Row(
-                children: [
-                  const Icon(Icons.directions_car, size: 18),
-                  SizedBox(width: 6.r),
-                  Text(
-                    "Placa: $placa",
-                    style: TextStyle(
-                      fontSize: 13.r,
-                    ),
-                  ),
-                ],
-              ),
-
-              if (celular.isNotEmpty) ...[
-
-                SizedBox(height: 10.r),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.r,
-                        vertical: 6.r,
-                      ),
-                    ),
-                    onPressed: () {
-                      _verDatosConductor(context, data);
-                    },
-                    icon: const Icon(
-                      Icons.phone,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                    label: Text(
-                      "Llamar",
-                      style: TextStyle(
-                        fontSize: 12.r,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-
-              ],
             ],
 
           ],
@@ -360,106 +472,43 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
     );
   }
 
-  void _verDatosConductor(BuildContext context, Map<String, dynamic> data) {
+  Future<void> _cancelarSolicitud(String requestId) async {
 
-    final placa = data["placa"] ?? "No asignado";
-    final conductor = data["nombreConductor"] ?? "Sin conductor";
-    final celular = data["celularConductor"] ?? "No disponible";
+    await FirebaseFirestore.instance
+        .collection("TravelRequests")
+        .doc(requestId)
+        .update({
+      "status": "cancelled"
+    });
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(18),
-        ),
-      ),
-      builder: (context) {
+  }
 
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+  Future<void> _volverASolicitar(String requestId, Map<String, dynamic> data) async {
 
-              /// indicador visual
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade400,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+    await FirebaseFirestore.instance
+        .collection("TravelRequests")
+        .doc(requestId)
+        .delete();
 
-              const SizedBox(height: 20),
+    await FirebaseFirestore.instance
+        .collection("TravelInfo")
+        .doc(requestId)
+        .delete();
 
-              const Text(
-                "Conductor asignado",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+    if (context.mounted) {
 
-              const SizedBox(height: 20),
-
-              /// conductor
-              Row(
-                children: [
-                  const Icon(Icons.person),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      conductor,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              /// placa
-              Row(
-                children: [
-                  const Icon(Icons.directions_car),
-                  const SizedBox(width: 10),
-                  Text(
-                    "Placa: $placa",
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              /// celular
-              Row(
-                children: [
-                  const Icon(Icons.phone),
-                  const SizedBox(width: 10),
-                  Text(
-                    celular,
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-            ],
-          ),
-        );
-
-      },
-    );
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        "home_porteria",
+            (route) => false,
+        arguments: {
+          "usuario": data["usuario"],
+          "apto": data["apto"],
+          "metodoPago": data["metodoPago"],
+          "caracteristica": data["caracteristica"],
+          "autoSolicitar": true,
+        },
+      );
+    }
   }
 }

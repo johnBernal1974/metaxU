@@ -81,6 +81,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "Metax Cliente",
+
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+
+        // 🔥 Limita el escalado (igual que antes pero con API nueva)
+        final scale = mq.textScaler.scale(1.0).clamp(1.0, 1.25);
+
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: TextScaler.linear(scale),
+          ),
+          child: child!,
+        );
+      },
+
+
       initialRoute: "splash"
           "",
       routes: {

@@ -276,17 +276,18 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
       duration: const Duration(milliseconds: 500),
       margin: EdgeInsets.only(bottom: 12.r),
       decoration: BoxDecoration(
-        color: taxiLlego
-            ? Colors.green.withOpacity(0.12)
-            : Colors.white,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12.r),
+
+        border: Border.all(
+          color: taxiLlego ? Colors.green : Colors.black.withOpacity(0.08),
+          width: taxiLlego ? 2 : 1,
+        ),
+
         boxShadow: [
           BoxShadow(
-            color: taxiLlego
-                ? Colors.green.withOpacity(0.35)
-                : Colors.black.withOpacity(0.08),
-            blurRadius: taxiLlego ? 24 : 6,
-            spreadRadius: taxiLlego ? 2 : 0,
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 6,
             offset: const Offset(0, 2),
           )
         ],
@@ -391,7 +392,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                         padding: EdgeInsets.symmetric(vertical: 8.r),
                       ),
                       onPressed: () {
-                        _cancelarSolicitud(data["requestId"]);
+                        _cancelarSolicitud(requestId);
                       },
                       child: Text(
                         "Cancelar",

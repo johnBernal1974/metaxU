@@ -109,78 +109,80 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
 
       ),
 
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: gris))
-          : _error != null
-          ? Center(child: Text('Error: $_error'))
-          : Column(
-        children: [
-          _periodHeader(),
-          Expanded(
-            child: filtered.isEmpty
-                ? Center(
-              child: Text(
-                isFilterActive
-                    ? 'No hay resultados para tu búsqueda'
-                    : (_isWeek
-                    ? 'No hay viajes en esta semana'
-                    : 'No hay viajes en este mes')
+      body: SafeArea(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: gris))
+            : _error != null
+            ? Center(child: Text('Error: $_error'))
+            : Column(
+          children: [
+            _periodHeader(),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                child: Text(
+                  isFilterActive
+                      ? 'No hay resultados para tu búsqueda'
+                      : (_isWeek
+                      ? 'No hay viajes en esta semana'
+                      : 'No hay viajes en este mes')
+                )
+        
               )
-
-            )
-                : RefreshIndicator(
-              onRefresh: _loadFirstPage,
-              child: ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.only(top: 10),
-                itemCount: filtered.length + 1,
-                itemBuilder: (_, index) {
-                  // ✅ fila final (loader / fin)
-                  if (index == filtered.length) {
-                    // Si hay búsqueda activa, no mostramos loader
-                    if (isFilterActive) {
-                      return const SizedBox.shrink();
-                    }
-
-                    if (!_hasMore) {
-                      return const Padding(
-                        padding: EdgeInsets.all(16),
+                  : RefreshIndicator(
+                onRefresh: _loadFirstPage,
+                child: ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.only(top: 10),
+                  itemCount: filtered.length + 1,
+                  itemBuilder: (_, index) {
+                    // ✅ fila final (loader / fin)
+                    if (index == filtered.length) {
+                      // Si hay búsqueda activa, no mostramos loader
+                      if (isFilterActive) {
+                        return const SizedBox.shrink();
+                      }
+        
+                      if (!_hasMore) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                            child: Text('No hay más resultados'),
+                          ),
+                        );
+                      }
+        
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
                         child: Center(
-                          child: Text('No hay más resultados'),
+                          child: _loadingMore
+                              ? const CircularProgressIndicator(
+                            color: gris,
+                          )
+                              : const SizedBox.shrink(),
                         ),
                       );
                     }
-
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Center(
-                        child: _loadingMore
-                            ? const CircularProgressIndicator(
-                          color: gris,
-                        )
-                            : const SizedBox.shrink(),
-                      ),
+        
+                    final item = filtered[index];
+        
+                    final fechaFormateada =
+                    DateFormat('dd/MM/yyyy hh:mm a')
+                        .format(item.finalViaje.toDate());
+        
+                    return _historyCard(
+                      destino: item.to,
+                      fechaViaje: fechaFormateada,
+                      tarifa: item.tarifa,
+                      travelId: item.travelHistoryId,   // ✅ el real
+                      numeroViaje: item.numeroViaje,    // ✅ número
                     );
-                  }
-
-                  final item = filtered[index];
-
-                  final fechaFormateada =
-                  DateFormat('dd/MM/yyyy hh:mm a')
-                      .format(item.finalViaje.toDate());
-
-                  return _historyCard(
-                    destino: item.to,
-                    fechaViaje: fechaFormateada,
-                    tarifa: item.tarifa,
-                    travelId: item.travelHistoryId,   // ✅ el real
-                    numeroViaje: item.numeroViaje,    // ✅ número
-                  );
-                },
+                  },
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -243,108 +245,114 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _sheetHandle(),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Filtros',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 12),
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sheetHandle(),
+                      const SizedBox(height: 8),
 
-                    // ✅ Switch único: Esta semana
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Esta semana',
-                            style: TextStyle(fontWeight: FontWeight.w700),
+                      const Text(
+                        'Filtros',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      /// ✅ Switch único: Esta semana
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Esta semana',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
-                        ),
-                        Switch(
-                          value: _isWeek,
-                          onChanged: (v) async {
-                            // 1) actualiza estado
-                            setModalState(() {});
-                            setState(() {
-                              _isWeek = v;
-                              _searchQuery = '';
-                            });
-
-                            // 2) recarga de una vez
-                            await _loadFirstPage();
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // ✅ Mes/Año solo si NO es semana
-                    if (!_isWeek) _monthYearSelectorSheet(setModalState),
-
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              final now = DateTime.now();
+                          Switch(
+                            value: _isWeek,
+                            onChanged: (v) async {
+                              setModalState(() {});
                               setState(() {
-                                _isWeek = false;
-                                _selectedYear = now.year;
-                                _selectedMonth = now.month;
+                                _isWeek = v;
                                 _searchQuery = '';
                               });
-                              Navigator.pop(context);
+
                               await _loadFirstPage();
                             },
-                            child: const Text('Restablecer'),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('Aplicar'),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // ✅ Botón especial resumen anual (abre el sheet)
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.calendar_month),
-                        label: const Text('Ver resumen del año'),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _openYearSummarySheet();
-                        },
+                        ],
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 10),
+
+                      /// ✅ Mes/Año solo si NO es semana
+                      if (!_isWeek) _monthYearSelectorSheet(setModalState),
+
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                final now = DateTime.now();
+                                setState(() {
+                                  _isWeek = false;
+                                  _selectedYear = now.year;
+                                  _selectedMonth = now.month;
+                                  _searchQuery = '';
+                                });
+
+                                Navigator.pop(context);
+                                await _loadFirstPage();
+                              },
+                              child: const Text('Restablecer'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Aplicar'),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      /// ✅ Botón resumen anual
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.calendar_month),
+                          label: const Text('Ver resumen del año'),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _openYearSummarySheet();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -352,7 +360,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
 
 
   void _openYearSummarySheet() {
-    final year = _selectedYear; // o DateTime.now().year si quieres siempre actual
+    final year = _selectedYear;
 
     showModalBottomSheet(
       context: context,
@@ -362,98 +370,126 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _sheetHandle(),
-              const SizedBox(height: 10),
-              Text(
-                'Resumen $year',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              MediaQuery.of(context).padding.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _sheetHandle(),
+                const SizedBox(height: 10),
 
-              FutureBuilder<List<Map<String, dynamic>>>(
-                future: _controller.getYearMonthlySummary(year),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator(color: gris)),
+                Text(
+                  'Resumen $year',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _controller.getYearMonthlySummary(year),
+                  builder: (context, snapshot) {
+
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(
+                          child: CircularProgressIndicator(color: gris),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text('Error: ${snapshot.error}'),
+                      );
+                    }
+
+                    final data = snapshot.data ?? [];
+
+                    if (data.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Aún no hay datos para este año.'),
+                      );
+                    }
+
+                    final money = NumberFormat.currency(
+                      locale: 'es_CO',
+                      symbol: '\$ ',
+                      decimalDigits: 0,
+                      name: '',
+                      customPattern: '\u00A4#,##0',
                     );
-                  }
-                  if (snapshot.hasError) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text('Error: ${snapshot.error}'),
+
+                    return Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: data.length,
+                        separatorBuilder: (_, __) =>
+                        const Divider(height: 1),
+
+                        itemBuilder: (_, i) {
+                          final m = data[i];
+                          final yearMonth = m['yearMonth'] as String;
+                          final month = m['month'] as int;
+                          final totalTrips = (m['totalTrips'] ?? 0) as int;
+                          final totalAmount = (m['totalAmount'] ?? 0) as num;
+
+                          final monthName = DateFormat(
+                            'MMMM',
+                            'es_CO',
+                          ).format(DateTime(year, month, 1));
+
+                          return ListTile(
+                            title: Text(
+                              '${monthName[0].toUpperCase()}${monthName.substring(1)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            subtitle: Text('Viajes: $totalTrips'),
+
+                            trailing: Text(
+                              money.format(totalAmount),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+
+                            onTap: () async {
+
+                              final parts = yearMonth.split('-');
+                              final y = int.parse(parts[0]);
+                              final mo = int.parse(parts[1]);
+
+                              setState(() {
+                                _selectedYear = y;
+                                _selectedMonth = mo;
+                                _searchQuery = '';
+                              });
+
+                              Navigator.pop(context);
+                              await _loadFirstPage();
+                            },
+                          );
+                        },
+                      ),
                     );
-                  }
-
-                  final data = snapshot.data ?? [];
-                  if (data.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Aún no hay datos para este año.'),
-                    );
-                  }
-
-                  final money = NumberFormat.currency(
-                    locale: 'es_CO',
-                    symbol: '\$ ',
-                    decimalDigits: 0,
-                    name: '',
-                    customPattern: '\u00A4#,##0',
-                  );
-
-                  return Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: data.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
-                      itemBuilder: (_, i) {
-                        final m = data[i];
-                        final yearMonth = m['yearMonth'] as String;
-                        final month = m['month'] as int;
-                        final totalTrips = (m['totalTrips'] ?? 0) as int;
-                        final totalAmount = (m['totalAmount'] ?? 0) as num;
-
-                        final monthName =
-                        DateFormat('MMMM', 'es_CO').format(DateTime(year, month, 1));
-
-                        return ListTile(
-                          title: Text(
-                            '${monthName[0].toUpperCase()}${monthName.substring(1)}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text('Viajes: $totalTrips'),
-                          trailing: Text(
-                            money.format(totalAmount),
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          onTap: () async {
-                            // ✅ Paso B: aplicar filtro y recargar lista
-                            final parts = yearMonth.split('-');
-                            final y = int.parse(parts[0]);
-                            final mo = int.parse(parts[1]);
-
-                            setState(() {
-                              _selectedYear = y;
-                              _selectedMonth = mo;
-                              _searchQuery = '';
-                            });
-
-                            Navigator.pop(context);
-                            await _loadFirstPage();
-                          },
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -470,27 +506,39 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sheetHandle(),
-              const SizedBox(height: 8),
-              const Text(
-                'Resumen',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 12),
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              MediaQuery.of(context).padding.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sheetHandle(),
+                const SizedBox(height: 8),
 
-              _monthSummary(), // usa tu widget actual
+                const Text(
+                  'Resumen',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
 
-              const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-              // Extra: un resumen más “pro”
-              _summaryExtra(),
-            ],
+                _monthSummary(),
+
+                const SizedBox(height: 8),
+
+                // resumen extra
+                _summaryExtra(),
+              ],
+            ),
           ),
         );
       },
@@ -877,10 +925,10 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
                       height: 1.1,
-                      color: Colors.grey,
+                      color: Colors.black,
                     ),
                   ),
 

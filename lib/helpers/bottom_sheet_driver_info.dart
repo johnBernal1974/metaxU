@@ -69,8 +69,10 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
 
   @override
   Widget build(BuildContext context) {
+
     String placaCompleta = widget.placa;
     String placaFormateada = '';
+
     if (placaCompleta.length == 6) {
       String letras = placaCompleta.substring(0, 3);
       String numeros = placaCompleta.substring(3);
@@ -78,221 +80,280 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     } else {
       placaFormateada = placaCompleta;
     }
+
     return Container(
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.only(
           topRight: Radius.circular(12),
-          topLeft: Radius.circular(12)
-        )
+          topLeft: Radius.circular(12),
+        ),
+        color: Colors.white,
       ),
-
       padding: const EdgeInsets.all(16),
       width: MediaQuery.of(context).size.width,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Container(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(100),
-                        image: DecorationImage(
-                          image: widget.imageUrl.isNotEmpty
-                              ? NetworkImage(widget.imageUrl)
-                              : const AssetImage('assets/images/default_image.png') as ImageProvider,
-                          fit: BoxFit.cover,
-                        ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+
+                    /// FOTO
+                    Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
                         color: Colors.white,
                       ),
-                    ),
-                  ),
-                  Column(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _iconBox(
-                              child: IconButton(
-                                onPressed: () {
-                                  makePhoneCall(widget.celular);
-                                },
-                                icon: const Icon(Icons.phone),
-                                iconSize: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 25),
-                            _iconBox(
-                              child: IconButton(
-                                onPressed: () {
-                                  _openWhatsApp(context);
-                                },
-                                icon: Image.asset(
-                                  'assets/icono_whatsapp.png',
-                                  width: 24,
-                                  height: 24,
-                                ),
-                              ),
-                            ),
-                          ],
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(100),
+                          image: DecorationImage(
+                            image: widget.imageUrl.isNotEmpty
+                                ? NetworkImage(widget.imageUrl)
+                                : const AssetImage(
+                                'assets/images/default_image.png')
+                            as ImageProvider,
+                            fit: BoxFit.cover,
+                          ),
+                          color: Colors.white,
                         ),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            widget.name,
-                            style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: negro
-                            ),
-                          ),
-                          Text(
-                            widget.apellido,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Column(
+                    ),
+
+                    /// INFO
+                    Column(
+                      children: [
+
+                        /// BOTONES
+                        Container(
+                          margin: const EdgeInsets.only(
+                              left: 20, right: 20, bottom: 10),
+                          child: Row(
                             children: [
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.directions_car,
-                                    color: negro,
-                                    size: 16,
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                widget.numeroViajes.toString(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 30),
-                          Column(
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(
-                                    Icons.star,
-                                    color: Colors.orange,
-                                    size: 16,
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                ratingText,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+
+                              _iconBox(
+                                child: IconButton(
+                                  onPressed: () {
+                                    makePhoneCall(widget.celular);
+                                  },
+                                  icon: const Icon(Icons.phone),
+                                  iconSize: 24,
                                 ),
                               ),
 
+                              const SizedBox(width: 25),
+
+                              _iconBox(
+                                child: IconButton(
+                                  onPressed: () {
+                                    _openWhatsApp(context);
+                                  },
+                                  icon: Image.asset(
+                                    'assets/icono_whatsapp.png',
+                                    width: 24,
+                                    height: 24,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
-                        ],
-                      ),
-                    ],
-                  )
-                ],
-              ),
-              const SizedBox(height: 10),
-              Container(
-                  margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  child: const Divider(height: 2, color: negroLetras)),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    children: [
-                      const Text('Placa', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black, fontSize: 12)),
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        child: Stack(
-                          alignment: Alignment.center,
+                        ),
+
+                        /// NOMBRE
+                        Column(
                           children: [
-                            Image.asset("assets/placa_blanca.png",
-                              width: 100,
-                              height: 50,
-                              fit: BoxFit.contain,
+                            Text(
+                              widget.name,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: negro,
+                              ),
                             ),
                             Text(
-                              placaFormateada,
+                              widget.apellido,
                               style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 14,
-                                color: Colors.black,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 5),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Text('Marca: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                          Text(widget.marca, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Text('Color: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                          Text(widget.color, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Text('Servicio: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                          Text(widget.servicio, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          const Text('Clase: ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                          Text(widget.clase, style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 11),)
-                        ],
-                      ),
-                    ],
-                  )
-                ],
-              ),
-            ],
-          ),
-        ],
+
+                        const SizedBox(height: 10),
+
+                        /// VIAJES Y RATING
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.directions_car,
+                                  color: negro,
+                                  size: 16,
+                                ),
+                                Text(
+                                  widget.numeroViajes.toString(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(width: 30),
+
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  color: Colors.orange,
+                                  size: 16,
+                                ),
+                                Text(
+                                  ratingText,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 10),
+                  child: const Divider(height: 2, color: negroLetras),
+                ),
+
+                /// INFO VEHÍCULO
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+
+                    /// PLACA
+                    Column(
+                      children: [
+
+                        const Text(
+                          'Placa',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            fontSize: 12,
+                          ),
+                        ),
+
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.asset(
+                                "assets/placa_blanca.png",
+                                width: 100,
+                                height: 50,
+                                fit: BoxFit.contain,
+                              ),
+                              Text(
+                                placaFormateada,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 14,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    /// DETALLES
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+
+                        Row(
+                          children: [
+                            const Text('Marca: ',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900)),
+                            Text(widget.marca,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 11)),
+                          ],
+                        ),
+
+                        Row(
+                          children: [
+                            const Text('Color: ',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900)),
+                            Text(widget.color,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 11)),
+                          ],
+                        ),
+
+                        Row(
+                          children: [
+                            const Text('Servicio: ',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900)),
+                            Text(widget.servicio,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 11)),
+                          ],
+                        ),
+
+                        Row(
+                          children: [
+                            const Text('Clase: ',
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900)),
+                            Text(widget.clase,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 11)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

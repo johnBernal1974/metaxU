@@ -71,7 +71,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
       alignment: Alignment.center,
       child: const Text('¿Cuántas estrellas le das al conductor?', style: TextStyle(
           color: Colors.black,
-          fontSize: 12,
+          fontSize: 16,
           fontWeight: FontWeight.w900
       ),
       ),
@@ -94,7 +94,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
             blurRadius: 5,
           )]),
       child: const Text('Servicio Finalizado', style: TextStyle(
-              fontSize: 14,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: Colors.black,
         height: 1.2
@@ -122,7 +122,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
               Image.asset('assets/ubicacion_client.png', height: 12, width: 12),
               const SizedBox(width: 10),
               const Text('Origen', style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: negro)),
             ],
@@ -131,7 +131,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
         Container(
           margin: const EdgeInsets.only(left: 35, right: 15, top: 5),
           child: Text(_controller.travelHistory?.from ?? '', style: const TextStyle(
-              fontWeight: FontWeight.w400,fontSize: 11, color: negro), maxLines: 2),
+              fontWeight: FontWeight.w900,fontSize: 16, color: negro), maxLines: 2),
         ),
         const SizedBox(height: 10),
         const Divider(color: grisMedio,height: 1,indent: 2, endIndent: 2),
@@ -150,7 +150,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
               Image.asset('assets/marker_destino.png', height: 11, width: 11),
               const SizedBox(width: 10),
               const Text('Destino', style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: negro)),
             ],
@@ -159,7 +159,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
         Container(
           margin: const EdgeInsets.only(left: 35, right: 15, top: 5),
           child: Text(_controller.travelHistory?.to ?? '', style: const TextStyle(
-              fontWeight: FontWeight.w400,fontSize: 11, color: negro), maxLines: 2),
+              fontWeight: FontWeight.w900,fontSize: 16, color: negro), maxLines: 2),
         ),
         const SizedBox(height: 15),
         const Divider(color: grisMedio,height: 1,indent: 2, endIndent: 2)
@@ -251,8 +251,8 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
                 color: blanco, // Color del indicador
               )
                   : Text(
-                'Calificar conductor',
-                style: TextStyle(color: Colors.black, fontSize: 18.r),
+                'CALIFICAR CONDUCTOR',
+                style: TextStyle(color: Colors.black, fontSize: 18.r, fontWeight: FontWeight.w900),
               ),
             ),
           ),

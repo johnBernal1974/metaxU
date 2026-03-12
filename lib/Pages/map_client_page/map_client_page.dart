@@ -55,7 +55,7 @@ class _MapClientPageState extends State<MapClientPage> {
   bool _historyLoaded = false;
 
   LatLng? tolatlng;
-  double bottomMaps= 270;
+  double bottomMaps= 400;
   final ConnectionService connectionService = ConnectionService();
   LatLng? _ubicacionActual;
 
@@ -211,10 +211,11 @@ class _MapClientPageState extends State<MapClientPage> {
           body: Stack(
             children: [
               _googleMapsWidget(),
+
               SafeArea(
                 child: Column(
                   children: [
-                      Row(
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _buttonCenterPosition(),
@@ -227,21 +228,19 @@ class _MapClientPageState extends State<MapClientPage> {
                       mainAxisAlignment: MainAxisAlignment.end,
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        _letrerosADondeVamos (),
+                        _letrerosADondeVamos(),
                       ],
                     ),
-                    _cajonCambiandoDirecciondeDestino(),
 
+                    _cajonCambiandoDirecciondeDestino(),
                   ],
                 ),
               ),
 
+              _iconBuscarEnElMapaDestino(),
+
               Align(
-                alignment: Alignment.center,
-                child: _iconBuscarEnElMapaDestino(),
-              ),
-              Align(
-                alignment: Alignment.bottomRight,
+                alignment: Alignment.topRight,
                 child: _botonBuscarEnElMapaDestino(),
               ),
 
@@ -269,12 +268,12 @@ class _MapClientPageState extends State<MapClientPage> {
   }
 
 
-  Widget _letrerosADondeVamos () {
+  Widget _letrerosADondeVamos() {
     final bottomSafe = MediaQuery.of(context).padding.bottom;
+
     return Visibility(
       visible: isVisibleADondeVamos,
       child: Container(
-        height: 300.r + bottomSafe,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.only(
@@ -288,7 +287,7 @@ class _MapClientPageState extends State<MapClientPage> {
               primary,
               blancoCards,
             ],
-            stops: [0.0, 0.5], // 👈 mitad y mitad
+            stops: [0.0, 0.5],
           ),
           boxShadow: [
             BoxShadow(
@@ -298,53 +297,75 @@ class _MapClientPageState extends State<MapClientPage> {
             ),
           ],
         ),
-        padding: EdgeInsets.only(top: 15.r, bottom: bottomSafe),
+        padding: EdgeInsets.fromLTRB(0, 15.r, 0, 0.r + bottomSafe),
         child: Column(
+          mainAxisSize: MainAxisSize.min, // 🔥 permite altura dinámica
           children: [
             Container(
               margin: EdgeInsets.only(left: 20.r, right: 20.r),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Estás aquí', style: TextStyle( fontSize: 11, fontWeight: FontWeight.w500, color: negro)),
                   Row(
                     children: [
                       Image.asset(
-                        'assets/ubicacion_client.png', // La imagen original
-                        height: 12, // Ajusta la altura de la imagen
-                        width: 12, // Ajusta el ancho de la imagen
+                        'assets/ubicacion_client.png',
+                        height: 15,
+                        width: 15,
                       ),
                       const SizedBox(width: 5),
+                      const Text(
+                        'Estás aquí',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: negro,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
                       Expanded(
                         child: Text(
                           _controller.from ?? '',
                           style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w400,
-                              color: negro
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: negro,
+                            height: 1,
                           ),
                           maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
+
             Container(
-              margin: EdgeInsets.symmetric(vertical: 10.r, horizontal: 15.r),
+              margin: EdgeInsets.symmetric(
+                vertical: 10.r,
+                horizontal: 15.r,
+              ),
               child: Row(
                 children: [
-                  // 🔍 A DÓNDE VAMOS (más angosto)
+                  /// 🔍 A DÓNDE VAMOS
                   Expanded(
                     flex: 3,
                     child: GestureDetector(
                       onTap: () {
-                        connectionService.hasInternetConnection().then((hasConnection) {
+                        connectionService
+                            .hasInternetConnection()
+                            .then((hasConnection) {
                           if (hasConnection) {
                             _onBottomSheetOpened();
-                            _mostrarCajonDeBusqueda(context, (selectedAddress) {});
+                            _mostrarCajonDeBusqueda(
+                              context,
+                                  (selectedAddress) {},
+                            );
                           } else {
                             alertSinInternet();
                           }
@@ -355,7 +376,7 @@ class _MapClientPageState extends State<MapClientPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: primary, width: 2),
+                          border: Border.all(color: gris, width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: primary.withOpacity(0.6),
@@ -389,59 +410,60 @@ class _MapClientPageState extends State<MapClientPage> {
 
                   SizedBox(width: 10.r),
 
-                  // ⭐ FAVORITOS (container independiente)
-              GestureDetector(
-                onTap: () async {
-                  await connectionService.checkConnectionAndShowCard(
-                    context,
-                        () {
-                      _showFavoritesSheet();
+                  /// ⭐ FAVORITOS
+                  GestureDetector(
+                    onTap: () async {
+                      await connectionService.checkConnectionAndShowCard(
+                        context,
+                            () {
+                          _showFavoritesSheet();
+                        },
+                      );
                     },
-                  );
-                },
-                child: Container(
-                  height: 52.r,
-                  width: 80.r,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: primary, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
-                        offset: Offset(0, 2.r),
-                        blurRadius: 6.r,
+                    child: Container(
+                      height: 52.r,
+                      width: 80.r,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: gris, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.4),
+                            offset: Offset(0, 2.r),
+                            blurRadius: 6.r,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Favoritos',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Icon(
+                            Icons.favorite,
+                            color: Colors.grey,
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Favoritos',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black54,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Icon(
-                        Icons.favorite,
-                        color: Colors.grey,
-                        size: 18,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              ],
+                ],
               ),
             ),
+
             const SizedBox(height: 6),
 
-            _vistaHistorialBusquedas()
+            /// Historial dinámico
+            _vistaHistorialBusquedas(),
           ],
         ),
       ),
@@ -451,56 +473,82 @@ class _MapClientPageState extends State<MapClientPage> {
   void _showFavoritesSheet() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true, // 👈 permite ocupar todo el ancho correctamente
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Destinos frecuentes',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 10),
-
-              if (favoritePlaces.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text('Aún no tienes favoritos guardados.'),
-                )
-              else
-                ...favoritePlaces.map((f) => ListTile(
-                  leading: const Icon(Icons.star_rounded, color: Colors.amber),
-                  title: Text(f.label, style: const TextStyle(fontWeight: FontWeight.w900)),
-                  subtitle: Text(
-                    f.subtitle.isNotEmpty ? '${f.title}, ${f.subtitle}' : f.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        return SafeArea(
+          top: false,
+          child: Container(
+            width: double.infinity, // 👈 ancho completo
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Destinos frecuentes',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
                   ),
-                  onTap: () async {
-                    final hasConnection = await connectionService.hasInternetConnection();
-                    if (!hasConnection) {
-                      alertSinInternet(); // 👈 solo alerta
-                      return;
-                    }
+                ),
 
-                    final latLng = LatLng(f.lat, f.lng);
+                const SizedBox(height: 10),
 
-                    setState(() {
-                      _controller.to = f.subtitle.isNotEmpty ? '${f.title}, ${f.subtitle}' : f.title;
-                      _controller.tolatlng = latLng;
-                    });
+                if (favoritePlaces.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('Aún no tienes favoritos guardados.'),
+                  )
+                else
+                  ...favoritePlaces.map(
+                        (f) => ListTile(
+                      leading: const Icon(
+                        Icons.star_rounded,
+                        color: Colors.amber,
+                      ),
+                      title: Text(
+                        f.label,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      subtitle: Text(
+                        f.subtitle.isNotEmpty
+                            ? '${f.title}, ${f.subtitle}'
+                            : f.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onTap: () async {
+                        final hasConnection =
+                        await connectionService.hasInternetConnection();
 
-                    Navigator.pop(context);
-                    _controller.requestDriver(); // aquí ya va a calcular ruta/tarifa con internet
-                  },
+                        if (!hasConnection) {
+                          alertSinInternet();
+                          return;
+                        }
 
-                )),
-            ],
+                        final latLng = LatLng(f.lat, f.lng);
+
+                        setState(() {
+                          _controller.to = f.subtitle.isNotEmpty
+                              ? '${f.title}, ${f.subtitle}'
+                              : f.title;
+
+                          _controller.tolatlng = latLng;
+                        });
+
+                        Navigator.pop(context);
+
+                        _controller.requestDriver();
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -559,15 +607,15 @@ class _MapClientPageState extends State<MapClientPage> {
         ),
         child: Padding(
           // ✅ aquí está el ajuste clave
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 50 + bottomSafe),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomSafe),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
                 'Buscando el lugar de destino en el mapa.',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
                   color: Colors.black,
                 ),
                 textAlign: TextAlign.center,
@@ -578,7 +626,7 @@ class _MapClientPageState extends State<MapClientPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                 decoration: BoxDecoration(
-                  color: Colors.grey[300],
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -586,16 +634,17 @@ class _MapClientPageState extends State<MapClientPage> {
                     const Icon(
                       Icons.location_on,
                       color: Colors.green,
-                      size: 20,
+                      size: 24,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _controller.to ?? '',
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 14,
                           color: Colors.black,
                           fontWeight: FontWeight.bold,
+                          height: 1.1
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -605,7 +654,7 @@ class _MapClientPageState extends State<MapClientPage> {
                 ),
               ),
 
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -619,6 +668,7 @@ class _MapClientPageState extends State<MapClientPage> {
                         isVisibleBotonPinBusquedaDestino = true;
                         isVisibleCajoncambiandoDireccionDestino = false;
                         isVisibleADondeVamos = true;
+                        bottomMaps =400;
                         _controller.requestDriver();
                       });
                     },
@@ -639,8 +689,8 @@ class _MapClientPageState extends State<MapClientPage> {
                         Text(
                           'Confirmar',
                           style: TextStyle(
-                            color: Colors.black54,
-                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                            fontWeight: FontWeight.w700,
                             fontSize: 12.r,
                           ),
                         ),
@@ -655,7 +705,7 @@ class _MapClientPageState extends State<MapClientPage> {
                       if (!mounted) return;
 
                       setState(() {
-                        bottomMaps = 270;
+                        bottomMaps =400;
                         isVisiblePinBusquedaDestino = false;
                         isVisibleCajoncambiandoDireccionDestino = false;
                         isVisibleADondeVamos = true;
@@ -956,8 +1006,6 @@ class _MapClientPageState extends State<MapClientPage> {
   }
 
   Widget _botonBuscarEnElMapaDestino() {
-    final bottomSafe = MediaQuery.of(context).padding.bottom; // ✅ SAFE AREA abajo
-
     return Visibility(
       visible: isVisibleBotonPinBusquedaDestino,
       child: GestureDetector(
@@ -967,7 +1015,7 @@ class _MapClientPageState extends State<MapClientPage> {
           if (hasConnection) {
             if (mounted) {
               setState(() {
-                bottomMaps = 210;
+                bottomMaps = 300;
                 isVisiblePinBusquedaDestino = true;
                 isVisibleBotonPinBusquedaDestino = false;
                 isVisibleCajoncambiandoDireccionDestino = true;
@@ -983,12 +1031,9 @@ class _MapClientPageState extends State<MapClientPage> {
           }
         },
         child: Container(
-          height: ScreenUtil().setSp(40),
-          width: ScreenUtil().setSp(100),
-
-          // ✅ antes: const EdgeInsets.only(bottom: 350)
-          margin: EdgeInsets.only(bottom: 350 + bottomSafe),
-
+          height: ScreenUtil().setSp(50),
+          width: ScreenUtil().setSp(60),
+          margin: const EdgeInsets.only(top: 20),
           padding: const EdgeInsets.all(8),
           decoration: const BoxDecoration(
             color: Colors.white,
@@ -1004,17 +1049,13 @@ class _MapClientPageState extends State<MapClientPage> {
               )
             ],
           ),
-          child: Row(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/icono_buscar_posicion.png',
-                  width: 35, height: 35),
-              const Text(
-                'Mapa',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: negro,
-                  fontWeight: FontWeight.w900,
-                ),
+              Image.asset(
+                'assets/icono_buscar_posicion.png',
+                width: 38,
+                height: 38,
               ),
             ],
           ),
@@ -1026,9 +1067,8 @@ class _MapClientPageState extends State<MapClientPage> {
   Widget _iconBuscarEnElMapaDestino() {
     return Stack(
       children: [
-        // Otros widgets en el Stack
         Positioned(
-          top: MediaQuery.of(context).size.height / 2 - 165, // 40 es la mitad de la altura del icono (80)
+          top: (MediaQuery.of(context).size.height - bottomMaps) / 2 - 100,
           left: 0,
           right: 0,
           child: Visibility(
@@ -1046,12 +1086,15 @@ class _MapClientPageState extends State<MapClientPage> {
                       isVisibleBotonPinBusquedaDestino = true;
                       isVisibleCajoncambiandoDireccionDestino = false;
 
-                      // Actualizar el campo 'to' con la dirección seleccionada desde el mapa
                       _controller.to = selectedAddress;
                     });
                   });
                 },
-                child: Image.asset('assets/icono_buscar_posicion.png', width: 50.r, height: 50.r),
+                child: Image.asset(
+                  'assets/icono_buscar_posicion.png',
+                  width: 50.r,
+                  height: 50.r,
+                ),
               ),
             ),
           ),
@@ -1150,7 +1193,7 @@ class _MapClientPageState extends State<MapClientPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              SizedBox(height: 50.r),
+              SizedBox(height: 45.r),
 
               Text(
                 'Escribe el sitio a donde vamos',
@@ -1612,15 +1655,20 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
   Widget _vistaHistorialBusquedas() {
-    return Expanded(
-      child: Container(
-        margin: EdgeInsets.only(bottom: 15.r),
-        child: !_historyLoaded
-            ? const SizedBox.shrink() // ✅ mientras carga, no muestres nada (sin “flash”)
-            : (searchHistory.isEmpty
-            ? _estadoSinHistorial()
-            : SingleChildScrollView(child: _listaHistorial())),
-      ),
+    if (!_historyLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    if (searchHistory.isEmpty) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: 15.r),
+        child: _estadoSinHistorial(),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 15.r),
+      child: _listaHistorial(),
     );
   }
 
@@ -1722,7 +1770,7 @@ class _MapClientPageState extends State<MapClientPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const Icon(Icons.location_on, size: 16, color: Colors.green),
+                        const Icon(Icons.location_on, size: 24, color: Colors.green),
                         const SizedBox(width: 6),
 
                         Expanded(
@@ -1734,7 +1782,7 @@ class _MapClientPageState extends State<MapClientPage> {
                                 TextSpan(
                                   text: item.title,
                                   style: TextStyle(
-                                    fontSize: 11.r,
+                                    fontSize: 14.r,
                                     fontWeight: FontWeight.w900,
                                     color: negro,
                                   ),
@@ -1743,7 +1791,7 @@ class _MapClientPageState extends State<MapClientPage> {
                                   TextSpan(
                                     text: ', ${item.subtitle}',
                                     style: TextStyle(
-                                      fontSize: 11.r,
+                                      fontSize: 12.r,
                                       fontWeight: FontWeight.w400,
                                       color: Colors.black54,
                                     ),

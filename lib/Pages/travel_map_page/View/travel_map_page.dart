@@ -46,7 +46,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: blanco,
+        backgroundColor: blancoCards,
         body: Column(
           children: [
             Expanded(
@@ -127,9 +127,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
   Widget _cajonEstadoViaje(String status) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
-        color: blanco,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
@@ -138,51 +136,117 @@ class _TravelMapPageState extends State<TravelMapPage> {
       child: Column(
         children: [
 
-          /// 🟢 CAJÓN DEL ESTADO
+          /// 🔵 SECCIÓN STATUS
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             decoration: BoxDecoration(
-              color: _colorPorEstado(status).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: _colorPorEstado(status),
-                width: 1.2,
+              color: primary.withOpacity(0.7),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _iconoPorEstado(status),
-                  color: _colorPorEstado(status),
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 13.r,
-                    fontWeight: FontWeight.w900,
-                    color: _colorPorEstado(status),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: Colors.black,
+                    width: 1,
                   ),
                 ),
-              ],
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _iconoPorEstado(status),
+                      color: _colorPorEstado(status),
+                      size: 26,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 13.r,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
 
-          const SizedBox(height: 6),
-          const Text("Destino", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
-          const Divider(color: Colors.grey, height: 1),
-          const SizedBox(height: 6),
-          /// 📍 DESTINO
-          Text(
-            _controller.travelInfo?.to ?? 'Destino no disponible',
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.1
+          /// ⭐ CARACTERÍSTICAS (solo si existen)
+          if (_controller.travelInfo?.caracteristicaVehiculo != null &&
+              _controller.travelInfo!.caracteristicaVehiculo!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                  ),
+                  color: Colors.white,
+                ),
+                child: Text(
+                  'Requerido con: ${_controller.travelInfo?.caracteristicaVehiculo ?? ''}',
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
             ),
-            textAlign: TextAlign.center,
+
+          /// ⚪ SECCIÓN DESTINO
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              MediaQuery.of(context).padding.bottom + 10,
+            ),
+            color: blancoCards,
+            child: Column(
+              children: [
+                const Text(
+                  "Destino:",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                const Divider(color: Colors.grey, height: 1),
+
+                const SizedBox(height: 6),
+
+                /// 📍 DESTINO
+                Text(
+                  _controller.travelInfo?.to ?? 'Destino no disponible',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -424,71 +488,97 @@ class _TravelMapPageState extends State<TravelMapPage> {
   Widget _cajonInformativo(double screenWidth) {
     final formatCurrency = NumberFormat("#,##0", "es_CO");
 
-    return Container(
-      width: screenWidth,
-      child: Column(
-        children: [
-          _cajonEstadoViaje(_controller.currentStatus),
-          SizedBox(height: 6.r),
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: screenWidth,
+        child: Column(
+          children: [
+            _cajonEstadoViaje(_controller.currentStatus),
+            SizedBox(height: 6.r),
 
-          /// 💰 CAJÓN TARIFA PRO
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 12.r),
-            padding: EdgeInsets.symmetric(horizontal: 18.r, vertical: 12.r),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.grey.shade300,
-                width: 1,
+            /// 💰 CAJÓN TARIFA PRO
+            Container(
+              margin: EdgeInsets.symmetric(horizontal: 12.r),
+              padding: EdgeInsets.symmetric(horizontal: 18.r, vertical: 12.r),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.payments_outlined,
-                  size: 18.r,
-                  color: Colors.green.shade700,
-                ),
-                SizedBox(width: 6.r),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
 
-                /// LABEL
-                Text(
-                  'Tarifa:',
-                  style: TextStyle(
-                    fontSize: 13.r,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
-                    letterSpacing: 0.4,
+                  /// 💰 TARIFA
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.payments_outlined,
+                        size: 18.r,
+                        color: Colors.green.shade700,
+                      ),
+                      SizedBox(width: 6.r),
+
+                      Text(
+                        'Tarifa:',
+                        style: TextStyle(
+                          fontSize: 13.r,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+
+                      SizedBox(width: 8.r),
+
+                      Text(
+                        '\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}',
+                        style: TextStyle(
+                          fontSize: 22.r,
+                          fontWeight: FontWeight.w900,
+                          color: negro,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
 
-                SizedBox(width: 8.r),
-
-                /// VALOR
-                Text(
-                  '\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}',
-                  style: TextStyle(
-                    fontSize: 22.r,
-                    fontWeight: FontWeight.w900,
-                    color: negro,
+                  /// 💳 MÉTODO DE PAGO
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_outlined,
+                        size: 18.r,
+                        color: Colors.blueGrey,
+                      ),
+                      SizedBox(width: 6.r),
+                      Text(
+                        _controller.travelInfo?.metodoPago ?? 'Efectivo',
+                        style: TextStyle(
+                          fontSize: 13.r,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          SizedBox(height: 10.r),
-        ],
+            SizedBox(height: 10.r),
+          ],
+        ),
       ),
     );
   }

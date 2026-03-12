@@ -49,7 +49,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     'Aire acondicionado',
     'Vidrios polarizados',
     'Con baúl',
-    'Porta bicicletas',
     'Silla de ruedas',
     'Con mascota',
   ];
@@ -179,7 +178,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   Widget _googleMapsWidget() {
     return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.45,
+      height: MediaQuery.of(context).size.height * 0.40,
       child: GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
@@ -226,15 +225,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           topLeft: Radius.circular(30.r),
           topRight: Radius.circular(30.r),
         ),
-        gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            primary,
-            blancoCards,
-          ],
-          stops: [0.0, 0.5], // 👈 mitad y mitad
-        ),
+        color: blanco,
         boxShadow: [
           BoxShadow(
             color: negro.withOpacity(0.4),
@@ -245,29 +236,67 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       ),
       child: Column(
         children: [
+
+          /// 🔵 SECCIÓN FROM / TO
           Container(
-            margin: EdgeInsets.only(top: 15.r, left: 25.r, right: 25.r),
-            child: Row(
-              children: [
-                Image.asset('assets/ubicacion_client.png', height: 15.r, width: 15.r),
-                SizedBox(width: 5.r),
-                Expanded(child: Text(from, style: TextStyle(fontSize: 12.r, color: negro), maxLines: 1))
-              ],
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: primary.withOpacity(0.7),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(30.r),
+                topRight: Radius.circular(30.r),
+              ),
             ),
-          ),
-          Container(
-            margin: EdgeInsets.only(left: 25.r, right: 25.r),
-            child: Row(
+            child: Column(
               children: [
-                Image.asset('assets/marker_destino.png', height: 15.r, width: 15.r),
-                SizedBox(width: 5.r),
-                Expanded(child: Text(to, style: TextStyle( fontWeight: FontWeight.w900, fontSize: 12.r, color: negro), maxLines: 1))
+
+                Container(
+                  margin: EdgeInsets.only(top: 15.r, left: 25.r, right: 25.r),
+                  child: Row(
+                    children: [
+                      Image.asset('assets/ubicacion_client.png', height: 15.r, width: 15.r),
+                      SizedBox(width: 5.r),
+                      Expanded(
+                        child: Text(
+                          from,
+                          style: TextStyle(fontSize: 12.r, color: negro),
+                          maxLines: 1,
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+
+                Container(
+                  margin: EdgeInsets.only(left: 25.r, right: 25.r, bottom: 15.r),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Image.asset('assets/marker_destino.png', height: 15.r, width: 15.r),
+                      SizedBox(width: 5.r),
+                      Expanded(
+                        child: Text(
+                          to,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14.r,
+                            color: negro,
+                            height: 1.1,
+                          ),
+                          maxLines: 2,
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+
               ],
             ),
           ),
 
-          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
+          const SizedBox(height: 5),
 
+          /// 📏 DISTANCIA / DURACIÓN / TARIFA
           Container(
             margin: const EdgeInsets.symmetric(vertical: 5),
             padding: EdgeInsets.symmetric(horizontal: 8.r),
@@ -288,7 +317,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       ),
                       headerText(
                         text: _controller.km ?? '',
-                        fontSize: 12.r,
+                        fontSize: 14.r,
                         color: negro,
                         fontWeight: FontWeight.w900,
                       ),
@@ -309,7 +338,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       ),
                       headerText(
                         text: _controller.min ?? '',
-                        fontSize: 12.r,
+                        fontSize: 14.r,
                         color: negro,
                         fontWeight: FontWeight.w900,
                       ),
@@ -331,14 +360,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20.r),
-
-                        // 🔥 borde primary
-                        border: Border.all(
-                          color: primary,
-                          width: 3,
-                        ),
-
-                        // 🔥 sombra más fina (elevación suave)
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.08),
@@ -351,8 +372,8 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         fit: BoxFit.scaleDown,
                         child: headerText(
                           text: formattedTarifa,
-                          fontSize: 16.r,
-                          color: Colors.black87,
+                          fontSize: 18.r,
+                          color: Colors.black,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -363,16 +384,16 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
 
-          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
           const SizedBox(height: 15),
-          // ✅ MÉTODOS DE PAGO (fila independiente)
+
+          /// MÉTODOS DE PAGO
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.r),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Método de pago',
+                  '¿Cómo quieres pagar?',
                   style: TextStyle(
                     fontSize: 12.r,
                     fontWeight: FontWeight.w800,
@@ -384,27 +405,26 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               ],
             ),
           ),
+
           const SizedBox(height: 15),
-          const Divider(height: 2, color: Colors.black87, indent: 15, endIndent: 15),
-          const SizedBox(height: 15),
+
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 12.r),
             child: _textApuntes(),
           ),
 
-          Expanded(
-            child: Container(
-            ),
-          ),
+          Expanded(child: Container()),
+
+          /// BOTÓN
           Container(
             width: double.infinity,
-            height: 40.r,
+            height: 50.r,
             margin: EdgeInsets.only(
               left: 25.r,
               right: 25.r,
-              bottom: MediaQuery.of(context).padding.bottom + 45.r, // ✅ SAFE AREA
+              bottom: MediaQuery.of(context).padding.bottom ,
             ),
-            child: OutlinedButton(
+            child: ElevatedButton(
               onPressed: (_controller.isCalculatingTrip || !_controller.canConfirmTrip)
                   ? null
                   : () async {
@@ -417,15 +437,15 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   },
                 );
               },
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: primary, width: 1.5), // 👈 igual al OTP
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
+                elevation: 2,
                 padding: EdgeInsets.symmetric(vertical: 10.r),
               ),
-
-              // 🔥 MISMO patrón visual que OTP
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 150),
                 child: _controller.isCalculatingTrip
@@ -438,14 +458,14 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       height: 14.r,
                       child: const CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(primary),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                       ),
                     ),
                     SizedBox(width: 8.r),
                     Text(
                       'Calculando ruta...',
                       style: TextStyle(
-                        color: primary,
+                        color: Colors.black,
                         fontSize: 14.r,
                         fontWeight: FontWeight.w600,
                       ),
@@ -456,17 +476,11 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   key: const ValueKey('idle'),
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: 24.r,
-                      color: Colors.black,
-                    ),
-                    SizedBox(width: 8.r),
                     Text(
                       'SOLICITAR SERVICIO',
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: 14.r,
+                        fontSize: 16.r,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -474,7 +488,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 ),
               ),
             ),
-          ),
+          )
         ],
       ),
     );
@@ -562,6 +576,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   Widget _buildMetodoPagoItem(String metodo) {
     final bool seleccionado = _metodoPagoSeleccionado == metodo;
+    const Color verde = Colors.green;
 
     return GestureDetector(
       onTap: () {
@@ -572,24 +587,23 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 6.r),
         decoration: BoxDecoration(
-          color: seleccionado ? primary.withOpacity(0.1) : Colors.white,
+          color: seleccionado ? verde.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: seleccionado ? primary : Colors.grey.shade300,
+            color: seleccionado ? verde : Colors.grey.shade300,
             width: 1.3,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 🔘 Círculo tipo radio
             Container(
               width: 14.r,
               height: 14.r,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: seleccionado ? primary : Colors.grey,
+                  color: seleccionado ? verde : Colors.grey,
                   width: 2,
                 ),
               ),
@@ -600,7 +614,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   height: 6.r,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: primary,
+                    color: verde,
                   ),
                 ),
               )
@@ -642,9 +656,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
   Widget _textApuntes() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12.r),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start, // ✅ TODO a la izquierda
         children: [
           Text(
@@ -664,7 +676,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: primary, width: 1.3),
+              border: Border.all(color: grisMedio, width: 1.3),
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
@@ -672,7 +684,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 isExpanded: true, // ✅ CLAVE para que ocupe todo el ancho
                 icon: Icon(
                   Icons.keyboard_arrow_down,
-                  color: primary,
+                  color: grisMedio,
                   size: 22.r,
                 ),
                 items: _caracteristicasVehiculo.map((c) {
@@ -697,8 +709,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
 

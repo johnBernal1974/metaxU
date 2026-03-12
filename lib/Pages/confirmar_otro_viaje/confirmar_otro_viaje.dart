@@ -35,7 +35,7 @@ class AfterCalificationPage extends StatelessWidget {
               const SizedBox(height: 8),
               const Text(
                 '¿Deseas solicitar otro viaje o salir?',
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 18),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -44,12 +44,10 @@ class AfterCalificationPage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 height: 48,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.local_taxi),
-                  label: const Text('Solicitar otro viaje'),
+                child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
-                    foregroundColor: Colors.black, // color del texto e ícono
+                    foregroundColor: Colors.black, // color del texto
                   ),
                   onPressed: () {
                     Navigator.pushNamedAndRemoveUntil(
@@ -58,6 +56,10 @@ class AfterCalificationPage extends StatelessWidget {
                           (route) => false,
                     );
                   },
+                  child: const Text('SILICITAR OTRO VIAJE', style: TextStyle(
+                   fontSize: 16,
+                   fontWeight: FontWeight.w900
+                  )),
                 ),
               ),
               const SizedBox(height: 12),

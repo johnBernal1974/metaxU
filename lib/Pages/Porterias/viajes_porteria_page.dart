@@ -103,7 +103,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
                   final Timestamp? cancelledAt = data["cancelledAt"];
 
-                  if (status == "cancelled" && cancelledAt != null) {
+                  if (status == "cancelledByPorteria" && cancelledAt != null) {
 
                     final diff = DateTime.now().difference(cancelledAt.toDate()).inSeconds;
 
@@ -118,7 +118,9 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                       status == "driver_on_the_way" ||
                       status == "driver_is_waiting" ||
                       status == "no_driver_found" ||
-                      status == "cancelled";
+                      status == "cancelledByPorteria" ||
+                      status == "cancelByDriverAfterAccepted" ||
+                      status == "cancelTimeIsOver";
 
                 }).toList();
 
@@ -127,7 +129,6 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                     child: Text("No hay viajes activos"),
                   );
                 }
-
                 return ListView.builder(
                   padding: EdgeInsets.all(16.r),
                   itemCount: docs.length,
@@ -225,11 +226,17 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   Widget _cardSolicitud(BuildContext context, String requestId, Map<String, dynamic> data) {
 
+    if (data["subStatus"] == "desistido" &&
+        data["status"] == "cancelByDriverAfterAccepted") {
+      return const SizedBox();
+    }
+
     final usuario = data["usuario"] ?? "";
     final apto = data["apto"] ?? "";
     final status = data["status"] ?? "created";
 
     final bool taxiLlego = status == "driver_is_waiting";
+    final bool canceladoPorConductor = status == "cancelByDriverAfterAccepted";
 
     final conductor = data["nombreConductor"] ?? "";
     final placa = data["placa"] ?? "";
@@ -252,17 +259,26 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
       textoEstado = "El taxi ha llegado";
       colorEstado = Colors.black87;
     }
+
     if (status == "no_driver_found") {
       textoEstado = "No aceptado";
       colorEstado = Colors.red;
     }
 
-    if (status == "cancelled") {
+    if (status == "cancelledByPorteria") {
       textoEstado = "Viaje cancelado";
       colorEstado = Colors.grey;
     }
 
+    if (status == "cancelByDriverAfterAccepted") {
+      textoEstado = "Cancelado por conductor";
+      colorEstado = Colors.red;
+    }
 
+    if (status == "cancelTimeIsOver") {
+      textoEstado = "Cancelado por tiempo de espera";
+      colorEstado = Colors.red;
+    }
 
     final Timestamp? ts = data["timestamp"];
     String fechaHora = "";
@@ -276,14 +292,18 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
       duration: const Duration(milliseconds: 500),
       margin: EdgeInsets.only(bottom: 12.r),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: canceladoPorConductor
+            ? Colors.white70
+            : Colors.white,
         borderRadius: BorderRadius.circular(12.r),
-
         border: Border.all(
-          color: taxiLlego ? Colors.green : Colors.black.withOpacity(0.08),
-          width: taxiLlego ? 2 : 1,
+          color: canceladoPorConductor
+              ? Colors.red
+              : taxiLlego
+              ? Colors.green
+              : Colors.black.withOpacity(0.08),
+          width: canceladoPorConductor || taxiLlego ? 1 : 1,
         ),
-
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.08),
@@ -297,15 +317,34 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 6.r),
+              decoration: BoxDecoration(
+                color: Colors.grey.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6.r),
+              ),
+              child: Center(
+                child: Text(
+                  textoEstado,
+                  style: TextStyle(
+                    fontSize: 11.r,
+                    fontWeight: FontWeight.w800,
+                    color: colorEstado,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
 
-            /// DATOS DEL USUARIO
+            /// USUARIO + APTO
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   usuario,
                   style: TextStyle(
-                    fontSize: 15.r,
+                    fontSize: 13.r,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -313,46 +352,28 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                   Text(
                     "Apto: $apto",
                     style: TextStyle(
-                      fontSize: 14.r,
+                      fontSize: 13.r,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
               ],
             ),
-            SizedBox(height: 8.r),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  fechaHora,
-                  style: TextStyle(
-                    fontSize: 12.r,
-                    color: Colors.black,
-                    fontWeight: FontWeight.w400
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 5.r),
-                  decoration: BoxDecoration(
-                    color: colorEstado.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(6.r),
-                  ),
-                  child: Text(
-                    textoEstado,
-                    style: TextStyle(
-                      fontSize: 12.r,
-                      fontWeight: FontWeight.w800,
-                      color: colorEstado,
-                    ),
-                  ),
-                ),
-              ],
+            /// FECHA
+            Text(
+              fechaHora,
+              style: TextStyle(
+                  fontSize: 10.r,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w400
+              ),
             ),
 
-            if (status == "no_driver_found") ...[
+            /// BOTONES
+            if (status == "no_driver_found" ||
+                status == "cancelByDriverAfterAccepted" ||
+                status == "cancelTimeIsOver") ...[
 
-              SizedBox(height: 10.r),
+              SizedBox(height: 12.r),
 
               Row(
                 children: [
@@ -370,7 +391,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                         _volverASolicitar(requestId, data);
                       },
                       child: Text(
-                        "Solicitar nuevamente",
+                        "Reintentar",
                         style: TextStyle(
                           color: Colors.green,
                           fontSize: 12.r,
@@ -391,11 +412,17 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                         ),
                         padding: EdgeInsets.symmetric(vertical: 8.r),
                       ),
-                      onPressed: () {
-                        _cancelarSolicitud(requestId);
+                      onPressed: () async {
+                        await FirebaseFirestore.instance
+                            .collection("TravelRequests")
+                            .doc(requestId)
+                            .update({
+                          "subStatus": "desistido",
+                          "desistidoAt": FieldValue.serverTimestamp(),
+                        });
                       },
                       child: Text(
-                        "Cancelar",
+                        "Desistir",
                         style: TextStyle(
                           color: Colors.black87,
                           fontSize: 12.r,
@@ -407,155 +434,166 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
                 ],
               ),
-
             ],
 
-            if (status == "accepted" || status == "driver_on_the_way" || status == "driver_is_waiting") ...[
-
-              SizedBox(height: 10.r),
-
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.red),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.r),
-                  ),
-                ),
-                icon: const Icon(Icons.cancel, color: Colors.red, size: 15),
-                label: const Text(
-                  "Cancelar servicio",
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                onPressed: () async {
-
-                  final confirmar = await showDialog<bool>(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        title: const Text(
-                          "Cancelar servicio",
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        content: const Text(
-                          "¿Estás seguro de cancelar este servicio?",
-                        ),
-                        actions: [
-
-                          TextButton(
-                            child: const Text("No"),
-                            onPressed: () {
-                              Navigator.pop(context, false);
-                            },
-                          ),
-
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                            ),
-                            child: const Text(
-                              "Sí, cancelar",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            onPressed: () {
-                              Navigator.pop(context, true);
-                            },
-                          ),
-
-                        ],
-                      );
-                    },
-                  );
-
-                  if (confirmar == true) {
-                    await _cancelarSolicitud(requestId);
-                  }
-
-                },
-              ),
-
-            ],
-
-            /// DATOS DEL CONDUCTOR
-            if (conductor.isNotEmpty) ...[
-
+            /// DIVIDER
+            if (
+            conductor.isNotEmpty &&
+                status != "cancelByDriverAfterAccepted" &&
+                status != "cancelTimeIsOver"
+            ) ...[
               SizedBox(height: 12.r),
 
-              const Divider(color: Colors.black54),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(10.r),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10.r),
+                  border: Border.all(color: gris.withOpacity(0.4)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
+                ),
 
-              SizedBox(height: 8.r),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
+                    /// TAXI
+                    Image.asset(
+                      "assets/imagen_taxi.png",
+                      height: 25,
+                    ),
 
-                  /// TAXI
-                  Image.asset(
-                    "assets/imagen_taxi.png",
-                    height: 36,
-                  ),
+                    SizedBox(width: 2.r),
 
-                  SizedBox(width: 10.r),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
 
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                          Text(
+                            conductor,
+                            style: TextStyle(
+                                fontSize: 12.r,
+                                fontWeight: FontWeight.w700,
+                                height: 1.1
+                            ),
+                          ),
+
+                          SizedBox(height: 6.r),
+
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 6.r,
+                              vertical: 2.r,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.black),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _formatearPlaca(placa),
+                              style: TextStyle(
+                                fontSize: 11.r,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    /// ICONOS DERECHA
+                    Column(
                       children: [
 
-                        /// NOMBRE CONDUCTOR
-                        Text(
-                          conductor,
-                          style: TextStyle(
-                            fontSize: 14.r,
-                            fontWeight: FontWeight.w700,
-                            height: 1
+                        if (celular.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.phone, color: Colors.black),
+                            onPressed: () {
+                              _llamarConductor(celular);
+                            },
                           ),
-                        ),
 
-                        SizedBox(height: 6.r),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 6.r),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6.r),
+                            ),
+                          ),
+                          onPressed: () async {
 
-                        /// PLACA
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8.r,
-                            vertical: 3.r,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black),
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                            final confirmar = await showDialog<bool>(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  title: const Text(
+                                    "Cancelar servicio",
+                                    style: TextStyle(fontWeight: FontWeight.w900),
+                                  ),
+                                  content: const Text(
+                                    "¿Estás seguro de cancelar este servicio?",
+                                  ),
+                                  actions: [
+
+                                    TextButton(
+                                      child: const Text("No"),
+                                      onPressed: () {
+                                        Navigator.pop(context, false);
+                                      },
+                                    ),
+
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                      ),
+                                      child: const Text(
+                                        "Sí, cancelar",
+                                        style: TextStyle(color: Colors.white),
+                                      ),
+                                      onPressed: () {
+                                        Navigator.pop(context, true);
+                                      },
+                                    ),
+
+                                  ],
+                                );
+                              },
+                            );
+
+                            if (confirmar == true) {
+                              await _cancelarSolicitud(requestId);
+                            }
+
+                          },
                           child: Text(
-                            _formatearPlaca(placa),
+                            "Cancelar viaje",
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 14.r,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 9.r,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
                             ),
                           ),
                         ),
-
                       ],
-                    ),
-                  ),
-
-                  /// ICONO LLAMAR
-                  if (celular.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(Icons.phone, color: Colors.black),
-                      onPressed: () {
-                        _llamarConductor(celular);
-                      },
-                    ),
-
-                ],
+                    )
+                  ],
+                ),
               ),
-            ],
+            ]
 
           ],
         ),
@@ -573,12 +611,12 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
     final travelInfoRef = firestore.collection("TravelInfo").doc(requestId);
 
     batch.update(requestRef, {
-      "status": "cancelled",
+      "status": "cancelledByPorteria",
       "cancelledAt": FieldValue.serverTimestamp(),
     });
 
     batch.update(travelInfoRef, {
-      "status": "cancelled",
+      "status": "cancelledByPorteria",
     });
 
     await batch.commit();

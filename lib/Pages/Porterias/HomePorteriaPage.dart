@@ -634,7 +634,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: primary, width: 1.3),
+            border: Border.all(color: gris, width: 1.3),
           ),
 
           child: TextField(
@@ -678,7 +678,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: primary, width: 1.3),
+            border: Border.all(color: gris, width: 1.3),
           ),
 
           child: TextField(
@@ -715,7 +715,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           color: seleccionado ? primary.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: seleccionado ? primary : Colors.grey.shade300,
+            color: seleccionado ? Colors.green : Colors.grey.shade300,
             width: 1.3,
           ),
         ),
@@ -728,7 +728,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: seleccionado ? primary : Colors.grey,
+                  color: seleccionado ? Colors.green : Colors.grey,
                   width: 2,
                 ),
               ),
@@ -739,7 +739,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                   height: 6.r,
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: primary,
+                    color: Colors.green,
                   ),
                 ),
               )
@@ -787,7 +787,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(color: primary, width: 1.3),
+            border: Border.all(color: gris, width: 1.3),
           ),
 
           child: DropdownButtonHideUnderline(

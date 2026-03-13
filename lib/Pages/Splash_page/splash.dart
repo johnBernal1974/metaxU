@@ -230,7 +230,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: primary,
+      backgroundColor: primary.withOpacity(0.7),
       body: Stack(
         children: [
           // Elementos principales al centro de la pantalla.

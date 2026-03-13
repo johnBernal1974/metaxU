@@ -179,7 +179,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                           Container(
                             padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 8.r),
                             decoration: BoxDecoration(
-                              color: primary,
+                              color: primary.withOpacity(0.7),
                               borderRadius: BorderRadius.circular(12.r),
                               boxShadow: [
                                 BoxShadow(
@@ -249,44 +249,29 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                   SizedBox(
                     width: double.infinity,
                     height: 44.r,
-                    child: ElevatedButton(
-                      onPressed: _solicitandoServicio
-                          ? null
-                          : () async {
-                        await _solicitarServicio();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        elevation: 4,
-                        shadowColor: Colors.black26,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.r),
+                      child: ElevatedButton(
+                        onPressed: _solicitandoServicio
+                            ? null
+                            : () async {
+                          await _solicitarServicio();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary.withOpacity(0.7),
+                          elevation: 4,
+                          shadowColor: Colors.black26,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-
-                          Icon(
-                            Icons.send_to_mobile,
+                        child: Text(
+                          "SOLICITAR SERVICIO",
+                          style: TextStyle(
+                            fontSize: 14.r,
+                            fontWeight: FontWeight.w900,
                             color: Colors.black,
-                            size: 22.r,
                           ),
-
-                          SizedBox(width: 8.r),
-
-                          Text(
-                            "SOLICITAR SERVICIO",
-                            style: TextStyle(
-                              fontSize: 14.r,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.black,
-                            ),
-                          ),
-
-                        ],
-                      ),
-                    ),
+                        ),
+                      )
                   ),
                   SizedBox(height: 30.r),
 
@@ -392,7 +377,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: taxiEsperando ? Colors.green : primary,
+                    color: taxiEsperando ? Colors.green : primary.withOpacity(0.7),
                     borderRadius: const BorderRadius.horizontal(
                       left: Radius.circular(10),
                     ),
@@ -401,7 +386,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                   child: const Text(
                     "Solicitudes",
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Colors.black87,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -442,10 +427,10 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
           SizedBox(
             height: 200,
             child: DrawerHeader(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.all(10),
               margin: EdgeInsets.zero,
-              decoration: const BoxDecoration(
-                color: primary,
+              decoration: BoxDecoration(
+                color: primary.withOpacity(0.7),
               ),
               child: Container(
                 width: double.infinity,

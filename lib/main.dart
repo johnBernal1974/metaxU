@@ -8,7 +8,7 @@ import 'Pages/Forgot_PasswordPage/forgot_password_page.dart';
 import 'Pages/Login_page/login_page.dart';
 import 'Pages/Porterias/HomePorteriaPage.dart';
 import 'Pages/Porterias/contacto_porteria_page.dart';
-import 'Pages/Porterias/historial_viajes_page.dart';
+import 'Pages/Porterias/historial_viajes_porteria_page.dart';
 import 'Pages/Porterias/viajes_porteria_page.dart';
 import 'Pages/Register_page/register_page.dart';
 import 'Pages/Splash_page/splash.dart';

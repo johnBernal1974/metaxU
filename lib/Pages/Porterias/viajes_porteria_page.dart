@@ -26,6 +26,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   /// evitar repetir sonido muchas veces
   final Set<String> taxisNotificados = {};
   final Set<String> cancelacionesNotificadas = {};
+  final Set<String> timeOverNotificados = {};
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +41,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: primary,
+        backgroundColor: primary.withOpacity(0.7),
         title: const Text("Viajes activos", style: TextStyle(
           fontWeight: FontWeight.w700
         ),),
@@ -157,6 +158,14 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                       _reproducirCancelacionConductor();
                     }
 
+                    if (status == "cancelTimeIsOver" &&
+                        !timeOverNotificados.contains(requestId)) {
+
+                      timeOverNotificados.add(requestId);
+
+                      _reproducirCancelacionConductor();
+                    }
+
                     return _cardSolicitud(context, requestId, data);
                   },
                 );
@@ -250,7 +259,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   Widget _cardSolicitud(BuildContext context, String requestId, Map<String, dynamic> data) {
 
     if (data["subStatus"] == "desistido" &&
-        data["status"] == "cancelByDriverAfterAccepted") {
+        data["status"] == "cancelByDriverAfterAccepted" || data["status"] == "cancelTimeIsOver") {
       return const SizedBox();
     }
 

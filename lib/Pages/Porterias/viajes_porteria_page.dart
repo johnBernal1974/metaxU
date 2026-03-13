@@ -25,6 +25,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   /// evitar repetir sonido muchas veces
   final Set<String> taxisNotificados = {};
+  final Set<String> cancelacionesNotificadas = {};
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +149,14 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                       _vibrarTaxiLlegado();
                     }
 
+                    if (status == "cancelByDriverAfterAccepted" &&
+                        !cancelacionesNotificadas.contains(requestId)) {
+
+                      cancelacionesNotificadas.add(requestId);
+
+                      _reproducirCancelacionConductor();
+                    }
+
                     return _cardSolicitud(context, requestId, data);
                   },
                 );
@@ -221,6 +230,20 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
     } catch (e) {
       debugPrint("Error reproduciendo sonido: $e");
+    }
+  }
+
+  Future<void> _reproducirCancelacionConductor() async {
+    try {
+
+      await _player.stop();
+
+      await _player.setAsset("assets/audio/el_conductor_cancelo_el_servicio.wav");
+
+      await _player.play();
+
+    } catch (e) {
+      debugPrint("Error reproduciendo sonido cancelación: $e");
     }
   }
 

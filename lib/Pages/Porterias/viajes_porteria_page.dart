@@ -23,11 +23,6 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   final AudioPlayer _player = AudioPlayer();
 
-  /// evitar repetir sonido muchas veces
-  final Set<String> taxisNotificados = {};
-  final Set<String> cancelacionesNotificadas = {};
-  final Set<String> timeOverNotificados = {};
-
   @override
   Widget build(BuildContext context) {
 
@@ -141,29 +136,47 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                     final requestId = doc.id;
                     final status = data["status"];
 
-                    if (status == "driver_is_waiting" &&
-                        !taxisNotificados.contains(requestId)) {
+                    final notifiedTaxiWaiting = data["notifiedTaxiWaiting"] ?? false;
 
-                      taxisNotificados.add(requestId);
+                    if (status == "driver_is_waiting" && !notifiedTaxiWaiting) {
 
                       _reproducirTaxiLlegada();
                       _vibrarTaxiLlegado();
+
+                      _firestore
+                          .collection("TravelRequests")
+                          .doc(requestId)
+                          .update({
+                        "notifiedTaxiWaiting": true
+                      });
                     }
 
-                    if (status == "cancelByDriverAfterAccepted" &&
-                        !cancelacionesNotificadas.contains(requestId)) {
+                    final notifiedDriverCancel = data["notifiedDriverCancel"] ?? false;
 
-                      cancelacionesNotificadas.add(requestId);
+                    if (status == "cancelByDriverAfterAccepted" && !notifiedDriverCancel) {
 
                       _reproducirCancelacionConductor();
+
+                      _firestore
+                          .collection("TravelRequests")
+                          .doc(requestId)
+                          .update({
+                        "notifiedDriverCancel": true
+                      });
                     }
 
-                    if (status == "cancelTimeIsOver" &&
-                        !timeOverNotificados.contains(requestId)) {
+                    final notifiedTimeOver = data["notifiedTimeOver"] ?? false;
 
-                      timeOverNotificados.add(requestId);
+                    if (status == "cancelTimeIsOver" && !notifiedTimeOver) {
 
                       _reproducirCancelacionConductor();
+
+                      _firestore
+                          .collection("TravelRequests")
+                          .doc(requestId)
+                          .update({
+                        "notifiedTimeOver": true
+                      });
                     }
 
                     return _cardSolicitud(context, requestId, data);

@@ -891,6 +891,10 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
       "status": "created",
       "timestamp": FieldValue.serverTimestamp(),
+
+      "notifiedTaxiWaiting": false,
+      "notifiedDriverCancel": false,
+      "notifiedTimeOver": false
     });
 
     final requestId = docRef.id;

@@ -790,9 +790,13 @@ class TravelInfoController{
 
     serviceAccepted = false;
 
+    /// cancelar timeout anterior
     _timeoutBusqueda?.cancel();
 
+    /// timeout de búsqueda
     _timeoutBusqueda = Timer(const Duration(seconds: 25), () async {
+
+      if (requestId == null) return;
 
       final doc = await FirebaseFirestore.instance
           .collection("TravelRequests")
@@ -804,6 +808,17 @@ class TravelInfoController{
       final data = doc.data() as Map<String, dynamic>;
       final status = data["status"];
 
+      /// si ya hay conductor no hacer nada
+      if (
+      status == "accepted" ||
+          status == "driver_on_the_way" ||
+          status == "driver_is_waiting" ||
+          status == "started"
+      ) {
+        return;
+      }
+
+      /// si aún sigue buscando
       if (status == "created") {
 
         print("Ningún conductor aceptó");
@@ -814,54 +829,64 @@ class TravelInfoController{
             .update({
           "status": "no_driver_found"
         });
-
       }
 
     });
 
+    /// buscar conductores cercanos
     Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
       fromLatlng.latitude,
       fromLatlng.longitude,
       radioDeBusqueda ?? 1,
     );
 
-    _streamSubscriptionPorteria = stream.listen((List<DocumentSnapshot> documentList) async {
+    _streamSubscriptionPorteria?.cancel();
 
-      _streamSubscriptionPorteria?.cancel();
+    _streamSubscriptionPorteria =
+        stream.listen((List<DocumentSnapshot> documentList) async {
 
-      if (documentList.isNotEmpty) {
+          /// detener búsqueda geofire (solo necesitamos una vez)
+          _streamSubscriptionPorteria?.cancel();
 
-        nearbyDrivers = documentList.map((d) => d.id).toList();
+          if (documentList.isNotEmpty) {
 
-        print("PORTERIA encontró ${nearbyDrivers.length} taxis");
+            nearbyDrivers = documentList.map((d) => d.id).toList();
 
-        _attemptToSendNotificationPorteria(nearbyDrivers, 0);
+            print("PORTERIA encontró ${nearbyDrivers.length} taxis");
 
-      } else {
+            /// comenzar notificación secuencial
+            _attemptToSendNotificationPorteria(nearbyDrivers, 0);
 
-        print("PORTERIA no encontró taxis");
+          } else {
 
-        /// cancelar timeout porque no se usará
-        _timeoutBusqueda?.cancel();
+            print("PORTERIA no encontró taxis");
 
-        /// eliminar solicitud inmediatamente
-        if (requestId != null) {
+            /// cancelar timeout
+            _timeoutBusqueda?.cancel();
 
-          await FirebaseFirestore.instance
-              .collection("TravelRequests")
-              .doc(requestId)
-              .delete();
+            if (requestId != null) {
 
-          await FirebaseFirestore.instance
-              .collection("TravelInfo")
-              .doc(requestId)
-              .delete();
+              try {
 
-        }
+                await FirebaseFirestore.instance
+                    .collection("TravelRequests")
+                    .doc(requestId)
+                    .delete();
 
-      }
+                await FirebaseFirestore.instance
+                    .collection("TravelInfo")
+                    .doc(requestId)
+                    .delete();
 
-    });
+              } catch (e) {
+                print("Error eliminando solicitud: $e");
+              }
+
+            }
+
+          }
+
+        });
 
   }
 

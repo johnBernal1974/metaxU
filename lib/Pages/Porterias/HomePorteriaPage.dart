@@ -4,10 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../helpers/sound_manager.dart';
 import '../../src/colors/colors.dart';
 import '../travel_info_page/travel_info_Controller/travel_info_Controller.dart';
 import 'package:vibration/vibration.dart';
-import 'package:just_audio/just_audio.dart';
 
 class HomePorteriaPage extends StatefulWidget {
   const HomePorteriaPage({super.key});
@@ -39,8 +39,9 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   double? lngPorteria;
 
   bool _yaVibroTaxi = false;
+  String _ultimoEstadoBoton = "";
 
-  final AudioPlayer _player = AudioPlayer();
+  final SoundManager _sound = SoundManager();
 
   final Set<String> taxisNotificados = {};
 
@@ -56,6 +57,13 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     'Silla de ruedas',
     'Con mascota',
   ];
+
+  int cantidad = 0;
+  bool taxiEsperando = false;
+  bool hayCancelaciones = false;
+
+  String textoBoton = "Solicitudes";
+  Color colorBoton = primary.withOpacity(0.7);
 
   @override
   void initState() {
@@ -92,15 +100,6 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     });
 
     _loadPorteria();
-    _initAudio();
-  }
-
-  Future<void> _initAudio() async {
-    try {
-      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
-    } catch (e) {
-      debugPrint("Error cargando sonido: $e");
-    }
   }
 
   Future<void> _loadPorteria() async {
@@ -286,19 +285,28 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     );
   }
 
-  Future<void> _reproducirTaxiLlegada() async {
-    try {
+  Future<void> _notificarCambioEstado(String estado) async {
 
-      await _player.stop();
+    if (_ultimoEstadoBoton == estado) return;
 
-      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
+    _ultimoEstadoBoton = estado;
 
-      await _player.play();
+    final hasVibrator = await Vibration.hasVibrator();
 
-    } catch (e) {
-      debugPrint("Error reproduciendo sonido: $e");
+    if (hasVibrator ?? false) {
+
+      if (estado == "taxi") {
+        Vibration.vibrate(pattern: [0, 200, 100, 200]);
+        _sound.playTaxiLlegada();
+      }
+
+      else if (estado == "cancelacion") {
+        Vibration.vibrate(pattern: [0, 300, 150, 300]);
+        _sound.playCancelacionConductor; // si lo tienes en tu SoundManager
+      }
     }
   }
+
 
   Widget _widgetSolicitudes() {
 
@@ -314,26 +322,47 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
         int cantidad = 0;
         bool taxiEsperando = false;
+        bool hayCancelaciones = false;
+
+        String textoBoton = "Solicitudes";
+        Color colorBoton = primary.withOpacity(0.7);
 
         if (snapshot.hasData) {
 
           final docs = snapshot.data!.docs.where((doc) {
 
             final data = doc.data() as Map<String, dynamic>;
+
             final status = data["status"];
+            final subStatus = data["subStatus"];
+
+            /// excluir desistidos
+            if (subStatus == "desistido") return false;
 
             return status == "created" ||
                 status == "accepted" ||
                 status == "driver_on_the_way" ||
-                status == "driver_is_waiting";
+                status == "driver_is_waiting" ||
+                status == "cancelByDriverAfterAccepted" ||
+                status == "cancelTimeIsOver";
 
           }).toList();
 
           cantidad = docs.length;
 
+          /// detectar taxi esperando
           taxiEsperando = docs.any((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return data["status"] == "driver_is_waiting";
+          });
+
+          /// detectar cancelaciones (solo de los docs filtrados)
+          hayCancelaciones = docs.any((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final status = data["status"];
+
+            return status == "cancelByDriverAfterAccepted" ||
+                status == "cancelTimeIsOver";
           });
 
           /// vibración + sonido cuando llega taxi
@@ -341,21 +370,49 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
             _yaVibroTaxi = true;
 
-            /// vibración
             Vibration.hasVibrator().then((value) {
               if (value ?? false) {
                 Vibration.vibrate(duration: 400);
               }
             });
 
-            /// sonido
-            _reproducirTaxiLlegada();
-
+            _sound.playTaxiLlegada();
           }
 
           /// reset cuando ya no hay taxi esperando
           if (!taxiEsperando) {
             _yaVibroTaxi = false;
+          }
+
+          /// prioridad visual
+          if (taxiEsperando) {
+
+            textoBoton = "Taxi llegó";
+            colorBoton = Colors.green;
+
+            _notificarCambioEstado("taxi");
+
+          }
+          else if (hayCancelaciones) {
+
+            textoBoton = "Cancelación";
+            colorBoton = Colors.red;
+
+            _notificarCambioEstado("cancelacion");
+
+          }
+          else if (cantidad > 0) {
+
+            textoBoton = "Solicitudes";
+            colorBoton = primary.withOpacity(0.7);
+
+            _notificarCambioEstado("solicitud");
+
+          }
+          else {
+
+            _ultimoEstadoBoton = "";
+
           }
 
         }
@@ -377,15 +434,15 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
-                    color: taxiEsperando ? Colors.green : primary.withOpacity(0.7),
+                    color: colorBoton,
                     borderRadius: const BorderRadius.horizontal(
                       left: Radius.circular(10),
                     ),
                   ),
                   alignment: Alignment.center,
-                  child: const Text(
-                    "Solicitudes",
-                    style: TextStyle(
+                  child: Text(
+                    textoBoton,
+                    style: const TextStyle(
                       color: Colors.black87,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,

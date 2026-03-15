@@ -55,7 +55,7 @@ class _MapClientPageState extends State<MapClientPage> {
   bool _historyLoaded = false;
 
   LatLng? tolatlng;
-  double bottomMaps= 400;
+  double bottomMaps= 300;
   final ConnectionService connectionService = ConnectionService();
   LatLng? _ubicacionActual;
 
@@ -1054,8 +1054,8 @@ class _MapClientPageState extends State<MapClientPage> {
             children: [
               Image.asset(
                 'assets/icono_buscar_posicion.png',
-                width: 38,
-                height: 38,
+                width: 30,
+                height: 30,
               ),
             ],
           ),
@@ -1589,8 +1589,6 @@ class _MapClientPageState extends State<MapClientPage> {
     final jsonList = favoritePlaces.map((e) => e.toJson()).toList();
     await prefs.setString(_favKey, jsonEncode(jsonList));
   }
-
-
 
 
   Future<void> _onDestinoChanged(String value) async {

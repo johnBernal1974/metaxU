@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:vibration/vibration.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../helpers/sound_manager.dart';
 import '../../src/colors/colors.dart';
 
 class ViajesPorteriaPage extends StatefulWidget {
@@ -20,8 +21,7 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  final AudioPlayer _player = AudioPlayer();
+  final SoundManager _sound = SoundManager();
 
   @override
   Widget build(BuildContext context) {
@@ -140,43 +140,58 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
                     if (status == "driver_is_waiting" && !notifiedTaxiWaiting) {
 
-                      _reproducirTaxiLlegada();
-                      _vibrarTaxiLlegado();
+                      Future.microtask(() async {
 
-                      _firestore
-                          .collection("TravelRequests")
-                          .doc(requestId)
-                          .update({
-                        "notifiedTaxiWaiting": true
+                        await _sound.playTaxiLlegada();
+                        await _vibrarTaxiLlegado();
+
+                        _firestore
+                            .collection("TravelRequests")
+                            .doc(requestId)
+                            .update({
+                          "notifiedTaxiWaiting": true
+                        });
+
                       });
+
                     }
 
                     final notifiedDriverCancel = data["notifiedDriverCancel"] ?? false;
 
                     if (status == "cancelByDriverAfterAccepted" && !notifiedDriverCancel) {
 
-                      _reproducirCancelacionConductor();
+                      Future.microtask(() async {
 
-                      _firestore
-                          .collection("TravelRequests")
-                          .doc(requestId)
-                          .update({
-                        "notifiedDriverCancel": true
+                        await _sound.playCancelacionConductor();
+
+                        _firestore
+                            .collection("TravelRequests")
+                            .doc(requestId)
+                            .update({
+                          "notifiedDriverCancel": true
+                        });
+
                       });
+
                     }
 
                     final notifiedTimeOver = data["notifiedTimeOver"] ?? false;
 
                     if (status == "cancelTimeIsOver" && !notifiedTimeOver) {
 
-                      _reproducirCancelacionConductor();
+                      Future.microtask(() async {
 
-                      _firestore
-                          .collection("TravelRequests")
-                          .doc(requestId)
-                          .update({
-                        "notifiedTimeOver": true
+                        await _sound.playCancelacionConductor();
+
+                        _firestore
+                            .collection("TravelRequests")
+                            .doc(requestId)
+                            .update({
+                          "notifiedTimeOver": true
+                        });
+
                       });
+
                     }
 
                     return _cardSolicitud(context, requestId, data);
@@ -193,7 +208,6 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
   @override
   void initState() {
     super.initState();
-    _initAudio();
   }
 
   Future<void> _llamarConductor(String telefono) async {
@@ -220,14 +234,6 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   }
 
-  Future<void> _initAudio() async {
-    try {
-      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
-    } catch (e) {
-      debugPrint("Error cargando sonido: $e");
-    }
-  }
-
   Future<void> _vibrarTaxiLlegado() async {
 
     if (await Vibration.hasVibrator() ?? false) {
@@ -241,38 +247,16 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
 
   }
 
-  Future<void> _reproducirTaxiLlegada() async {
-    try {
-
-      await _player.stop();
-
-      await _player.setAsset("assets/audio/tu_taxi_ha_llegado.mp3");
-
-      await _player.play();
-
-    } catch (e) {
-      debugPrint("Error reproduciendo sonido: $e");
-    }
-  }
-
-  Future<void> _reproducirCancelacionConductor() async {
-    try {
-
-      await _player.stop();
-
-      await _player.setAsset("assets/audio/el_conductor_cancelo_el_servicio.wav");
-
-      await _player.play();
-
-    } catch (e) {
-      debugPrint("Error reproduciendo sonido cancelación: $e");
-    }
-  }
 
   Widget _cardSolicitud(BuildContext context, String requestId, Map<String, dynamic> data) {
 
-    if (data["subStatus"] == "desistido" &&
-        data["status"] == "cancelByDriverAfterAccepted" || data["status"] == "cancelTimeIsOver") {
+    if (
+    data["subStatus"] == "desistido" &&
+        (
+            data["status"] == "cancelByDriverAfterAccepted" ||
+                data["status"] == "cancelTimeIsOver"
+        )
+    ) {
       return const SizedBox();
     }
 
@@ -485,7 +469,8 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
             if (
             conductor.isNotEmpty &&
                 status != "cancelByDriverAfterAccepted" &&
-                status != "cancelTimeIsOver"
+                status != "cancelTimeIsOver" &&
+                status != "cancelledByPorteria"
             ) ...[
               SizedBox(height: 12.r),
 

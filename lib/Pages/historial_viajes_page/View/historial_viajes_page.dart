@@ -83,7 +83,7 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
       backgroundColor: blancoCards,
       key: _controller.key,
       appBar: AppBar(
-        backgroundColor: primary,
+        backgroundColor: primary.withOpacity(0.7),
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text(
           "Historial de viajes",

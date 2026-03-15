@@ -21,7 +21,7 @@ class PoliticasDePrivacidadPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: blancoCards,
       appBar: AppBar(
-        backgroundColor: primary,
+        backgroundColor: primary.withOpacity(0.7),
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text(
           "Políticas de Privacidad",
@@ -49,7 +49,7 @@ class PoliticasDePrivacidadPage extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
+                  backgroundColor: primary.withOpacity(0.7),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 onPressed: () async {

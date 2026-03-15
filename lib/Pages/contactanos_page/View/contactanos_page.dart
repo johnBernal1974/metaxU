@@ -40,7 +40,7 @@ class _ContactanosPageState extends State<ContactanosPage> {
     return  Scaffold(
       backgroundColor: blancoCards,
       appBar: AppBar(
-        backgroundColor: primary,
+        backgroundColor: primary.withOpacity(0.7),
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text("Contáctanos", style: TextStyle(
             fontWeight: FontWeight.w900,

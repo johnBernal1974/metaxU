@@ -599,23 +599,25 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
           const Spacer(),
 
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text("Cerrar sesión"),
-            onTap: () async {
+          SafeArea(
+            top: false,
+            child: ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text("Cerrar sesión"),
+              onTap: () async {
 
-              await FirebaseAuth.instance.signOut();
+                await FirebaseAuth.instance.signOut();
 
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  'login',
-                      (route) => false,
-                );
-              }
-            },
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    'login',
+                        (route) => false,
+                  );
+                }
+              },
+            ),
           ),
-          const SizedBox(height: 20),
 
         ],
       ),

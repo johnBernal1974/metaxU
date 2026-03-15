@@ -108,7 +108,7 @@ class _CompartirAplicacionpageState extends State<CompartirAplicacionpage> {
     return Scaffold(
       backgroundColor: blancoCards,
       appBar: AppBar(
-        backgroundColor: primary,
+        backgroundColor: primary.withOpacity(0.7),
         iconTheme: const IconThemeData(color: negro, size: 30),
         title: const Text("Compartir App", style: TextStyle(
             fontWeight: FontWeight.w900,

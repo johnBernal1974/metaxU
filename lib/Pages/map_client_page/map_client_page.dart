@@ -55,7 +55,6 @@ class _MapClientPageState extends State<MapClientPage> {
   bool _historyLoaded = false;
 
   LatLng? tolatlng;
-  double bottomMaps= 300;
   final ConnectionService connectionService = ConnectionService();
   LatLng? _ubicacionActual;
 
@@ -75,6 +74,8 @@ class _MapClientPageState extends State<MapClientPage> {
 
   bool _tapHistorialBloqueado = false;
 
+  final GlobalKey _cajonKey = GlobalKey();
+  double bottomMaps = 0;
 
 
   void _safeSheetRepaint() {
@@ -91,6 +92,21 @@ class _MapClientPageState extends State<MapClientPage> {
     }
   }
 
+  void _actualizarAlturaCajon() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _cajonKey.currentContext;
+      if (context == null) return;
+
+      final box = context.findRenderObject() as RenderBox;
+      final altura = box.size.height;
+
+      if (bottomMaps != altura) {
+        setState(() {
+          bottomMaps = altura;
+        });
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -187,7 +203,7 @@ class _MapClientPageState extends State<MapClientPage> {
       canPop: false,
       child: Scaffold(
           appBar: AppBar(
-            backgroundColor: primary,
+            backgroundColor: primary.withOpacity(0.7),
             iconTheme: const IconThemeData(color: negro, size: 24),
             title: Text(
               'Hoy es: ${DateFormat("d MMM 'de' y", 'es').format(DateTime.now())}',
@@ -269,26 +285,22 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
   Widget _letrerosADondeVamos() {
+
+    _actualizarAlturaCajon();
+
     final bottomSafe = MediaQuery.of(context).padding.bottom;
 
     return Visibility(
       visible: isVisibleADondeVamos,
       child: Container(
+        key: _cajonKey,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(30.r),
             topRight: Radius.circular(30.r),
           ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              primary,
-              blancoCards,
-            ],
-            stops: [0.0, 0.5],
-          ),
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
               color: negro.withOpacity(0.4),
@@ -297,15 +309,26 @@ class _MapClientPageState extends State<MapClientPage> {
             ),
           ],
         ),
-        padding: EdgeInsets.fromLTRB(0, 15.r, 0, 0.r + bottomSafe),
+
         child: Column(
-          mainAxisSize: MainAxisSize.min, // 🔥 permite altura dinámica
+          mainAxisSize: MainAxisSize.min,
           children: [
+
+            /// 🔶 HEADER AMARILLO
             Container(
-              margin: EdgeInsets.only(left: 20.r, right: 20.r),
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(20.r, 15.r, 20.r, 10.r),
+              decoration: BoxDecoration(
+                color: primary.withOpacity(0.7),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30.r),
+                  topRight: Radius.circular(30.r),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
                   Row(
                     children: [
                       Image.asset(
@@ -324,6 +347,7 @@ class _MapClientPageState extends State<MapClientPage> {
                       ),
                     ],
                   ),
+
                   Row(
                     children: [
                       Expanded(
@@ -341,129 +365,136 @@ class _MapClientPageState extends State<MapClientPage> {
                       ),
                     ],
                   ),
+
                 ],
               ),
             ),
 
-            Container(
-              margin: EdgeInsets.symmetric(
-                vertical: 10.r,
-                horizontal: 15.r,
-              ),
-              child: Row(
+            /// ⚪ CONTENIDO BLANCO
+            Padding(
+              padding: EdgeInsets.fromLTRB(15.r, 10.r, 15.r, bottomSafe * 0.5),
+              child: Column(
                 children: [
-                  /// 🔍 A DÓNDE VAMOS
-                  Expanded(
-                    flex: 3,
-                    child: GestureDetector(
-                      onTap: () {
-                        connectionService
-                            .hasInternetConnection()
-                            .then((hasConnection) {
-                          if (hasConnection) {
-                            _onBottomSheetOpened();
-                            _mostrarCajonDeBusqueda(
-                              context,
-                                  (selectedAddress) {},
-                            );
-                          } else {
-                            alertSinInternet();
-                          }
-                        });
-                      },
-                      child: Container(
-                        height: 52.r,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: gris, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: primary.withOpacity(0.6),
-                              offset: Offset(0, 2.r),
-                              blurRadius: 6.r,
-                            ),
-                          ],
-                        ),
-                        padding: EdgeInsets.symmetric(horizontal: 12.r),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search, color: negro),
-                            SizedBox(width: 8.r),
-                            const Expanded(
-                              child: Text(
-                                '¿A dónde vamos?',
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
+
+                  /// BUSCADOR + FAVORITOS
+                  Row(
+                    children: [
+
+                      /// 🔍 A DÓNDE VAMOS
+                      Expanded(
+                        flex: 3,
+                        child: GestureDetector(
+                          onTap: () {
+                            connectionService
+                                .hasInternetConnection()
+                                .then((hasConnection) {
+                              if (hasConnection) {
+                                _onBottomSheetOpened();
+                                _mostrarCajonDeBusqueda(
+                                  context,
+                                      (selectedAddress) {},
+                                );
+                              } else {
+                                alertSinInternet();
+                              }
+                            });
+                          },
+                          child: Container(
+                            height: 52.r,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: gris, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: gris,
+                                  offset: Offset(0, 2.r),
+                                  blurRadius: 6.r,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                              ],
                             ),
-                          ],
+                            padding: EdgeInsets.symmetric(horizontal: 12.r),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.search, color: negro),
+                                SizedBox(width: 8.r),
+                                const Expanded(
+                                  child: Text(
+                                    '¿A dónde vamos?',
+                                    style: TextStyle(
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  SizedBox(width: 10.r),
+                      SizedBox(width: 10.r),
 
-                  /// ⭐ FAVORITOS
-                  GestureDetector(
-                    onTap: () async {
-                      await connectionService.checkConnectionAndShowCard(
-                        context,
-                            () {
-                          _showFavoritesSheet();
+                      /// ⭐ FAVORITOS
+                      GestureDetector(
+                        onTap: () async {
+                          await connectionService.checkConnectionAndShowCard(
+                            context,
+                                () {
+                              _showFavoritesSheet();
+                            },
+                          );
                         },
-                      );
-                    },
-                    child: Container(
-                      height: 52.r,
-                      width: 80.r,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: gris, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            offset: Offset(0, 2.r),
-                            blurRadius: 6.r,
+                        child: Container(
+                          height: 52.r,
+                          width: 80.r,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: gris, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.4),
+                                offset: Offset(0, 2.r),
+                                blurRadius: 6.r,
+                              ),
+                            ],
                           ),
-                        ],
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Favoritos',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Icon(
+                                Icons.favorite,
+                                color: Colors.grey,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Favoritos',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Icon(
-                            Icons.favorite,
-                            color: Colors.grey,
-                            size: 18,
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
+
+                  const SizedBox(height: 6),
+
+                  /// HISTORIAL
+                  _vistaHistorialBusquedas(),
+
                 ],
               ),
             ),
-
-            const SizedBox(height: 6),
-
-            /// Historial dinámico
-            _vistaHistorialBusquedas(),
           ],
         ),
       ),
@@ -577,7 +608,7 @@ class _MapClientPageState extends State<MapClientPage> {
 
 
   Widget _cajonCambiandoDirecciondeDestino() {
-    final bottomSafe = MediaQuery.of(context).padding.bottom; // ✅ SAFE AREA
+    final bottomSafe = MediaQuery.of(context).padding.bottom;
 
     return Visibility(
       visible: isVisibleCajoncambiandoDireccionDestino,
@@ -588,15 +619,7 @@ class _MapClientPageState extends State<MapClientPage> {
             topLeft: Radius.circular(30.r),
             topRight: Radius.circular(30.r),
           ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              primary,
-              blancoCards,
-            ],
-            stops: [0.0, 0.7],
-          ),
+          color: Colors.white, // 👈 fondo principal blanco
           boxShadow: [
             BoxShadow(
               color: negro.withOpacity(0.4),
@@ -605,13 +628,22 @@ class _MapClientPageState extends State<MapClientPage> {
             ),
           ],
         ),
-        child: Padding(
-          // ✅ aquí está el ajuste clave
-          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomSafe),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            /// 🔹 HEADER
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 16.r, horizontal: 20.r),
+              decoration: BoxDecoration(
+                color: primary.withOpacity(0.7),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30.r),
+                  topRight: Radius.circular(30.r),
+                ),
+              ),
+              child: const Text(
                 'Buscando el lugar de destino en el mapa.',
                 style: TextStyle(
                   fontSize: 18,
@@ -620,128 +652,144 @@ class _MapClientPageState extends State<MapClientPage> {
                 ),
                 textAlign: TextAlign.center,
               ),
+            ),
 
-              const SizedBox(height: 20),
-
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on,
-                      color: Colors.green,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _controller.to ?? '',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          height: 1.1
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+            /// 🔹 CONTENIDO BLANCO
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, bottomSafe),
+              child: Column(
                 children: [
-                  // ✅ CONFIRMAR
-                  OutlinedButton(
-                    onPressed: () {
-                      _controller.centerPosition();
-                      setState(() {
-                        isVisiblePinBusquedaDestino = false;
-                        isVisibleBotonPinBusquedaDestino = true;
-                        isVisibleCajoncambiandoDireccionDestino = false;
-                        isVisibleADondeVamos = true;
-                        bottomMaps =400;
-                        _controller.requestDriver();
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: primary, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 16.r, vertical: 10.r),
+
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: grisMedio),
                     ),
                     child: Row(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle_outline,
-                            size: 16.r, color: primary),
-                        SizedBox(width: 6.r),
-                        Text(
-                          'Confirmar',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12.r,
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.green,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 10),
+
+                        Expanded(
+                          child: Text(
+                            _controller.to ?? '',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // 🔴 CANCELAR
-                  OutlinedButton(
-                    onPressed: () {
-                      _controller.centerPosition();
-                      if (!mounted) return;
+                  const SizedBox(height: 20),
 
-                      setState(() {
-                        bottomMaps =400;
-                        isVisiblePinBusquedaDestino = false;
-                        isVisibleCajoncambiandoDireccionDestino = false;
-                        isVisibleADondeVamos = true;
-                        isVisibleBotonPinBusquedaDestino = true;
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side:
-                      BorderSide(color: Colors.red.shade400, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.r),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 16.r, vertical: 10.r),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.cancel_outlined,
-                            size: 16.r, color: Colors.red.shade400),
-                        SizedBox(width: 6.r),
-                        Text(
-                          'Cancelar',
-                          style: TextStyle(
-                            color: Colors.red.shade400,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12.r,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+
+                      /// CONFIRMAR
+                      OutlinedButton(
+                        onPressed: () {
+                          _controller.centerPosition();
+
+                          setState(() {
+                            isVisiblePinBusquedaDestino = false;
+                            isVisibleBotonPinBusquedaDestino = true;
+                            isVisibleCajoncambiandoDireccionDestino = false;
+                            isVisibleADondeVamos = true;
+                            bottomMaps = 400;
+
+                            _controller.requestDriver();
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.green, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.r,
+                            vertical: 10.r,
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle_outline,
+                                size: 16.r, color: Colors.green),
+                            SizedBox(width: 6.r),
+                            Text(
+                              'Confirmar',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.r,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      /// CANCELAR
+                      OutlinedButton(
+                        onPressed: () {
+                          _controller.centerPosition();
+                          if (!mounted) return;
+
+                          setState(() {
+                            bottomMaps = 400;
+                            isVisiblePinBusquedaDestino = false;
+                            isVisibleCajoncambiandoDireccionDestino = false;
+                            isVisibleADondeVamos = true;
+                            isVisibleBotonPinBusquedaDestino = true;
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                              color: Colors.red.shade400, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 16.r,
+                            vertical: 10.r,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cancel_outlined,
+                                size: 16.r, color: Colors.red.shade400),
+                            SizedBox(width: 6.r),
+                            Text(
+                              'Cancelar',
+                              style: TextStyle(
+                                color: Colors.red.shade400,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.r,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -756,6 +804,7 @@ class _MapClientPageState extends State<MapClientPage> {
       bottom: bottomMaps,
       child: GoogleMap(
         mapType: MapType.normal,
+        padding: const EdgeInsets.only(bottom: 40),
         initialCameraPosition: _controller.initialPosition,
 
         onMapCreated: (GoogleMapController controller) {
@@ -802,8 +851,8 @@ class _MapClientPageState extends State<MapClientPage> {
           SizedBox(
             height: 250.r,
             child: DrawerHeader(
-              decoration: const BoxDecoration(
-                  color: primary
+              decoration: BoxDecoration(
+                  color: primary.withOpacity(0.7)
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1658,16 +1707,10 @@ class _MapClientPageState extends State<MapClientPage> {
     }
 
     if (searchHistory.isEmpty) {
-      return Padding(
-        padding: EdgeInsets.only(bottom: 15.r),
-        child: _estadoSinHistorial(),
-      );
+      return _estadoSinHistorial();
     }
 
-    return Container(
-      margin: EdgeInsets.only(bottom: 15.r),
-      child: _listaHistorial(),
-    );
+    return _listaHistorial();
   }
 
 
@@ -1710,7 +1753,7 @@ class _MapClientPageState extends State<MapClientPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.only(left: 10.r, bottom: 18.r),
+          padding: EdgeInsets.only(left: 10.r, bottom: 10.r),
           child: Text(
             'Tus últimas búsquedas',
             style: TextStyle(

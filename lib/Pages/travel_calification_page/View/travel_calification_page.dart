@@ -74,6 +74,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
           fontSize: 16,
           fontWeight: FontWeight.w900
       ),
+        textAlign: TextAlign.center,
       ),
     );
   }
@@ -83,12 +84,12 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
       alignment: Alignment.center,
       width: double.infinity,
       padding: const EdgeInsets.only(left: 25, right: 25, top: 15, bottom: 15),
-      decoration: const BoxDecoration(
-          borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+          borderRadius: const BorderRadius.only(
               bottomRight: Radius.circular(70),
               bottomLeft: Radius.circular(70)),
-          color: primary,
-          boxShadow: [BoxShadow(
+          color: primary.withOpacity(0.7),
+          boxShadow: const [BoxShadow(
             color: gris,
             offset: Offset(5,5),
             blurRadius: 5,
@@ -226,7 +227,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
             flex: 2, // Proporción del primer botón
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
+                backgroundColor: primary.withOpacity(0.7),
                 shadowColor: gris,
                 elevation: 6,
               ),

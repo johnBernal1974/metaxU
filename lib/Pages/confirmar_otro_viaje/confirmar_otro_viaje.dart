@@ -12,8 +12,8 @@ class AfterCalificationPage extends StatelessWidget {
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: primary,
-          title: const Text('Viaje finalizado', style: TextStyle(fontWeight: FontWeight.w700)),
+          backgroundColor: primary.withOpacity(0.7),
+          title: const Text('Viaje finalizado', style: TextStyle(fontWeight: FontWeight.w700), textAlign: TextAlign.center),
           automaticallyImplyLeading: false,
         ),
         body: Padding(
@@ -46,7 +46,7 @@ class AfterCalificationPage extends StatelessWidget {
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
+                    backgroundColor: primary.withOpacity(0.7),
                     foregroundColor: Colors.black, // color del texto
                   ),
                   onPressed: () {

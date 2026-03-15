@@ -46,7 +46,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: blancoCards,
+        backgroundColor: grisMapa,
         body: Column(
           children: [
             Expanded(
@@ -54,19 +54,22 @@ class _TravelMapPageState extends State<TravelMapPage> {
                 children: [
                   _googleMapsWidget(),
                   SafeArea(
-                    child: Column(
+                    child: Stack(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buttonCenterPosition(),
-                          ],
+
+                        /// BOTÓN CENTRAR MAPA
+                        Positioned(
+                          top: 10,
+                          child: _buttonCenterPosition(),
                         ),
-                        Expanded(child: Container()),
-                        _clickUsuarioServicio(),
-                        SizedBox(height: 5.r),
-                        _cancelarViaje(),
-                        SizedBox(height: 15.r),
+
+                        /// AVATAR USUARIO (ARRIBA DERECHA)
+                        Positioned(
+                          right: 0,
+                          top: 20,
+                          child: _clickUsuarioServicio(),
+                        ),
+
                       ],
                     ),
                   ),
@@ -102,237 +105,72 @@ class _TravelMapPageState extends State<TravelMapPage> {
     }
   }
 
-  Color _colorPorEstado(String status) {
-    switch (status) {
-      case 'Viaje aceptado':
-        return Colors.lightGreen;
 
-      case 'Conductor en camino':
-        return Colors.orangeAccent;
-
-      case 'El Conductor ha llegado':
-        return Colors.green;
-
-      case 'El Viaje ha iniciado':
-        return Colors.deepPurple;
-
-      case 'Viaje finalizado':
-        return Colors.black87;
-
-      default:
-        return Colors.grey;
-    }
-  }
-
-  Widget _cajonEstadoViaje(String status) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(12),
-          topRight: Radius.circular(12),
-        ),
-      ),
-      child: Column(
-        children: [
-
-          /// 🔵 SECCIÓN STATUS
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-            decoration: BoxDecoration(
-              color: primary.withOpacity(0.7),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(
-                    color: Colors.black,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _iconoPorEstado(status),
-                      color: _colorPorEstado(status),
-                      size: 26,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 13.r,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          /// ⭐ CARACTERÍSTICAS (solo si existen)
-          if (_controller.travelInfo?.caracteristicaVehiculo != null &&
-              _controller.travelInfo!.caracteristicaVehiculo!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                  ),
-                  color: Colors.white,
-                ),
-                child: Text(
-                  'Requerido con: ${_controller.travelInfo?.caracteristicaVehiculo ?? ''}',
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-            ),
-
-          /// ⚪ SECCIÓN DESTINO
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(
-              16,
-              8,
-              16,
-              MediaQuery.of(context).padding.bottom + 10,
-            ),
-            color: blancoCards,
-            child: Column(
-              children: [
-                const Text(
-                  "Destino:",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-
-                const Divider(color: Colors.grey, height: 1),
-
-                const SizedBox(height: 6),
-
-                /// 📍 DESTINO
-                Text(
-                  _controller.travelInfo?.to ?? 'Destino no disponible',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
 
   Widget _cancelarViaje() {
     final s = _controller.travelInfo?.status ?? '';
+
     return Visibility(
       visible: s == 'accepted' ||
           s == 'driver_on_the_way' ||
           s == 'driver_is_waiting' ||
           s == 'client_notificado',
-      child: Padding(
-        padding: EdgeInsets.only(top: 5.r),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: GestureDetector(
-            onTap: () async {
-              await _controller.connectionService.checkConnectionAndShowCard(context, () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text(
-                        'Cancelar Viaje',
-                        style: TextStyle(fontSize: 16.r, fontWeight: FontWeight.bold),
+      child: GestureDetector(
+        onTap: () async {
+          await _controller.connectionService.checkConnectionAndShowCard(
+            context,
+                () {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text(
+                      'Cancelar Viaje',
+                      style: TextStyle(
+                        fontSize: 16.r,
+                        fontWeight: FontWeight.bold,
                       ),
-                      content: const Text('¿En verdad deseas cancelar el viaje?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('NO'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            _controller.cancelTravelByClient();
-                          },
-                          child: const Text('SI'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              });
-            },
-
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(40.r),
-                      topLeft: Radius.circular(40.r),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        spreadRadius: 2,
-                        blurRadius: 4,
-                        offset: const Offset(0, 3),
+                    content: const Text(
+                      '¿En verdad deseas cancelar el viaje?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('NO'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _controller.cancelTravelByClient();
+                        },
+                        child: const Text('SI'),
                       ),
                     ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.cancel, color: Colors.white, size: 30.r),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Cancelar',
-                          style: TextStyle(
-                            fontSize: 12.r,
-                            color: blanco,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+                  );
+                },
+              );
+            },
+          );
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.redAccent,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 4,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(8),
+          child: Icon(
+            Icons.cancel,
+            color: Colors.white,
+            size: 20.r,
           ),
         ),
       ),
@@ -381,75 +219,76 @@ class _TravelMapPageState extends State<TravelMapPage> {
   Widget _clickUsuarioServicio() {
     String placaCompleta = _controller.driver?.the18Placa ?? '';
     String placaFormateada = '';
+
     if (placaCompleta.length == 6) {
       String letras = placaCompleta.substring(0, 3);
       String numeros = placaCompleta.substring(3);
       placaFormateada = '$letras-$numeros';
     } else {
-      // Manejar el caso en el que la placa no tenga 6 caracteres
-      placaFormateada = placaCompleta; // O asignar un valor por defecto
+      placaFormateada = placaCompleta;
     }
 
     return GestureDetector(
       onTap: () {
-        if (['accepted', 'driver_on_the_way', 'driver_is_waiting', "client_notificado"].contains(_controller.travelInfo?.status)) {
+        if ([
+          'accepted',
+          'driver_on_the_way',
+          'driver_is_waiting',
+          "client_notificado"
+        ].contains(_controller.travelInfo?.status)) {
           _controller.openBottomSheetDiverInfo();
         }
       },
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: IntrinsicWidth(
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(48.r),
-                bottomLeft: Radius.circular(48.r),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.6),
-                  offset: const Offset(1, 1),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: primary,
-                  backgroundImage: _controller.driver?.image != null
-                      ? NetworkImage(_controller.driver!.image)
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _controller.driver?.the01Nombres ?? '',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold, // Color del texto
-                      ),
-                    ),
-                    Text(
-                      placaFormateada,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black,
-                        fontWeight: FontWeight.w900, // Color del texto
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(48.r),
+            bottomLeft: Radius.circular(48.r),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.6),
+              offset: const Offset(1, 1),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: primary,
+              backgroundImage: _controller.driver?.image != null
+                  ? NetworkImage(_controller.driver!.image)
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _controller.driver?.the01Nombres ?? '',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  placaFormateada,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -486,88 +325,190 @@ class _TravelMapPageState extends State<TravelMapPage> {
   }
 
   Widget _cajonInformativo(double screenWidth) {
+
     final formatCurrency = NumberFormat("#,##0", "es_CO");
+    final caracteristica =
+    _controller.travelInfo?.caracteristicaVehiculo?.trim();
+
+    final mostrarCaracteristica =
+        caracteristica != null &&
+            caracteristica.isNotEmpty &&
+            caracteristica.toLowerCase() != 'no';
 
     return SafeArea(
       top: false,
       child: Container(
         width: screenWidth,
+        margin: EdgeInsets.fromLTRB(12.r, 6.r, 12.r, 10.r),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            )
+          ],
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _cajonEstadoViaje(_controller.currentStatus),
-            SizedBox(height: 6.r),
 
-            /// 💰 CAJÓN TARIFA PRO
+            /// 🔹 ESTADO DEL VIAJE
             Container(
-              margin: EdgeInsets.symmetric(horizontal: 12.r),
-              padding: EdgeInsets.symmetric(horizontal: 18.r, vertical: 12.r),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  width: 1,
+                color: primary.withOpacity(0.7),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+              ),
+              child: Row(
+                children: [
+
+                  Icon(
+                    _iconoPorEstado(_controller.currentStatus),
+                    color: Colors.black,
+                    size: 26,
                   ),
+
+                  const SizedBox(width: 10),
+
+                  Expanded(
+                    child: Text(
+                      _controller.currentStatus,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+
+                  _cancelarViaje(),
                 ],
               ),
+            ),
+
+            /// 🔹 DESTINO
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/marker_destino.png',
+                        width: 14,
+                        height: 14,
+                      ),
+
+                      const SizedBox(width: 6),
+
+                      const Text(
+                        "Destino",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 1, color: grisMedio),
+
+                  const SizedBox(height: 6),
+
+                  Text(
+                    _controller.travelInfo?.to ?? 'Destino no disponible',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  const Divider(height: 1, color: grisMedio),
+                ],
+              ),
+            ),
+
+            /// 🔹 CARACTERÍSTICA ESPECIAL
+            if (mostrarCaracteristica)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(
+                              text: "Requiere: ",
+                              style: TextStyle(fontSize: 13),
+                            ),
+                            TextSpan(
+                              text: caracteristica,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            /// 🔹 TARIFA Y PAGO
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
 
-                  /// 💰 TARIFA
                   Row(
                     children: [
-                      Icon(
-                        Icons.payments_outlined,
-                        size: 18.r,
-                        color: Colors.green.shade700,
-                      ),
-                      SizedBox(width: 6.r),
-
+                      const Icon(Icons.payments_outlined,
+                          color: Colors.green),
+                      const SizedBox(width: 6),
                       Text(
-                        'Tarifa:',
-                        style: TextStyle(
-                          fontSize: 13.r,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-
-                      SizedBox(width: 8.r),
-
-                      Text(
-                        '\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}',
-                        style: TextStyle(
-                          fontSize: 22.r,
+                        "\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}",
+                        style: const TextStyle(
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          color: negro,
                         ),
                       ),
                     ],
                   ),
 
-                  /// 💳 MÉTODO DE PAGO
                   Row(
                     children: [
-                      Icon(
-                        Icons.account_balance_wallet_outlined,
-                        size: 18.r,
-                        color: Colors.blueGrey,
-                      ),
-                      SizedBox(width: 6.r),
+                      const Icon(Icons.account_balance_wallet_outlined),
+                      const SizedBox(width: 6),
                       Text(
-                        _controller.travelInfo?.metodoPago ?? 'Efectivo',
-                        style: TextStyle(
-                          fontSize: 13.r,
+                        _controller.travelInfo?.metodoPago ?? "Efectivo",
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
                         ),
                       ),
                     ],
@@ -575,8 +516,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
                 ],
               ),
             ),
-
-            SizedBox(height: 10.r),
           ],
         ),
       ),

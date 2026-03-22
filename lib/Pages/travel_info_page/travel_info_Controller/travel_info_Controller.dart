@@ -1040,7 +1040,6 @@ class TravelInfoController{
       toLat: toLatlng.latitude,
       toLng: toLatlng.longitude,
 
-      // ✅ Aquí usas la tarifa final (vip + extra)
       tarifa: tarifaFinal.toDouble(),
       tarifaDescuento: 0,
       tarifaInicial: tarifaFinal.toDouble(),
@@ -1052,11 +1051,18 @@ class TravelInfoController{
       horaFinalizacionViaje: null,
       apuntes: apuntesAlConductor ?? '',
 
-      // ✅ NUEVOS CAMPOS
+      // 🔥 CLIENTE
       tipoServicio: tipoServicio,
       valorVipExtra: valorVipExtra,
       metodoPago: metodoPago,
       caracteristicaVehiculo: caracteristicaVehiculo,
+
+      // 🔥 VEHÍCULO (vacío hasta que acepten)
+      placa: '',
+      marca: '',
+      color: '',
+      tipoVehiculo: '',
+      tipoVehiculoServicio: '',
     );
 
     await _travelInfoProvider.create(travelInfo);

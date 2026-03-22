@@ -16,8 +16,7 @@ class TravelHistory {
   String nameDriver;
   String numeroViaje;
   String apellidosDriver;
-  String placaShow;
-  String placaNorm;
+  String placa;
   Timestamp? solicitudViaje;
   Timestamp? inicioViaje;
   Timestamp? finalViaje;
@@ -36,8 +35,7 @@ class TravelHistory {
     required this.nameDriver,
     required this.numeroViaje,
     required this.apellidosDriver,
-    required this.placaShow,
-    required this.placaNorm,
+    required this.placa,
     required this.solicitudViaje,
     required this.inicioViaje,
     required this.finalViaje,
@@ -66,11 +64,7 @@ class TravelHistory {
         .toString(),
 
 
-    placaShow: (json["placaShow"] ?? json["placa"] ?? "") as String,
-    placaNorm: (json["placaNorm"] ??
-        ((json["placaShow"] ?? json["placa"] ?? "") as String)
-            .replaceAll("-", "")) as String,
-
+    placa: (json["placa"] ?? "") as String,
     solicitudViaje: json["solicitudViaje"] as Timestamp?,
     inicioViaje: json["inicioViaje"] as Timestamp?,
     finalViaje: json["finalViaje"] as Timestamp?,
@@ -92,8 +86,7 @@ class TravelHistory {
     // "nameDriver": nameDriver,
     // "apellidosDriver": apellidosDriver,
     "numeroViaje": numeroViaje,
-    "placaShow": placaShow,
-    "placaNorm": placaNorm,
+    "placa": placa,
     "solicitudViaje": solicitudViaje,
     "inicioViaje": inicioViaje,
     "finalViaje": finalViaje,

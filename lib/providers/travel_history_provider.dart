@@ -56,28 +56,29 @@ class TravelHistoryProvider{
   }
 
   Future<List<TravelHistory>> getByIdClient(String idClient) async {
-    QuerySnapshot querySnapshot = await _ref.where('idClient', isEqualTo: idClient).orderBy('finalViaje', descending: true).get();
-    List<Map<String, dynamic>> allData = [];
-
-    for (DocumentSnapshot doc in querySnapshot.docs) {
-      // Verificar si doc.data() no es nulo antes de agregarlo a la lista
-      if (doc.data() != null) {
-        allData.add(doc.data() as Map<String, dynamic>);
-      }
-    }
+    QuerySnapshot querySnapshot = await _ref
+        .where('idClient', isEqualTo: idClient)
+        .orderBy('finalViaje', descending: true)
+        .get();
 
     List<TravelHistory> travelHistoryList = [];
 
-    for (Map<String, dynamic> data in allData) {
-      travelHistoryList.add(TravelHistory.fromJson(data));
+    for (DocumentSnapshot doc in querySnapshot.docs) {
+      if (doc.data() != null) {
+        travelHistoryList.add(
+          TravelHistory.fromJson(doc.data() as Map<String, dynamic>),
+        );
+      }
     }
 
-    for(TravelHistory travelHistory in travelHistoryList) {
+    for (TravelHistory travelHistory in travelHistoryList) {
       DriverProvider driverProvider = DriverProvider();
-      Driver? driver =  await driverProvider.getById(travelHistory.idDriver);
+      Driver? driver = await driverProvider.getById(travelHistory.idDriver);
+
       travelHistory.nameDriver = driver?.the01Nombres ?? '';
       travelHistory.apellidosDriver = driver?.the02Apellidos ?? '';
-      travelHistory.placaShow = driver?.the18Placa ?? '';
+
+      // ✅ NO TOCAR LA PLACA AQUÍ
     }
 
     return travelHistoryList;

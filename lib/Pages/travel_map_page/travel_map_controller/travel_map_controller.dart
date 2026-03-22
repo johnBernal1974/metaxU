@@ -574,13 +574,18 @@ class TravelMapController{
           apellido: driver?.the02Apellidos ?? '',
           celular: driver?.the07Celular ?? '',
           numeroViajes: driver?.the30NumeroViajes ?? 0,
-          placa: driver?.the18Placa ?? '',
-          color: driver?.the16Color ?? '',
-          servicio: driver?.the19TipoServicio ?? '',
-          marca: driver?.the15Marca ?? '',
+
+          placa: travelInfo?.placa ?? 'Sin placa',
+          color: travelInfo?.color ?? 'Sin color',
+
+          // 🔥 AQUÍ EL CAMBIO PRO
+          servicio: " ${travelInfo?.tipoVehiculoServicio ?? ''}",
+
+          marca: travelInfo?.marca ?? 'Sin marca',
+          clase: travelInfo?.tipoVehiculo ?? 'Sin clase',
+
           idDriver: driver?.id ?? '',
-          clase: driver?.the14TipoVehiculo ?? "",
-    ));
+        ));
   }
 
 }

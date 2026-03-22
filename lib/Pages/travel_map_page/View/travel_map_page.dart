@@ -217,7 +217,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
   }
 
   Widget _clickUsuarioServicio() {
-    String placaCompleta = _controller.driver?.the18Placa ?? '';
+    String placaCompleta = _controller.travelInfo?.placa ?? '';
     String placaFormateada = '';
 
     if (placaCompleta.length == 6) {

@@ -194,7 +194,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
               borderRadius: BorderRadius.circular(6), // bordes redondeados
             ),
             child: Text(
-              _controller.driver?.the18Placa ?? '',
+              _controller.travelHistory?.placa?? '',
               style: const TextStyle(
                 color: negro,
                 fontSize: 12,

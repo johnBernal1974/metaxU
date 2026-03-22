@@ -93,6 +93,8 @@ class TravelInfoController{
 
   Timer? _timeoutBusqueda;
 
+  DateTime? _deadlineBusqueda;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -784,17 +786,29 @@ class TravelInfoController{
     });
   }
 
+  bool _tiempoAgotado() {
+    if (_deadlineBusqueda == null) return true;
+    return DateTime.now().isAfter(_deadlineBusqueda!);
+  }
+
 
 
   void getNearbyDriversPorteria() {
 
     serviceAccepted = false;
 
+    _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 60));
+
     /// cancelar timeout anterior
     _timeoutBusqueda?.cancel();
 
     /// timeout de búsqueda
-    _timeoutBusqueda = Timer(const Duration(seconds: 25), () async {
+    _timeoutBusqueda = Timer(const Duration(seconds: 60), () async {
+
+      print("⛔ Tiempo agotado TOTAL");
+
+      _streamSubscriptionPorteria?.cancel();
+      notifiedDrivers.clear();
 
       if (requestId == null) return;
 
@@ -808,7 +822,6 @@ class TravelInfoController{
       final data = doc.data() as Map<String, dynamic>;
       final status = data["status"];
 
-      /// si ya hay conductor no hacer nada
       if (
       status == "accepted" ||
           status == "driver_on_the_way" ||
@@ -818,11 +831,7 @@ class TravelInfoController{
         return;
       }
 
-      /// si aún sigue buscando
       if (status == "created") {
-
-        print("Ningún conductor aceptó");
-
         await FirebaseFirestore.instance
             .collection("TravelRequests")
             .doc(requestId)
@@ -1137,23 +1146,81 @@ class TravelInfoController{
 
     await _pushNotificationsProvider.sendMessage(token, data);
 
-    await Future.delayed(const Duration(seconds: 20));
+    int segundosRestantes = _deadlineBusqueda!
+        .difference(DateTime.now())
+        .inSeconds;
+
+    if (segundosRestantes <= 0) {
+      print("⛔ Sin tiempo restante (sendNotification)");
+      return false;
+    }
+
+    /// usar el menor entre 20 y el tiempo restante
+    int tiempoEspera = segundosRestantes > 14 ? 14 : segundosRestantes;
+
+    print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor");
+
+    await Future.delayed(Duration(seconds: tiempoEspera));
 
     return false;
   }
 
-  void _attemptToSendNotificationPorteria(List<String> driverIds, int index) {
+  void _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
+    if (_tiempoAgotado()) {
+      print("⛔ Tiempo global agotado, detener notificaciones");
+      return;
+    }
 
-    if (index >= driverIds.length || serviceAccepted) {
+    // 🔥 1. VALIDACIÓN INICIAL
+    if (requestId == null) return;
 
-      print('No hay más conductores disponibles.');
+    final requestDoc = await FirebaseFirestore.instance
+        .collection("TravelRequests")
+        .doc(requestId)
+        .get();
+
+    if (!requestDoc.exists) return;
+
+    final status = requestDoc.data()?["status"] ?? "";
+
+    if (status != "created") {
+      print("⛔ STOP GLOBAL: ya fue aceptado o cancelado ($status)");
       notifiedDrivers.clear();
       return;
+    }
 
+    // 🔥 2. FIN DE LISTA O YA ACEPTADO
+    if (index >= driverIds.length || serviceAccepted) {
+
+      if (!serviceAccepted && requestId != null) {
+
+        final doc = await FirebaseFirestore.instance
+            .collection("TravelRequests")
+            .doc(requestId)
+            .get();
+
+        final status = doc.data()?["status"];
+
+        if (status == "created") {
+          await FirebaseFirestore.instance
+              .collection("TravelRequests")
+              .doc(requestId)
+              .update({
+            "status": "no_driver_found"
+          });
+
+          print("🚫 No hay más conductores disponibles");
+        }
+      }
+
+      print('No hay más conductores disponibles o ya aceptado.');
+      notifiedDrivers.clear();
+      return;
     }
 
     String driverId = driverIds[index];
 
+    // 🔥 3. EVITAR DUPLICADOS
     if (notifiedDrivers.contains(driverId)) {
       _attemptToSendNotificationPorteria(driverIds, index + 1);
       return;
@@ -1165,6 +1232,19 @@ class TravelInfoController{
 
     _driverProvider.getById(driverId).then((driver) async {
 
+      // 🔥 4. VALIDAR DE NUEVO ANTES DE ENVIAR (CLAVE)
+      final requestDoc2 = await FirebaseFirestore.instance
+          .collection("TravelRequests")
+          .doc(requestId)
+          .get();
+
+      final status2 = requestDoc2.data()?["status"] ?? "";
+
+      if (status2 != "created") {
+        print("⛔ STOP ANTES DE ENVIAR ($status2)");
+        return;
+      }
+
       if (driver?.token != null) {
 
         bool accepted = await sendNotificationPorteria(driver!.token);
@@ -1172,18 +1252,39 @@ class TravelInfoController{
         if (accepted) {
 
           serviceAccepted = true;
-          print("Conductor aceptó servicio portería");
 
+          _timeoutBusqueda?.cancel();               // ✅ AQUÍ
+          _streamSubscriptionPorteria?.cancel();    // ✅ AQUÍ
+
+          print("✅ Conductor aceptó servicio portería");
+
+          notifiedDrivers.clear();
+
+          return;
         } else {
 
-          print("Conductor no aceptó, probando siguiente...");
+          print("❌ Conductor no aceptó, probando siguiente...");
         }
 
       } else {
 
-        print("Driver sin token");
+        print("⚠️ Driver sin token");
       }
 
+      // 🔥 5. VALIDAR OTRA VEZ ANTES DE CONTINUAR
+      final requestDoc3 = await FirebaseFirestore.instance
+          .collection("TravelRequests")
+          .doc(requestId)
+          .get();
+
+      final status3 = requestDoc3.data()?["status"] ?? "";
+
+      if (status3 != "created" || serviceAccepted) {
+        print("⛔ STOP FINAL ($status3)");
+        return;
+      }
+
+      // 🔥 6. SIGUIENTE DRIVER
       _attemptToSendNotificationPorteria(driverIds, index + 1);
 
     });

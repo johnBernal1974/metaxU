@@ -71,14 +71,24 @@ class TravelHistoryProvider{
       }
     }
 
+    // 🔥 CACHE DE DRIVERS
+    Map<String, Driver> driverCache = {};
+    DriverProvider driverProvider = DriverProvider();
+
     for (TravelHistory travelHistory in travelHistoryList) {
-      DriverProvider driverProvider = DriverProvider();
-      Driver? driver = await driverProvider.getById(travelHistory.idDriver);
+      String idDriver = travelHistory.idDriver;
+
+      if (!driverCache.containsKey(idDriver)) {
+        Driver? driver = await driverProvider.getById(idDriver);
+        if (driver != null) {
+          driverCache[idDriver] = driver;
+        }
+      }
+
+      final driver = driverCache[idDriver];
 
       travelHistory.nameDriver = driver?.the01Nombres ?? '';
       travelHistory.apellidosDriver = driver?.the02Apellidos ?? '';
-
-      // ✅ NO TOCAR LA PLACA AQUÍ
     }
 
     return travelHistoryList;

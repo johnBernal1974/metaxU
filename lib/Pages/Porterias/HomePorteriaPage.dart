@@ -898,6 +898,15 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
     _travelController.from = direccion;
 
+    // 🔥 VALIDAR QUE LA PORTERÍA YA CARGÓ
+    if (latPorteria == null || lngPorteria == null) {
+      print("⛔ ERROR: portería aún no cargada");
+      return;
+    }
+
+// 🔥 DEBUG
+    print("📍 lat: $latPorteria, lng: $lngPorteria");
+
     _travelController.fromLatlng = LatLng(
       latPorteria!,
       lngPorteria!,

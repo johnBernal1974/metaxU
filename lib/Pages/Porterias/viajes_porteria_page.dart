@@ -98,6 +98,12 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                   final data = doc.data() as Map<String, dynamic>;
                   final status = data["status"];
 
+                  final subStatus = data["subStatus"];
+
+                  if (subStatus == "desistido") {
+                    return false;
+                  }
+
                   final Timestamp? cancelledAt = data["cancelledAt"];
 
                   if (status == "cancelledByPorteria" && cancelledAt != null) {

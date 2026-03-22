@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:apptaxis/Pages/travel_info_page/travel_info_Controller/travel_info_Controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -58,6 +60,9 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   int _valorVipExtra = 0;
   bool _cargandoValorVip = false;
 
+  int _segundosRestantes = 60;
+  Timer? _timerBusqueda;
+
 
 
   @override
@@ -117,8 +122,9 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   @override
   void dispose() {
-    super.dispose();
+    _timerBusqueda?.cancel();
     _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -713,27 +719,111 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
 
-  void verificarCedulaInicial() {
+  void verificarCedulaInicial() async {
+
+    _startSearch();
+
+    /// 🔥 1. VALIDAR SI HAY CONDUCTORES ANTES DE TODO
+    bool hayConductores = await _controller.hayConductoresEnRadio();
+
+    if (!hayConductores) {
+
+      if (mounted) {
+        setState(() {
+          isVisibleTarjetaSolicitandoConductor = false;
+          _isSearching = false;
+        });
+      }
+      if(context.mounted){
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  /// 🔥 LOGO METAX
+                  Image.asset(
+                    'assets/metax_logo.png',
+                    height: 70,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// 🔥 TÍTULO
+                  const Text(
+                    "Sin taxis cercanos",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  /// 🔥 MENSAJE
+                  const Text(
+                    "No hay taxis disponibles cerca en este momento 🚕\n\nPuedes intentarlo nuevamente en unos segundos.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+
+              /// 🔥 BOTÓN
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      "Entendido",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+      return;
+    }
+
+    /// 🔥 2. SOLO SI HAY CONDUCTORES → MOSTRAR UI
     if (mounted) {
       setState(() {
         isVisibleTarjetaSolicitandoConductor = true;
       });
     }
 
-    _startSearch();
-
     final base = _controller.total?.toInt() ?? 0;
     final esVip = _tipoServicioSeleccionado == 'vip';
     final tarifaFinal = base + (esVip ? _valorVipExtra : 0);
 
+    /// 🔥 3. CREAR VIAJE
     _controller.createTravelInfo(
       tipoServicio: _tipoServicioSeleccionado,
       valorVipExtra: esVip ? _valorVipExtra : 0,
       tarifaFinal: tarifaFinal,
       metodoPago: _metodoPagoSeleccionado,
-      caracteristicaVehiculo: _caracteristicaSeleccionada, // ✅ corregido
+      caracteristicaVehiculo: _caracteristicaSeleccionada,
     );
 
+    /// 🔥 4. INICIAR BÚSQUEDA
     _controller.getNearbyDrivers();
   }
 
@@ -828,8 +918,12 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               ],
             ),
             Text(
-              'Esperando respuesta...',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18.r, color: negro),
+              'Buscando taxi... ${_segundosRestantes}s',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18.r,
+                color: negro,
+              ),
             ),
             SizedBox(height: 50.r),
             OutlinedButton(
@@ -842,6 +936,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 });
 
                 _controller.deleteTravelInfo();
+                _timerBusqueda?.cancel();
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.red.shade400, width: 1.5),
@@ -880,11 +975,91 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
   void _startSearch() {
-    if (mounted) {
-      setState(() {
-        _isSearching = true;
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      _isSearching = true;
+      _segundosRestantes = 60;
+    });
+
+    _timerBusqueda?.cancel();
+
+    _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) {
+
+      if (_segundosRestantes <= 0) {
+        timer.cancel();
+
+        print("⛔ Tiempo agotado en UI");
+
+        /// 🔥 cerrar UI
+        if (mounted) {
+          setState(() {
+            isVisibleTarjetaSolicitandoConductor = false;
+            _isSearching = false;
+          });
+        }
+
+        /// 🔥 eliminar request
+        _controller.deleteTravelInfo();
+
+        /// 🔥 mostrar diálogo bonito
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    Image.asset(
+                      'assets/metax_logo.png',
+                      height: 70,
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    const Text(
+                      "Tiempo de búsqueda agotado",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    const Text(
+                      "No encontramos un conductor disponible en este momento 🚕\n\nPuedes intentarlo nuevamente.",
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Entendido"),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _segundosRestantes--;
+        });
+      }
+    });
   }
 
 }

@@ -95,6 +95,8 @@ class TravelInfoController{
 
   DateTime? _deadlineBusqueda;
 
+  bool _isSendingNotifications = false;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -759,26 +761,89 @@ class TravelInfoController{
   ///marca para saber si se hizo el rebase
 
   void getNearbyDrivers() {
-    serviceAccepted = false; // Restablecer la bandera al inicio del proceso
+
+    /// 🔥 RESET SOLO AL INICIO (CLAVE)
+    nearbyDrivers.clear();
+    notifiedDrivers.clear();
+    _isSendingNotifications = false;
+
+    serviceAccepted = false;
+
+    _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 60));
+
+    /// 🔥 cancelar suscripción anterior (MUY IMPORTANTE)
+    _streamSubscription?.cancel();
+
     Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
       fromLatlng.latitude,
       fromLatlng.longitude,
       radioDeBusqueda ?? 1,
     );
 
-    _streamSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-      _streamSubscription?.cancel();  // Cancela la suscripción después de recibir los datos
-      if (documentList.isNotEmpty) {
-        nearbyDrivers = documentList.map((d) => d.id).toList(); // Aquí defines 'nearbyDrivers'
+    _streamSubscription = stream.listen((List<DocumentSnapshot> documentList) async {
+
+      /// 🔥 STOP GLOBAL
+      if (_tiempoAgotado() || serviceAccepted) {
         if (kDebugMode) {
-          print('Se encontraron ${nearbyDrivers.length} conductores cercanos.');
+          print("⛔ STOP listener NORMAL");
         }
-        _attemptToSendNotification(nearbyDrivers, 0); // Cambiado de 'driverIds' a 'nearbyDrivers'
-      } else {
+        return;
+      }
+
+      /// 🔥 EVITAR múltiples ejecuciones
+      if (_isSendingNotifications) {
+        if (kDebugMode) {
+          print("⛔ Envío en progreso (NORMAL)");
+        }
+        return;
+      }
+
+      if (documentList.isEmpty) {
         if (kDebugMode) {
           print('No se encontraron conductores cercanos.');
         }
+        return;
       }
+
+      /// 🔥 IDs actuales del stream
+      List<String> driversStream = documentList.map((d) => d.id).toList();
+
+      /// 🔥 SOLO nuevos (no notificados)
+      List<String> nuevosDrivers = driversStream
+          .where((id) => !notifiedDrivers.contains(id))
+          .toList();
+
+      if (nuevosDrivers.isEmpty) {
+        if (kDebugMode) {
+          print("Sin nuevos conductores");
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        print('🆕 Nuevos conductores encontrados: ${nuevosDrivers.length}');
+      }
+
+      /// 🔥 agregar sin borrar los anteriores
+      nearbyDrivers.addAll(nuevosDrivers);
+
+      /// 🔥 BLOQUEAR
+      _isSendingNotifications = true;
+
+      try {
+        await _attemptToSendNotification(
+          nearbyDrivers,
+          notifiedDrivers.length,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error en envío NORMAL: $e");
+        }
+      }
+
+      /// 🔥 DESBLOQUEAR
+      _isSendingNotifications = false;
+
     }, onError: (error) {
       if (kDebugMode) {
         print('Error al escuchar el stream de conductores cercanos: $error');
@@ -797,6 +862,11 @@ class TravelInfoController{
 
     serviceAccepted = false;
 
+    /// 🔥 RESET SOLO AL INICIO (CLAVE)
+    nearbyDrivers.clear();
+    notifiedDrivers.clear();
+    _isSendingNotifications = false;
+
     _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 60));
 
     /// cancelar timeout anterior
@@ -808,7 +878,6 @@ class TravelInfoController{
       print("⛔ Tiempo agotado TOTAL");
 
       _streamSubscriptionPorteria?.cancel();
-      notifiedDrivers.clear();
 
       if (requestId == null) return;
 
@@ -819,8 +888,7 @@ class TravelInfoController{
 
       if (!doc.exists) return;
 
-      final data = doc.data() as Map<String, dynamic>;
-      final status = data["status"];
+      final status = doc.data()?["status"];
 
       if (
       status == "accepted" ||
@@ -840,6 +908,8 @@ class TravelInfoController{
         });
       }
 
+      /// 🔥 limpiar SOLO al final
+      notifiedDrivers.clear();
     });
 
     /// buscar conductores cercanos
@@ -849,54 +919,78 @@ class TravelInfoController{
       radioDeBusqueda ?? 1,
     );
 
-    _streamSubscriptionPorteria?.cancel();
-
     _streamSubscriptionPorteria =
         stream.listen((List<DocumentSnapshot> documentList) async {
 
-          /// detener búsqueda geofire (solo necesitamos una vez)
-          _streamSubscriptionPorteria?.cancel();
-
-          if (documentList.isNotEmpty) {
-
-            nearbyDrivers = documentList.map((d) => d.id).toList();
-
-            print("PORTERIA encontró ${nearbyDrivers.length} taxis");
-
-            /// comenzar notificación secuencial
-            _attemptToSendNotificationPorteria(nearbyDrivers, 0);
-
-          } else {
-
-            print("PORTERIA no encontró taxis");
-
-            /// cancelar timeout
-            _timeoutBusqueda?.cancel();
-
-            if (requestId != null) {
-
-              try {
-
-                await FirebaseFirestore.instance
-                    .collection("TravelRequests")
-                    .doc(requestId)
-                    .delete();
-
-                await FirebaseFirestore.instance
-                    .collection("TravelInfo")
-                    .doc(requestId)
-                    .delete();
-
-              } catch (e) {
-                print("Error eliminando solicitud: $e");
-              }
-
-            }
-
+          /// 🔥 STOP GLOBAL
+          if (_tiempoAgotado() || serviceAccepted) {
+            print("⛔ STOP listener porteria");
+            return;
           }
 
-        });
+          /// 🔥 evitar múltiples ejecuciones
+          if (_isSendingNotifications) {
 
+            print("⏳ Envío en progreso, agregando a cola");
+
+            /// 🔥 SOLO agregar nuevos, NO ejecutar envío aún
+            List<String> driversStream =
+            documentList.map((d) => d.id).toList();
+
+            List<String> nuevosDrivers = driversStream
+                .where((id) => !notifiedDrivers.contains(id))
+                .toList();
+
+            if (nuevosDrivers.isNotEmpty) {
+              print("🆕 (cola) nuevos conductores: ${nuevosDrivers.length}");
+              nearbyDrivers.addAll(nuevosDrivers);
+            }
+
+            return;
+          }
+
+          if (documentList.isEmpty) {
+            print("PORTERIA no encontró taxis en este momento");
+            return;
+          }
+
+          /// 🔥 IDs actuales
+          List<String> driversStream =
+          documentList.map((d) => d.id).toList();
+
+          /// 🔥 SOLO nuevos
+          List<String> nuevosDrivers = driversStream
+              .where((id) => !notifiedDrivers.contains(id))
+              .toList();
+
+          if (nuevosDrivers.isEmpty) {
+            print("PORTERIA sin nuevos conductores");
+            return;
+          }
+
+          print("🆕 PORTERIA nuevos conductores: ${nuevosDrivers.length}");
+
+          /// 🔥 agregar sin borrar
+          nearbyDrivers.addAll(nuevosDrivers);
+
+          /// 🔥 BLOQUEAR
+          _isSendingNotifications = true;
+
+          try {
+            await _attemptToSendNotificationPorteria(
+              nearbyDrivers,
+              notifiedDrivers.length,
+            );
+          } catch (e) {
+            print("Error en envío porteria: $e");
+          }
+
+          /// 🔥 DESBLOQUEAR
+          _isSendingNotifications = false;
+
+        }, onError: (error) {
+          print("Error en stream porteria: $error");
+        });
   }
 
   Future<bool> hayConductoresEnRadio() async {
@@ -927,64 +1021,56 @@ class TravelInfoController{
   }
 
 
-  void _attemptToSendNotification(List<String> driverIds, int index) {
+  Future<void> _attemptToSendNotification(List<String> driverIds, int index) async {
+
+    if (_tiempoAgotado()) {
+      print("⛔ Tiempo global agotado (NORMAL), detener notificaciones");
+      notifiedDrivers.clear();
+      return;
+    }
+
     if (index >= driverIds.length || serviceAccepted) {
-      if (kDebugMode) {
-        print('No hay más conductores disponibles o el servicio fue aceptado.');
-      }
-      notifiedDrivers.clear(); // Limpiamos el conjunto para futuras búsquedas.
+      print('🚫 No hay más conductores disponibles');
       return;
     }
 
     String driverId = driverIds[index];
+
     if (notifiedDrivers.contains(driverId)) {
-      _attemptToSendNotification(driverIds, index + 1);
-      return;
+      return await _attemptToSendNotification(driverIds, index + 1);
     }
 
-    notifiedDrivers.add(driverId); // Añadimos el conductor al conjunto de notificados.
-    if (kDebugMode) {
-      print("Enviando notificación al conductor $driverId");
-    }
+    notifiedDrivers.add(driverId);
 
-    getDriverInfo(driverId).then((_) async {
+    print("Enviando notificación al conductor $driverId");
+
+    try {
+
       Driver? driver = await _driverProvider.getById(driverId);
-      if (driver != null) {
-        if (kDebugMode) {
-          print('ID del conductor: ${driver.id}');
-          print('Token del conductor: ${driver.token}');
-        }
-      } else {
-        if (kDebugMode) {
-          print('El conductor no fue encontrado.');
-        }
-      }
 
       if (driver?.token != null) {
+
         bool accepted = await sendNotification(driver!.token);
+
         if (accepted) {
-          if (kDebugMode) {
-            print('El conductor $driverId aceptó el servicio.');
-          }
-          serviceAccepted = true; // Detener el envío de notificaciones
-        } else {
-          if (kDebugMode) {
-            print('El conductor $driverId no aceptó el servicio, pasando al siguiente...');
-          }
+          serviceAccepted = true;
+
+          _timeoutBusqueda?.cancel();
+          _streamSubscription?.cancel();
+
+          notifiedDrivers.clear();
+
+          return;
         }
-      } else {
-        if (kDebugMode) {
-          print('No se pudo obtener el token del conductor $driverId, pasando al siguiente...');
-        }
+
       }
 
-      _attemptToSendNotification(driverIds, index + 1);
-    }).catchError((error) {
-      if (kDebugMode) {
-        print('Error al obtener información del conductor $driverId: $error');
-      }
-      _attemptToSendNotification(driverIds, index + 1);
-    });
+    } catch (e) {
+      print("Error driver: $e");
+    }
+
+    /// 🔥 continuar secuencia CONTROLADA
+    return await _attemptToSendNotification(driverIds, index + 1);
   }
 
   void playAudio(String audioPath) async {
@@ -1021,6 +1107,66 @@ class TravelInfoController{
             MaterialPageRoute(builder: (context) => const TravelMapPage()),
                 (route) => false,
           );
+        }
+
+        if (travelInfo.status == 'no_driver_found') {
+
+          print("🚫 No se encontró conductor");
+
+          if (context != null) {
+
+            showDialog(
+              context: context!,
+              builder: (context) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+
+                      Image.asset(
+                        'assets/metax_logo.png',
+                        height: 70,
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      const Text(
+                        "Sin taxis disponibles",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      const Text(
+                        "No encontramos conductores para tu solicitud 🚕\n\nPuedes intentarlo nuevamente en unos segundos.",
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                  actionsAlignment: MainAxisAlignment.center,
+                  actions: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Entendido"),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+
+            deleteTravelInfo(); // 🔥 limpia el request
+          }
         }
       }
     });
@@ -1105,7 +1251,21 @@ class TravelInfoController{
       if (kDebugMode) {
         print('Notification sent successfully');
       }
-      await Future.delayed(const Duration(seconds: 20)); // Simular tiempo de espera
+      int segundosRestantes = _deadlineBusqueda!
+          .difference(DateTime.now())
+          .inSeconds;
+
+      if (segundosRestantes <= 0) {
+        print("⛔ Sin tiempo restante (NORMAL)");
+        return false;
+      }
+
+      /// usar el menor entre 12 y el tiempo restante
+      int tiempoEspera = segundosRestantes > 12 ? 12 : segundosRestantes;
+
+      print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor (NORMAL)");
+
+      await Future.delayed(Duration(seconds: tiempoEspera));
       return false;
     } catch (error) {
       if (kDebugMode) {
@@ -1165,15 +1325,16 @@ class TravelInfoController{
     return false;
   }
 
-  void _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
+  Future<void> _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
+
     if (_tiempoAgotado()) {
-      print("⛔ Tiempo global agotado, detener notificaciones");
+      print("⛔ Tiempo global agotado (PORTERIA)");
       return;
     }
 
-    // 🔥 1. VALIDACIÓN INICIAL
     if (requestId == null) return;
 
+    /// 🔥 validar estado actual
     final requestDoc = await FirebaseFirestore.instance
         .collection("TravelRequests")
         .doc(requestId)
@@ -1184,16 +1345,16 @@ class TravelInfoController{
     final status = requestDoc.data()?["status"] ?? "";
 
     if (status != "created") {
-      print("⛔ STOP GLOBAL: ya fue aceptado o cancelado ($status)");
-      notifiedDrivers.clear();
+      print("⛔ STOP GLOBAL ($status)");
       return;
     }
 
-    // 🔥 2. FIN DE LISTA O YA ACEPTADO
+    /// 🔥 fin de lista
     if (index >= driverIds.length || serviceAccepted) {
 
-      if (!serviceAccepted && requestId != null) {
+      print("🚫 No hay más conductores disponibles (PORTERIA)");
 
+      if (!serviceAccepted && requestId != null) {
         final doc = await FirebaseFirestore.instance
             .collection("TravelRequests")
             .doc(requestId)
@@ -1208,42 +1369,26 @@ class TravelInfoController{
               .update({
             "status": "no_driver_found"
           });
-
-          print("🚫 No hay más conductores disponibles");
         }
       }
 
-      print('No hay más conductores disponibles o ya aceptado.');
-      notifiedDrivers.clear();
       return;
     }
 
     String driverId = driverIds[index];
 
-    // 🔥 3. EVITAR DUPLICADOS
+    /// 🔥 evitar duplicados
     if (notifiedDrivers.contains(driverId)) {
-      _attemptToSendNotificationPorteria(driverIds, index + 1);
-      return;
+      return await _attemptToSendNotificationPorteria(driverIds, index + 1);
     }
 
     notifiedDrivers.add(driverId);
 
-    print("Enviando notificación PORTERIA a $driverId");
+    print("📡 PORTERIA → Enviando a $driverId");
 
-    _driverProvider.getById(driverId).then((driver) async {
+    try {
 
-      // 🔥 4. VALIDAR DE NUEVO ANTES DE ENVIAR (CLAVE)
-      final requestDoc2 = await FirebaseFirestore.instance
-          .collection("TravelRequests")
-          .doc(requestId)
-          .get();
-
-      final status2 = requestDoc2.data()?["status"] ?? "";
-
-      if (status2 != "created") {
-        print("⛔ STOP ANTES DE ENVIAR ($status2)");
-        return;
-      }
+      Driver? driver = await _driverProvider.getById(driverId);
 
       if (driver?.token != null) {
 
@@ -1253,41 +1398,24 @@ class TravelInfoController{
 
           serviceAccepted = true;
 
-          _timeoutBusqueda?.cancel();               // ✅ AQUÍ
-          _streamSubscriptionPorteria?.cancel();    // ✅ AQUÍ
+          _timeoutBusqueda?.cancel();
+          _streamSubscriptionPorteria?.cancel();
 
-          print("✅ Conductor aceptó servicio portería");
-
-          notifiedDrivers.clear();
+          print("✅ Servicio aceptado PORTERIA");
 
           return;
-        } else {
-
-          print("❌ Conductor no aceptó, probando siguiente...");
         }
 
       } else {
-
         print("⚠️ Driver sin token");
       }
 
-      // 🔥 5. VALIDAR OTRA VEZ ANTES DE CONTINUAR
-      final requestDoc3 = await FirebaseFirestore.instance
-          .collection("TravelRequests")
-          .doc(requestId)
-          .get();
+    } catch (e) {
+      print("Error driver porteria: $e");
+    }
 
-      final status3 = requestDoc3.data()?["status"] ?? "";
-
-      if (status3 != "created" || serviceAccepted) {
-        print("⛔ STOP FINAL ($status3)");
-        return;
-      }
-
-      // 🔥 6. SIGUIENTE DRIVER
-      _attemptToSendNotificationPorteria(driverIds, index + 1);
-
-    });
+    /// 🔥 continuar secuencia
+    return await _attemptToSendNotificationPorteria(driverIds, index + 1);
   }
 
 }

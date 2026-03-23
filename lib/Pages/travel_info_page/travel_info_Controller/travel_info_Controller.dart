@@ -101,6 +101,7 @@ class TravelInfoController{
 
   bool _permitirStandard = false;
 
+  bool yaIntentoTodosLosVIP = false;
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -1065,8 +1066,16 @@ class TravelInfoController{
       return;
     }
 
-    if (index >= driverIds.length || serviceAccepted) {
-      print('🚫 No hay más conductores disponibles');
+    if (index >= driverIds.length) {
+
+      print("🏁 Fin de lista de conductores");
+
+      /// 🔥 marcar que ya intentamos todos los VIP
+      if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip" && !_permitirStandard) {
+        yaIntentoTodosLosVIP = true;
+        print("⚠️ Ya se intentaron todos los VIP");
+      }
+
       return;
     }
 
@@ -1138,9 +1147,19 @@ class TravelInfoController{
 
 
   void permitirStandardManual() async {
+
     _permitirStandard = true;
 
-    notifiedDrivers.clear();
+    print("🔁 Usuario acepta estándar");
+
+    // 🔥 SOLO eliminar los que NO son VIP
+    notifiedDrivers.removeWhere((driverId) {
+      final vehiculoData = vehiculosCache[driverId];
+      final soportaVIP = vehiculoData?['soportaVIP'] ?? false;
+
+      // 👉 eliminar SOLO los que NO son VIP
+      return !soportaVIP;
+    });
 
     if (nearbyDrivers.isNotEmpty) {
       print("🔁 Reintentando manual con estándar");
@@ -1184,7 +1203,7 @@ class TravelInfoController{
           );
         }
 
-        if (travelInfo.status == 'no_driver_found') {
+        if (travelInfo.status == 'no_driver_found' && _tiempoAgotado()) {
 
           print("🚫 No se encontró conductor");
 
@@ -1248,7 +1267,7 @@ class TravelInfoController{
   }
 
 
-  void createTravelInfo({
+  Future<void> createTravelInfo({
     required String tipoServicio,
     required int valorVipExtra,
     required int tarifaFinal,
@@ -1339,7 +1358,7 @@ class TravelInfoController{
       }
 
       /// usar el menor entre 12 y el tiempo restante
-      int tiempoEspera = segundosRestantes > 12 ? 12 : segundosRestantes;
+      int tiempoEspera = segundosRestantes > 13 ? 13 : segundosRestantes;
 
       print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor (NORMAL)");
 

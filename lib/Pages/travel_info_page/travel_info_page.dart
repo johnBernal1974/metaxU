@@ -826,67 +826,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     /// 🔥 4. INICIAR BÚSQUEDA
     _controller.getNearbyDrivers();
 
-    if (esVip) {
-      Future.delayed(const Duration(seconds: 10), () async {
-
-        if (!_controller.serviceAccepted) {
-
-          print("⚠️ No hay VIP → mostrar opción");
-
-          if (!mounted) return;
-
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: const Text(
-                  "Sin vehículos VIP",
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                content: const Text(
-                  "No encontramos vehículos VIP disponibles.\n\n¿Deseas buscar un servicio estándar?",
-                  textAlign: TextAlign.center,
-                ),
-                actions: [
-
-                  /// 🔴 CANCELAR
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-
-                      _controller.deleteTravelInfo();
-                      _timerBusqueda?.cancel();
-
-                      setState(() {
-                        isVisibleTarjetaSolicitandoConductor = false;
-                        _isSearching = false;
-                      });
-                    },
-                    child: const Text("Cancelar"),
-                  ),
-
-                  /// 🟢 CONTINUAR CON STANDARD
-                  ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pop(context);
-
-                      print("🔁 Usuario acepta estándar");
-
-                      _controller.permitirStandardManual(); // 👈 nuevo método
-                    },
-                    child: const Text("Buscar estándar"),
-                  ),
-                ],
-              );
-            },
-          );
-        }
-      });
-    }
   }
 
   Widget _tarjetaSolicitandoConductor() {
@@ -1047,6 +986,115 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     _timerBusqueda?.cancel();
 
     _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) {
+
+      /// 🔥 DETECTAR FIN DE VIP Y MOSTRAR DIÁLOGO
+      if (_tipoServicioSeleccionado == "vip" &&
+          _controller.yaIntentoTodosLosVIP &&
+          !_controller.serviceAccepted) {
+
+        print("⚠️ No hay VIP reales → mostrar opción");
+
+        /// 🔥 evitar que se repita
+        _controller.yaIntentoTodosLosVIP = false;
+
+        /// 🔥 detener contador si quieres (opcional)
+        // timer.cancel();
+
+        if (!mounted) return;
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "Sin vehículos VIP",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              content: const Text(
+                "No encontramos vehículos VIP disponibles.\n\n¿Deseas buscar un servicio estándar?",
+                textAlign: TextAlign.center,
+              ),
+              actionsAlignment: MainAxisAlignment.center,
+              actions: [
+
+                /// 🔥 BOTÓN PRINCIPAL (CENTRADO)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () async {
+                      Navigator.pop(context);
+
+                      print("🔁 Usuario acepta estándar");
+
+                      /// 🔥 1. ELIMINAR VIAJE ACTUAL (MUERTO)
+                      await _controller.deleteTravelInfo();
+
+                      /// 🔥 2. CREAR NUEVO VIAJE COMO STANDARD
+                      final base = _controller.total?.toInt() ?? 0;
+
+                      await _controller.createTravelInfo(
+                        tipoServicio: "standard",
+                        valorVipExtra: 0,
+                        tarifaFinal: base,
+                        metodoPago: _metodoPagoSeleccionado,
+                        caracteristicaVehiculo: _caracteristicaSeleccionada,
+                      );
+
+                      /// 🔥 3. INICIAR NUEVA BÚSQUEDA
+                      _controller.getNearbyDrivers();
+                    },
+                    child: const Text(
+                      "Buscar servicio estándar",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+
+                /// 🔽 ESPACIO
+                const SizedBox(height: 8),
+
+                /// 🔴 CANCELAR DEBAJO
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+
+                      _controller.deleteTravelInfo();
+                      _timerBusqueda?.cancel();
+
+                      setState(() {
+                        isVisibleTarjetaSolicitandoConductor = false;
+                        _isSearching = false;
+                      });
+                    },
+                    child: const Text(
+                      "Cancelar",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      }
 
       if (_segundosRestantes <= 0) {
         timer.cancel();

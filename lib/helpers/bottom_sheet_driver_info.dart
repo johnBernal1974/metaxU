@@ -376,12 +376,27 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
 
   void getDriverInfo() async {
     driver = await _driverProvider.getById(widget.idDriver);
-    if (driver != null) {
-      if (!mounted) return;
-      setState(() {
-        tipoServicio = driver!.the19TipoServicio;
-      });
-    }
+
+    if (driver == null) return;
+
+    if (driver!.vehiculoActivoId.isEmpty) return;
+
+    final vehiculoDoc = await FirebaseFirestore.instance
+        .collection('Drivers')
+        .doc(widget.idDriver)
+        .collection('vehiculos')
+        .doc(driver!.vehiculoActivoId)
+        .get();
+
+    if (!vehiculoDoc.exists) return;
+
+    final data = vehiculoDoc.data();
+
+    if (!mounted) return;
+
+    setState(() {
+      tipoServicio = data?['19_Tipo_Servicio'] ?? '';
+    });
   }
 
   void _openWhatsApp(BuildContext context) async {

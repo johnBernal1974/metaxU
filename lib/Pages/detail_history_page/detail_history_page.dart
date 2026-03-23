@@ -114,10 +114,10 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Conductor', style: TextStyle(fontSize: 12)),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildName(),
-                const SizedBox(width: 3),
                 _buildSurname(),
               ],
             ),

@@ -97,6 +97,10 @@ class TravelInfoController{
 
   bool _isSendingNotifications = false;
 
+  String tipoServicioSolicitado = "";
+
+  bool _permitirStandard = false;
+
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -107,6 +111,8 @@ class TravelInfoController{
   }
 
   bool get isCalculatingTrip => !canConfirmTrip;
+
+  Map<String, Map<String, dynamic>> vehiculosCache = {};
 
 
   Future<void> init(BuildContext context, Function refresh) async {
@@ -762,6 +768,8 @@ class TravelInfoController{
 
   void getNearbyDrivers() {
 
+    _permitirStandard = false;
+
     /// 🔥 RESET SOLO AL INICIO (CLAVE)
     nearbyDrivers.clear();
     notifiedDrivers.clear();
@@ -812,6 +820,34 @@ class TravelInfoController{
       List<String> nuevosDrivers = driversStream
           .where((id) => !notifiedDrivers.contains(id))
           .toList();
+
+      // 🔥 PRE-CARGAR VEHÍCULOS ACTIVOS (OPTIMIZACIÓN)
+      for (String driverId in nuevosDrivers) {
+
+        try {
+          Driver? driver = await _driverProvider.getById(driverId);
+
+          if (driver == null || driver.vehiculoActivoId.isEmpty) continue;
+
+          // 🔥 SOLO si no está en cache
+          if (!vehiculosCache.containsKey(driverId)) {
+
+            final doc = await FirebaseFirestore.instance
+                .collection('Drivers')
+                .doc(driverId)
+                .collection('vehiculos')
+                .doc(driver.vehiculoActivoId)
+                .get();
+
+            if (doc.exists) {
+              vehiculosCache[driverId] = doc.data()!;
+            }
+          }
+
+        } catch (e) {
+          print("Error precargando vehículo: $e");
+        }
+      }
 
       if (nuevosDrivers.isEmpty) {
         if (kDebugMode) {
@@ -1048,9 +1084,37 @@ class TravelInfoController{
 
       Driver? driver = await _driverProvider.getById(driverId);
 
-      if (driver?.token != null) {
+      print("🧍 tipoServicioSolicitado*******************: $tipoServicioSolicitado");
 
-        bool accepted = await sendNotification(driver!.token);
+      // 🔥 VALIDACIÓN VIP (YA SIN FIRESTORE)
+      if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
+
+        final vehiculoData = vehiculosCache[driverId];
+
+        // 🔥 SI NO HAY VEHÍCULO EN CACHE → SALTAR
+        if (vehiculoData == null) {
+          print("❌ Vehículo no cargado en cache");
+          return await _attemptToSendNotification(driverIds, index + 1);
+        }
+
+        final soportaVIP = vehiculoData['soportaVIP'] ?? false;
+
+        // 🔥 BLOQUEO SOLO EN FASE VIP
+        if (!_permitirStandard && !soportaVIP) {
+          print("⛔ Conductor no VIP (fase 1)");
+          return await _attemptToSendNotification(driverIds, index + 1);
+        }
+
+        // 🔥 FALLBACK
+        if (_permitirStandard) {
+          print("⚠️ Fallback activo → permitiendo estándar");
+        }
+      }
+
+      // 🔥 ENVÍO NOTIFICACIÓN
+      if (driver?.token != null && driver!.token.isNotEmpty) {
+
+        bool accepted = await sendNotification(driver.token);
 
         if (accepted) {
           serviceAccepted = true;
@@ -1062,7 +1126,6 @@ class TravelInfoController{
 
           return;
         }
-
       }
 
     } catch (e) {
@@ -1071,6 +1134,18 @@ class TravelInfoController{
 
     /// 🔥 continuar secuencia CONTROLADA
     return await _attemptToSendNotification(driverIds, index + 1);
+  }
+
+
+  void permitirStandardManual() async {
+    _permitirStandard = true;
+
+    notifiedDrivers.clear();
+
+    if (nearbyDrivers.isNotEmpty) {
+      print("🔁 Reintentando manual con estándar");
+      await _attemptToSendNotification(nearbyDrivers, 0);
+    }
   }
 
   void playAudio(String audioPath) async {
@@ -1180,6 +1255,8 @@ class TravelInfoController{
     required String metodoPago,
     required String caracteristicaVehiculo,
   }) async {
+
+    tipoServicioSolicitado = tipoServicio;
     final user = _authProvider.getUser();
     if (user == null) return;
 
@@ -1218,6 +1295,7 @@ class TravelInfoController{
       color: '',
       tipoVehiculo: '',
       tipoVehiculoServicio: '',
+
     );
 
     await _travelInfoProvider.create(travelInfo);

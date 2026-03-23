@@ -21,7 +21,7 @@ class TravelInfo {
   Timestamp? horaFinalizacionViaje;
   String apuntes;
 
-  // 🔥 CLIENTE (standard / VIP)
+
   String tipoServicio;
 
   int valorVipExtra;

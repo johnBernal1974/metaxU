@@ -127,7 +127,7 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
               if (_controller.pickedFile == null || _controller.pickedFile?.name == 'asd')
                 Positioned.fill(
                   child: Image.asset(
-                    "assets/icono_persona.png",
+                    "assets/foto_perfil.png",
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -151,11 +151,11 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.camera_alt, color: blanco, size: 16,), // Icono de cámara
+            Icon(Icons.camera_alt, color: Colors.black, size: 16,), // Icono de cámara
             SizedBox(width: 8), // Espacio entre el icono y el texto
             Text(
               'Tomar Foto',
-              style: TextStyle(fontSize: 16, color: blanco),
+              style: TextStyle(fontSize: 16, color: Colors.black),
             ),
           ],
         ),

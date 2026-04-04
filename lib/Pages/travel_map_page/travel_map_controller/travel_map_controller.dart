@@ -295,7 +295,7 @@ class TravelMapController{
   }
 
   void actualizarContadorDeViajes () async {
-    int? numeroDeViajes = client?.the19Viajes;
+    int? numeroDeViajes = client?.viajes;
     int nuevoContador = numeroDeViajes! + 1;
     Map<String, dynamic> data = {
       '19_Viajes': nuevoContador};
@@ -304,7 +304,7 @@ class TravelMapController{
   }
 
   void actualizarContadorCancelaciones () async {
-    int? numeroCancelaciones = client?.the22Cancelaciones;
+    int? numeroCancelaciones = client?.cancelaciones;
     int nuevoContadorCancelaciones = numeroCancelaciones! + 1;
     Map<String, dynamic> data = {
       '22_cancelaciones': nuevoContadorCancelaciones};

@@ -920,33 +920,37 @@ class _RegisterPageState extends State<RegisterPage> {
       // 7) Crear doc Client
       final client = Client(
         id: uid,
-        the01Nombres: (name ?? "").trim(),
-        the02Apellidos: (apellidos ?? "").trim(),
-        the06Email: "",
-        the07Celular: cel10,
-        the09Genero: "",
-        the15FotoPerfilUsuario: "",
-        the17Bono: 0,
-        the18Calificacion: 0,
-        the19Viajes: 0,
-        the20Rol: "regular",
-        the21FechaDeRegistro: DateHelpers.getStartDate(),
+        nombres: (name ?? "").trim(),
+        apellidos: (apellidos ?? "").trim(),
+        celular: cel10,
+        genero: "",
+
+        bono: 0,
+        calificacion: 0,
+        viajes: 0,
+
+        rol: "regular",
+        fechaRegistro: DateHelpers.getStartDate(),
         token: "",
-        image: "",
         status: "registrado",
-        the00isTraveling: false,
-        the22Cancelaciones: 0,
-        the41SuspendidoPorCancelaciones: false,
-        fotoPerfilTomada: false,
+
+        isTraveling: false,
+        cancelaciones: 0,
+        suspendido: false,
+
         palabraClave: (answer ?? "").trim(),
         preguntaPalabraClave: (selectedQuestion ?? "").trim(),
-        the16CedulaFrontalUsuario: "",
-        cedulaFrontalTomada: false,
-        the23CedulaReversoUsuario: "",
-        cedulaReversoTomada: false,
+
+        // 🔥 NUEVO SISTEMA LIMPIO
+        fotoPerfilUrl: "",
         fotoPerfilEstado: "",
+
+        cedulaFrontalUrl: "",
         cedulaFrontalEstado: "",
+
+        cedulaReversoUrl: "",
         cedulaReversoEstado: "",
+
         nombreEstado: "",
       );
 
@@ -1181,135 +1185,137 @@ class _RegisterPageState extends State<RegisterPage> {
     final bool canResend = !_sendingOtp && _resendSeconds == 0;
     return Padding(
       padding: const EdgeInsets.all(24.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const Text(
-            "Verifica tu número",
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            "Ingresa el código de 6 dígitos que enviamos al ${_maskNumber(celularController.text)}.",
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.black38,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
-          const SizedBox(height: 22),
-
-          // ✅ OTP en cajitas
-          PinCodeTextField(
-            appContext: context,
-            controller: otpController,
-            focusNode: _otpFocusNode,
-            autoFocus: false,
-            length: 6,
-            keyboardType: TextInputType.number,
-            autoDisposeControllers: false,
-            enableActiveFill: true,
-            animationType: AnimationType.fade,
-            animationDuration: const Duration(milliseconds: 180),
-            cursorColor: primary,
-            textStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Colors.black87,
-            ),
-            pastedTextStyle: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Colors.black87,
-            ),
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            beforeTextPaste: (text) => true,
-
-            // ✅ Limpia error al escribir
-            onChanged: (value) {
-              setState(() {
-                _otpCode = value;
-                otpError = null;
-                _otpVerified = false;
-              });
-            },
-
-            // ✅ Si quieres que al completar dispare verificación automáticamente:
-            onCompleted: (value) async {
-              // opcional: verifica apenas complete
-              await _verifyOtp();
-            },
-
-            // ✅ Tema visual (cajitas)
-            pinTheme: PinTheme(
-              shape: PinCodeFieldShape.box,
-              borderRadius: BorderRadius.circular(12),
-              fieldHeight: 54,
-              fieldWidth: 46,
-              activeColor: primary,
-              selectedColor: primary,
-              inactiveColor: Colors.black12,
-              activeFillColor: Colors.white,
-              selectedFillColor: Colors.white,
-              inactiveFillColor: Colors.white,
-              borderWidth: 1.2,
-            ),
-
-            // ✅ Loader (mientras verifica)
-            enabled: !_verifyingOtp,
-          ),
-
-          const SizedBox(height: 10),
-
-          // 🔄/❌/✅ Estado
-          if (_verifyingOtp)
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
             const Text(
-              "Verificando código...",
-              style: TextStyle(
-                color: Colors.black45,
-                fontWeight: FontWeight.w600,
-              ),
+              "Verifica tu número",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
-          if (otpError != null && !_verifyingOtp)
+            const SizedBox(height: 10),
             Text(
-              otpError!,
+              "Ingresa el código de 6 dígitos que enviamos al ${_maskNumber(celularController.text)}.",
               style: const TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black38,
               ),
               textAlign: TextAlign.center,
             ),
-
-          if (_otpVerified)
-            const Text(
-              "✅ Código correcto",
-              style: TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.w800,
+        
+            const SizedBox(height: 22),
+        
+            // ✅ OTP en cajitas
+            PinCodeTextField(
+              appContext: context,
+              controller: otpController,
+              focusNode: _otpFocusNode,
+              autoFocus: false,
+              length: 6,
+              keyboardType: TextInputType.number,
+              autoDisposeControllers: false,
+              enableActiveFill: true,
+              animationType: AnimationType.fade,
+              animationDuration: const Duration(milliseconds: 180),
+              cursorColor: primary,
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+              ),
+              pastedTextStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Colors.black87,
+              ),
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              beforeTextPaste: (text) => true,
+        
+              // ✅ Limpia error al escribir
+              onChanged: (value) {
+                setState(() {
+                  _otpCode = value;
+                  otpError = null;
+                  _otpVerified = false;
+                });
+              },
+        
+              // ✅ Si quieres que al completar dispare verificación automáticamente:
+              onCompleted: (value) async {
+                // opcional: verifica apenas complete
+                await _verifyOtp();
+              },
+        
+              // ✅ Tema visual (cajitas)
+              pinTheme: PinTheme(
+                shape: PinCodeFieldShape.box,
+                borderRadius: BorderRadius.circular(12),
+                fieldHeight: 54,
+                fieldWidth: 46,
+                activeColor: primary,
+                selectedColor: primary,
+                inactiveColor: Colors.black12,
+                activeFillColor: Colors.white,
+                selectedFillColor: Colors.white,
+                inactiveFillColor: Colors.white,
+                borderWidth: 1.2,
+              ),
+        
+              // ✅ Loader (mientras verifica)
+              enabled: !_verifyingOtp,
+            ),
+        
+            const SizedBox(height: 10),
+        
+            // 🔄/❌/✅ Estado
+            if (_verifyingOtp)
+              const Text(
+                "Verificando código...",
+                style: TextStyle(
+                  color: Colors.black45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+        
+            if (otpError != null && !_verifyingOtp)
+              Text(
+                otpError!,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w800,
+                ),
+                textAlign: TextAlign.center,
+              ),
+        
+            if (_otpVerified)
+              const Text(
+                "✅ Código correcto",
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+        
+            const SizedBox(height: 12),
+        
+            // 🔁 Reenviar
+            TextButton(
+              onPressed: canResend ? _sendOtp : null,
+              child: _sendingOtp
+                  ? const SizedBox(
+                height: 14,
+                width: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+                  : Text(
+                _resendSeconds > 0
+                    ? "Reenviar en ${_resendSeconds}s"
+                    : "Reenviar código",
               ),
             ),
-
-          const SizedBox(height: 12),
-
-          // 🔁 Reenviar
-          TextButton(
-            onPressed: canResend ? _sendOtp : null,
-            child: _sendingOtp
-                ? const SizedBox(
-              height: 14,
-              width: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-                : Text(
-              _resendSeconds > 0
-                  ? "Reenviar en ${_resendSeconds}s"
-                  : "Reenviar código",
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

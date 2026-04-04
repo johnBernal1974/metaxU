@@ -240,10 +240,9 @@ class MyAuthProvider {
       /// ⚠️ COMPATIBILIDAD (NO ROMPER)
       /// ==============================
 
-      final foto = (client.the15FotoPerfilUsuario ?? '').trim();
-      final fotoTomada = client.fotoPerfilTomada ?? false;
+      final fotoUrl = (client.fotoPerfilUrl ?? '').trim();
 
-      if (!fotoTomada || foto.isEmpty) {
+      if (fotoUrl.isEmpty) {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -274,7 +273,7 @@ class MyAuthProvider {
       /// 🚗 MAPA
       /// ==============================
 
-      final isTraveling = client.the00isTraveling;
+      final isTraveling = client.isTraveling;
 
       _navigating = true;
 

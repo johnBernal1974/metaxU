@@ -864,19 +864,19 @@ class _MapClientPageState extends State<MapClientPage> {
                     },
                     child: CircleAvatar(
                       backgroundColor: blanco,
-                      backgroundImage: _controller.client?.image != null
-                          ? CachedNetworkImageProvider(_controller.client!.image)
+                      backgroundImage: _controller.client?.fotoPerfilUrl != null
+                          ? CachedNetworkImageProvider(_controller.client!.fotoPerfilUrl)
                           : null,
                       radius: 45,
                     ),
                   ),
 
-                  Text(_controller.client?.the01Nombres ?? '', style: TextStyle(
+                  Text(_controller.client?.nombres ?? '', style: TextStyle(
                       fontSize: 18.r, fontWeight: FontWeight.w900, color: Colors.black
                   ),
                     maxLines: 1,
                   ),
-                  Text(_controller.client?.the02Apellidos ?? '', style: TextStyle(
+                  Text(_controller.client?.apellidos ?? '', style: TextStyle(
                       fontSize: 13.r, fontWeight: FontWeight.w500, color: Colors.black
                   ),
                     maxLines: 1,

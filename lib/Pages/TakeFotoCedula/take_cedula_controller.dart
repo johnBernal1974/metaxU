@@ -101,7 +101,7 @@ class TakeCedulaController {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // ✅ Validación según tipo (para que no se salga silencioso)
+    // ✅ Validaciones
     if (tipo == 'frontal' && pickedFront == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -135,6 +135,12 @@ class TakeCedulaController {
       final uid = user.uid;
       final updates = <String, dynamic>{};
 
+      // 🔥 TRAEMOS EL DOCUMENTO UNA SOLA VEZ
+      final doc = await FirebaseFirestore.instance
+          .collection('Clients')
+          .doc(uid)
+          .get();
+
       // ---------- FRONTAL ----------
       if (tipo == 'frontal' || tipo == 'ambas') {
         final frontCompressed = await compressImage(File(pickedFront!.path));
@@ -150,17 +156,16 @@ class TakeCedulaController {
 
         final frontUrl = await frontSnap.ref.getDownloadURL();
 
+        final estadoActual = doc.data()?['cedula_frontal_estado'] ?? "";
+
+        String nuevoEstado = "tomada";
+        if (estadoActual == "rechazada") {
+          nuevoEstado = "corregida";
+        }
+
         updates.addAll({
-          'cedula_frontal_tomada': true,
-
-          // 🔹 compatibilidad
-          '16_Cedula_frontal_usuario': frontUrl,
-          '16_Cedula_frontal_url': frontUrl,
-
-          // 🔥 NUEVO SISTEMA
-          'cedula_frontal_estado': 'tomada',
-
-          // 🔒 flujo admin
+          'cedula_frontal_url': frontUrl,
+          'cedula_frontal_estado': nuevoEstado,
           'status': 'procesando',
         });
       }
@@ -180,17 +185,16 @@ class TakeCedulaController {
 
         final backUrl = await backSnap.ref.getDownloadURL();
 
+        final estadoActual = doc.data()?['cedula_reverso_estado'] ?? "";
+
+        String nuevoEstado = "tomada";
+        if (estadoActual == "rechazada") {
+          nuevoEstado = "corregida";
+        }
+
         updates.addAll({
-          'cedula_reverso_tomada': true,
-
-          // 🔹 compatibilidad
-          '23_Cedula_reverso_usuario': backUrl,
-          '23_Cedula_reverso_url': backUrl,
-
-          // 🔥 NUEVO SISTEMA
-          'cedula_reverso_estado': 'tomada',
-
-          // 🔒 flujo admin
+          'cedula_reverso_url': backUrl,
+          'cedula_reverso_estado': nuevoEstado,
           'status': 'procesando',
         });
       }

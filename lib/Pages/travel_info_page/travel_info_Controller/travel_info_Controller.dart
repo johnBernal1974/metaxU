@@ -573,7 +573,7 @@ class TravelInfoController{
       final Price price = await _pricesProvider.getAll();
 
       // ✅ Rol del usuario (por defecto regular)
-      final rol = (client?.the20Rol ?? 'regular').toLowerCase().trim();
+      final rol = (client?.rol ?? 'regular').toLowerCase().trim();
 
       // ✅ Valores según rol
       final double valorKm = (rol == 'hotel')
@@ -653,7 +653,7 @@ class TravelInfoController{
   // new para ajustar roles y tarifas del rol del usuario
 
   String _rolUsuario() {
-    return (client?.the20Rol ?? 'regular').toLowerCase();
+    return (client?.rol ?? 'regular').toLowerCase();
   }
 
   double _valorKmPorRol(Price price) {

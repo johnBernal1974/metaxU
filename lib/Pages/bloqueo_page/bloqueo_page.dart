@@ -159,7 +159,7 @@ class _PaginaDeBloqueoState extends State<PaginaDeBloqueo> {
     // Obtener el conductor actualizado
     Client? client = await _clientProvider.getById(userId);
     String? phoneNumber = whatsappAtencionCliente;
-    String? name = client?.the01Nombres;
+    String? name = client?.nombres;
     String message = 'Hola Metax, mi nombre es $name. Requiero saber el motivo del bloqueo de mi cuenta.';
 
     final whatsappLink = Uri.parse('whatsapp://send?phone=+57$phoneNumber&text=${Uri.encodeQueryComponent(message)}');

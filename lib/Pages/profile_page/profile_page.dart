@@ -86,7 +86,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(8), // bordes redondeados
               ),
               child: Text(
-                _controller.client?.the19Viajes?.toString() ?? '0',
+                _controller.client?.viajes?.toString() ?? '0',
                 style: const TextStyle(
                   color: negro,
                   fontWeight: FontWeight.w900,
@@ -123,8 +123,8 @@ class _ProfilePageState extends State<ProfilePage> {
       margin: const EdgeInsets.only(bottom: 15),
       child: CircleAvatar(
         backgroundColor: blanco,
-        backgroundImage: _controller.client?.image != null
-            ? CachedNetworkImageProvider(_controller.client!.image)
+        backgroundImage: _controller.client?.fotoPerfilUrl != null
+            ? CachedNetworkImageProvider(_controller.client!.fotoPerfilUrl)
             : null,
         radius: 60,
       ),
@@ -136,7 +136,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         headerText( text: 'Nombre:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the01Nombres ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
+        headerText( text: _controller.client?.nombres ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -147,19 +147,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         headerText( text: 'Apellidos:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the02Apellidos ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
-      ],
-    );
-  }
-
-
-  Widget _email(){
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        headerText( text: 'Email:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
-        const SizedBox(width: 5),
-        headerText( text: _controller.client?.the06Email ?? '', color: negro,fontSize: 11,fontWeight: FontWeight.w400),
+        headerText( text: _controller.client?.apellidos ?? "", color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }
@@ -170,7 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         headerText( text: 'Celular:' , color: negro, fontSize: 12,fontWeight: FontWeight.w500),
         const SizedBox(width: 5),
-        headerText( text: _controller.client?.the07Celular ?? '', color: negro,fontSize: 11,fontWeight: FontWeight.w400),
+        headerText( text: _controller.client?.celular ?? '', color: negro,fontSize: 11,fontWeight: FontWeight.w400),
       ],
     );
   }

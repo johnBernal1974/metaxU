@@ -55,7 +55,7 @@ class _CorregirNombrePageState extends State<CorregirNombrePage> {
         '02_Apellidos': apellido,
 
         // 🔥 CLAVE (nuevo sistema)
-        'nombre_estado': 'aprobado',
+        'nombre_estado': 'corregida',
 
         // 🔒 vuelve a revisión
         'status': 'procesando',

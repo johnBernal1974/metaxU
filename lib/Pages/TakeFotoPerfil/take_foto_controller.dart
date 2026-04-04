@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -42,10 +43,9 @@ class TakeFotoController {
     try {
       final uid = _authProvider.getUser()!.uid;
 
-      // ✅ Comprimir la imagen antes de subirla
+      // ✅ Comprimir imagen
       File compressedImage = await compressImage(File(pickedFile!.path));
 
-      // ✅ Convertir a PickedFile (tu StorageProvider lo pide así)
       PickedFile compressedPickedFile = PickedFile(compressedImage.path);
 
       // ✅ Subir a Storage
@@ -56,18 +56,26 @@ class TakeFotoController {
 
       final String imageUrl = await snapshot.ref.getDownloadURL();
 
-      // ✅ IMPORTANTÍSIMO: guardar TODO en 1 SOLO UPDATE
-      // Alineado con el guard: the15FotoPerfilUsuario + fotoPerfilTomada
+      // 🔥 OBTENER ESTADO ACTUAL
+      final doc = await FirebaseFirestore.instance
+          .collection('Clients')
+          .doc(uid)
+          .get();
+
+      final estadoActual = doc.data()?['foto_perfil_estado'] ?? "";
+
+      String nuevoEstado = "tomada";
+
+      if (estadoActual == "rechazada") {
+        nuevoEstado = "corregida";
+      }
+
+      // ✅ NUEVO SISTEMA LIMPIO
       final Map<String, dynamic> data = {
-        /// 🔹 compatibilidad actual
-        'image': imageUrl,
-        '15_Foto_perfil_usuario': imageUrl,
-        'foto_perfil_tomada': true,
+        'foto_perfil_url': imageUrl,
+        'foto_perfil_estado': nuevoEstado,
 
-        /// 🔥 NUEVO SISTEMA
-        'foto_perfil_estado': 'tomada',
-
-        /// 🔒 flujo admin
+        // 🔒 flujo admin
         'status': 'procesando',
       };
 
@@ -177,30 +185,6 @@ class TakeFotoController {
       if (kDebugMode) {
         print('No se tomó ninguna foto');
       }
-    }
-  }
-
-  void updateFotoPerfilATrue() async {
-    String userId = _authProvider.getUser()!.uid;
-    Client? client = await _clientProvider.getById(userId);
-    if (client != null) {
-      bool isFotoTomada = client.fotoPerfilTomada;
-      Map<String, dynamic> data;
-      if (!isFotoTomada) {
-        // Si la foto no está tomada, actualiza el estado y marca la foto como tomada
-        data = {
-          'status': "foto_tomada",
-          '15_Foto_perfil_usuario': "tomada",
-          'foto_perfil_tomada': true,
-        };
-      } else {
-        // Si la foto ya está tomada, actualiza solo el estado a "corregida"
-        data = {
-          'status': "corregida",
-          '15_Foto_perfil_usuario': "corregida"
-        };
-      }
-      await _clientProvider.update(data, userId);
     }
   }
 }

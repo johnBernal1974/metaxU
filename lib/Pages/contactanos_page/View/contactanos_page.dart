@@ -133,7 +133,7 @@ class _ContactanosPageState extends State<ContactanosPage> {
 
   void _openWhatsApp(BuildContext context) async {
     String? phoneNumber = _controller.whatsappAtencionCliente;
-    String? name = _controller.client?.the01Nombres.toString();
+    String? name = _controller.client?.nombres.toString();
     String message = 'Hola Metax, mi nombre es $name y requiero de su asistencia.';
 
     final whatsappLink = Uri.parse('whatsapp://send?phone=+57$phoneNumber&text=${Uri.encodeQueryComponent(message)}');

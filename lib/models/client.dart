@@ -5,75 +5,69 @@ String clientToJson(Client data) => json.encode(data.toJson());
 
 class Client {
   String id;
-  String the01Nombres;
-  String the02Apellidos;
-  String the06Email;
-  String the07Celular;
-  String the09Genero;
-  String the15FotoPerfilUsuario;
-  int the17Bono;
-  double the18Calificacion;
-  int the19Viajes;
-  String the20Rol;
-  String the21FechaDeRegistro;
+  String nombres;
+  String apellidos;
+  String celular;
+  String genero;
+
+  int bono;
+  double calificacion;
+  int viajes;
+
+  String rol;
+  String fechaRegistro;
   String token;
-  String image;
   String status;
-  bool the00isTraveling;
-  int the22Cancelaciones;
-  bool the41SuspendidoPorCancelaciones;
-  bool fotoPerfilTomada;
+
+  bool isTraveling;
+  int cancelaciones;
+  bool suspendido;
+
   String palabraClave;
   String preguntaPalabraClave;
 
-  // ✅ Cédula
-  String the16CedulaFrontalUsuario;
-  bool cedulaFrontalTomada;
-  String the23CedulaReversoUsuario;
-  bool cedulaReversoTomada;
-
-  // 🔥 NUEVO SISTEMA DE ESTADOS
+  // 🔥 NUEVO SISTEMA LIMPIO
+  String fotoPerfilUrl;
   String fotoPerfilEstado;
+
+  String cedulaFrontalUrl;
   String cedulaFrontalEstado;
+
+  String cedulaReversoUrl;
   String cedulaReversoEstado;
+
   String nombreEstado;
 
   Client({
     required this.id,
-    required this.the01Nombres,
-    required this.the02Apellidos,
-    required this.the06Email,
-    required this.the07Celular,
-    required this.the09Genero,
-    required this.the15FotoPerfilUsuario,
-    required this.the17Bono,
-    required this.the18Calificacion,
-    required this.the19Viajes,
-    required this.the20Rol,
-    required this.the21FechaDeRegistro,
+    required this.nombres,
+    required this.apellidos,
+    required this.celular,
+    required this.genero,
+    required this.bono,
+    required this.calificacion,
+    required this.viajes,
+    required this.rol,
+    required this.fechaRegistro,
     required this.token,
-    required this.image,
     required this.status,
-    required this.the00isTraveling,
-    required this.the22Cancelaciones,
-    required this.the41SuspendidoPorCancelaciones,
-    required this.fotoPerfilTomada,
+    required this.isTraveling,
+    required this.cancelaciones,
+    required this.suspendido,
     required this.palabraClave,
     required this.preguntaPalabraClave,
-    required this.the16CedulaFrontalUsuario,
-    required this.cedulaFrontalTomada,
-    required this.the23CedulaReversoUsuario,
-    required this.cedulaReversoTomada,
 
+    required this.fotoPerfilUrl,
     required this.fotoPerfilEstado,
+    required this.cedulaFrontalUrl,
     required this.cedulaFrontalEstado,
+    required this.cedulaReversoUrl,
     required this.cedulaReversoEstado,
+
     required this.nombreEstado,
   });
 
-  // =========================
-  // Helpers de parseo seguro
-  // =========================
+  // helpers
   static int _toInt(dynamic v, {int def = 0}) {
     if (v == null) return def;
     if (v is int) return v;
@@ -95,93 +89,82 @@ class Client {
     if (v is bool) return v;
     if (v is num) return v != 0;
     if (v is String) {
-      final s = v.trim().toLowerCase();
+      final s = v.toLowerCase();
       if (s == 'true') return true;
       if (s == 'false') return false;
-      // por si guardaron "1"/"0"
-      final n = int.tryParse(s);
-      if (n != null) return n != 0;
     }
     return def;
   }
 
   factory Client.fromJson(Map<String, dynamic> json) => Client(
     id: (json["id"] ?? '').toString(),
-    the01Nombres: (json["01_Nombres"] ?? '').toString(),
-    the02Apellidos: (json["02_Apellidos"] ?? '').toString(),
-    the06Email: (json["06_Email"] ?? '').toString(),
-    the07Celular: (json["07_Celular"] ?? '').toString(),
-    the09Genero: (json["09_Genero"] ?? '').toString(),
-    the15FotoPerfilUsuario: (json["15_Foto_perfil_usuario"] ?? '').toString(),
+    nombres: (json["01_Nombres"] ?? '').toString(),
+    apellidos: (json["02_Apellidos"] ?? '').toString(),
+    celular: (json["07_Celular"] ?? '').toString(),
+    genero: (json["09_Genero"] ?? '').toString(),
 
-    // ✅ NUMÉRICOS (nunca uses '' aquí)
-    the17Bono: _toInt(json["17_Bono"]),
-    the18Calificacion: _toDouble(json["18_Calificacion"]),
-    the19Viajes: _toInt(json["19_Viajes"]),
+    bono: _toInt(json["17_Bono"]),
+    calificacion: _toDouble(json["18_Calificacion"]),
+    viajes: _toInt(json["19_Viajes"]),
 
-    the20Rol: (json["20_Rol"] ?? '').toString(),
-    the21FechaDeRegistro: (json["21_Fecha_de_registro"] ?? '').toString(),
+    rol: (json["20_Rol"] ?? '').toString(),
+    fechaRegistro: (json["21_Fecha_de_registro"] ?? '').toString(),
     token: (json["token"] ?? '').toString(),
-    image: (json["image"] ?? '').toString(),
     status: (json["status"] ?? '').toString(),
 
-    // ✅ BOOL
-    the00isTraveling: _toBool(json["00_is_traveling"]),
-    the22Cancelaciones: _toInt(json["22_cancelaciones"]),
-    the41SuspendidoPorCancelaciones: _toBool(json["41_Suspendido_Por_Cancelaciones"]),
-    fotoPerfilTomada: _toBool(json["foto_perfil_tomada"]),
+    isTraveling: _toBool(json["00_is_traveling"]),
+    cancelaciones: _toInt(json["22_cancelaciones"]),
+    suspendido: _toBool(json["41_Suspendido_Por_Cancelaciones"]),
 
     palabraClave: (json["palabra_clave"] ?? '').toString(),
     preguntaPalabraClave: (json["pregunta_palabra_clave"] ?? '').toString(),
 
-    the16CedulaFrontalUsuario: (json["16_Cedula_frontal_usuario"] ?? '').toString(),
-    cedulaFrontalTomada: _toBool(json["cedula_frontal_tomada"]),
-    the23CedulaReversoUsuario: (json["23_Cedula_reverso_usuario"] ?? '').toString(),
-    cedulaReversoTomada: _toBool(json["cedula_reverso_tomada"]),
-
+    // 🔥 NUEVO SISTEMA
+    fotoPerfilUrl: (json["foto_perfil_url"] ?? '').toString(),
     fotoPerfilEstado: (json["foto_perfil_estado"] ?? '').toString(),
+
+    cedulaFrontalUrl: (json["cedula_frontal_url"] ?? '').toString(),
     cedulaFrontalEstado: (json["cedula_frontal_estado"] ?? '').toString(),
+
+    cedulaReversoUrl: (json["cedula_reverso_url"] ?? '').toString(),
     cedulaReversoEstado: (json["cedula_reverso_estado"] ?? '').toString(),
+
     nombreEstado: (json["nombre_estado"] ?? '').toString(),
   );
 
   Map<String, dynamic> toJson() => {
     "id": id,
-    "01_Nombres": the01Nombres,
-    "02_Apellidos": the02Apellidos,
-    "06_Email": the06Email,
-    "07_Celular": the07Celular,
-    "09_Genero": the09Genero,
-    "15_Foto_perfil_usuario": the15FotoPerfilUsuario,
+    "01_Nombres": nombres,
+    "02_Apellidos": apellidos,
+    "07_Celular": celular,
+    "09_Genero": genero,
 
-    // ✅ NUMÉRICOS correctos
-    "17_Bono": the17Bono,
-    "18_Calificacion": the18Calificacion,
-    "19_Viajes": the19Viajes,
+    "17_Bono": bono,
+    "18_Calificacion": calificacion,
+    "19_Viajes": viajes,
 
-    "20_Rol": the20Rol,
-    "21_Fecha_de_registro": the21FechaDeRegistro,
+    "20_Rol": rol,
+    "21_Fecha_de_registro": fechaRegistro,
     "token": token,
-    "image": image,
     "status": status,
 
-    // ✅ BOOL/INT correctos
-    "00_is_traveling": the00isTraveling,
-    "22_cancelaciones": the22Cancelaciones,
-    "41_Suspendido_Por_Cancelaciones": the41SuspendidoPorCancelaciones,
-    "foto_perfil_tomada": fotoPerfilTomada,
+    "00_is_traveling": isTraveling,
+    "22_cancelaciones": cancelaciones,
+    "41_Suspendido_Por_Cancelaciones": suspendido,
 
     "palabra_clave": palabraClave,
     "pregunta_palabra_clave": preguntaPalabraClave,
 
-    "16_Cedula_frontal_usuario": the16CedulaFrontalUsuario,
-    "cedula_frontal_tomada": cedulaFrontalTomada,
-    "23_Cedula_reverso_usuario": the23CedulaReversoUsuario,
-    "cedula_reverso_tomada": cedulaReversoTomada,
-
+    // 🔥 NUEVO SISTEMA
+    "foto_perfil_url": fotoPerfilUrl,
     "foto_perfil_estado": fotoPerfilEstado,
+
+    "cedula_frontal_url": cedulaFrontalUrl,
     "cedula_frontal_estado": cedulaFrontalEstado,
+
+    "cedula_reverso_url": cedulaReversoUrl,
     "cedula_reverso_estado": cedulaReversoEstado,
+
     "nombre_estado": nombreEstado,
   };
 }

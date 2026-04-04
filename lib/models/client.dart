@@ -32,6 +32,12 @@ class Client {
   String the23CedulaReversoUsuario;
   bool cedulaReversoTomada;
 
+  // 🔥 NUEVO SISTEMA DE ESTADOS
+  String fotoPerfilEstado;
+  String cedulaFrontalEstado;
+  String cedulaReversoEstado;
+  String nombreEstado;
+
   Client({
     required this.id,
     required this.the01Nombres,
@@ -58,6 +64,11 @@ class Client {
     required this.cedulaFrontalTomada,
     required this.the23CedulaReversoUsuario,
     required this.cedulaReversoTomada,
+
+    required this.fotoPerfilEstado,
+    required this.cedulaFrontalEstado,
+    required this.cedulaReversoEstado,
+    required this.nombreEstado,
   });
 
   // =========================
@@ -127,6 +138,11 @@ class Client {
     cedulaFrontalTomada: _toBool(json["cedula_frontal_tomada"]),
     the23CedulaReversoUsuario: (json["23_Cedula_reverso_usuario"] ?? '').toString(),
     cedulaReversoTomada: _toBool(json["cedula_reverso_tomada"]),
+
+    fotoPerfilEstado: (json["foto_perfil_estado"] ?? '').toString(),
+    cedulaFrontalEstado: (json["cedula_frontal_estado"] ?? '').toString(),
+    cedulaReversoEstado: (json["cedula_reverso_estado"] ?? '').toString(),
+    nombreEstado: (json["nombre_estado"] ?? '').toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -162,5 +178,10 @@ class Client {
     "cedula_frontal_tomada": cedulaFrontalTomada,
     "23_Cedula_reverso_usuario": the23CedulaReversoUsuario,
     "cedula_reverso_tomada": cedulaReversoTomada,
+
+    "foto_perfil_estado": fotoPerfilEstado,
+    "cedula_frontal_estado": cedulaFrontalEstado,
+    "cedula_reverso_estado": cedulaReversoEstado,
+    "nombre_estado": nombreEstado,
   };
 }

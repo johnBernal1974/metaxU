@@ -93,7 +93,7 @@ class MyAuthProvider {
       if (!context.mounted) return;
       if (_navigating) return;
 
-      // 1️⃣ No logueado -> login
+      /// 1️⃣ NO LOGUEADO
       if (user == null) {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
@@ -103,7 +103,7 @@ class MyAuthProvider {
       final userId = user.uid;
 
       /// ==============================
-      /// 2️⃣ VERIFICAR SI ES PORTERIA
+      /// 2️⃣ PORTERÍA
       /// ==============================
 
       final porteriaDoc = await FirebaseFirestore.instance
@@ -117,15 +117,15 @@ class MyAuthProvider {
       if (porteriaDoc.exists) {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(
-            context,
-            'home_porteria',
-                (route) => false
+          context,
+          'home_porteria',
+              (route) => false,
         );
         return;
       }
 
       /// ==============================
-      /// 3️⃣ CLIENTE NORMAL
+      /// 3️⃣ CLIENTE
       /// ==============================
 
       final clientProvider = ClientProvider();
@@ -143,44 +143,154 @@ class MyAuthProvider {
         return;
       }
 
-      /// 4️⃣ Status bloqueado
-      final status = (client.status ?? '').trim();
-      if (status == 'bloqueado') {
+      final nombreEstado = (client.nombreEstado ?? '').toLowerCase();
+
+      if (nombreEstado == 'rechazado') {
         _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'bloqueo_page', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'corregir_nombre',
+              (route) => false,
+          arguments: {
+            'mensaje': 'Tu nombre no es válido. Por favor ingresa tu nombre real.',
+          },
+        );
         return;
       }
 
-      /// 5️⃣ Foto obligatoria
+      /// ==============================
+      /// 🔥 1. VALIDACIONES POR DOCUMENTO (PRIMERO)
+      /// ==============================
+
+      final fotoEstado = (client.fotoPerfilEstado ?? '').toLowerCase();
+      final cedulaFront = (client.cedulaFrontalEstado ?? '').toLowerCase();
+      final cedulaBack = (client.cedulaReversoEstado ?? '').toLowerCase();
+
+      /// 📸 FOTO
+      if (fotoEstado == 'rechazada') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'take_foto_perfil',
+              (route) => false,
+          arguments: {
+            'mensaje': 'Tu foto de perfil fue rechazada. Por favor tómala nuevamente.',
+          },
+        );
+        return;
+      }
+
+      /// 🪪 CÉDULA FRONTAL
+      if (cedulaFront == 'rechazada') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'upload_cedula',
+              (route) => false,
+          arguments: {
+            'tipo': 'frontal',
+            'mensaje': 'La foto delantera de tu cédula fue rechazada. Por favor verifica que no quede borrosa ni recortada',
+          },
+        );
+        return;
+      }
+
+      /// 🪪 CÉDULA REVERSO
+      if (cedulaBack == 'rechazada') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'upload_cedula',
+              (route) => false,
+          arguments: {
+            'tipo': 'reverso',
+            'mensaje': 'La foto trasera de tu cédula fue rechazada. Por favor verifica que no quede borrosa ni recortada',
+          },
+        );
+        return;
+      }
+
+      /// ==============================
+      /// 🔒 2. STATUS (DESPUÉS)
+      /// ==============================
+
+      final status = (client.status ?? '').trim().toLowerCase();
+
+      if (status == 'registrado' || status == 'procesando') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'verificacion_pendiente',
+              (route) => false,
+        );
+        return;
+      }
+
+      if (status == 'bloqueado') {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'bloqueo_page',
+              (route) => false,
+        );
+        return;
+      }
+
+      /// ==============================
+      /// ⚠️ COMPATIBILIDAD (NO ROMPER)
+      /// ==============================
+
       final foto = (client.the15FotoPerfilUsuario ?? '').trim();
       final fotoTomada = client.fotoPerfilTomada ?? false;
 
-      if (!fotoTomada || foto.isEmpty || foto == 'rechazada') {
+      if (!fotoTomada || foto.isEmpty) {
         _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'take_foto_perfil', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'take_foto_perfil',
+              (route) => false,
+        );
         return;
       }
 
-      /// 6️⃣ Pregunta y respuesta obligatorias
+      /// ==============================
+      /// 🔐 SEGURIDAD
+      /// ==============================
+
       final pregunta = (client.preguntaPalabraClave ?? '').trim();
       final respuesta = (client.palabraClave ?? '').trim();
 
       if (pregunta.isEmpty || respuesta.isEmpty) {
         _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'complete_security', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'complete_security',
+              (route) => false,
+        );
         return;
       }
 
-      /// 7️⃣ Viaje o mapa normal
+      /// ==============================
+      /// 🚗 MAPA
+      /// ==============================
+
       final isTraveling = client.the00isTraveling;
 
       _navigating = true;
-      if (isTraveling) {
-        Navigator.pushNamedAndRemoveUntil(context, 'travel_map_page', (route) => false);
-      } else {
-        Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
-      }
 
+      if (isTraveling) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'travel_map_page',
+              (route) => false,
+        );
+      } else {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'map_client',
+              (route) => false,
+        );
+      }
     });
   }
 

@@ -59,18 +59,16 @@ class TakeFotoController {
       // ✅ IMPORTANTÍSIMO: guardar TODO en 1 SOLO UPDATE
       // Alineado con el guard: the15FotoPerfilUsuario + fotoPerfilTomada
       final Map<String, dynamic> data = {
-        // si tu app usa "image" en otros lados, lo mantenemos
+        /// 🔹 compatibilidad actual
         'image': imageUrl,
-
-        // el campo que tu guard revisa como the15FotoPerfilUsuario
-        // (en tu updateFotoPerfilATrue usabas este nombre)
         '15_Foto_perfil_usuario': imageUrl,
-
-        // flag que revisa el guard (client.fotoPerfilTomada)
         'foto_perfil_tomada': true,
 
-        // status opcional
-        'status': 'foto_tomada',
+        /// 🔥 NUEVO SISTEMA
+        'foto_perfil_estado': 'tomada',
+
+        /// 🔒 flujo admin
+        'status': 'procesando',
       };
 
       await _clientProvider.update(data, uid);
@@ -78,8 +76,11 @@ class TakeFotoController {
       if (context.mounted) {
         closeSimpleProgressDialog(context);
 
-        // ✅ deja que tu guard decida a dónde ir (mapa / preguntas / etc.)
-        _authProvider.checkIfUserIsLogged(context);
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'verificacion_pendiente',
+              (route) => false,
+        );
       }
     } catch (e) {
       if (context.mounted) {

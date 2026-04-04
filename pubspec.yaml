@@ -74,6 +74,7 @@ dependencies:
   google_sign_in: ^6.2.1
   pin_code_fields: ^8.0.1
   vibration: ^1.8.4
+  provider: ^6.0.5
 
   firebase_app_check: ^0.2.1+17
 

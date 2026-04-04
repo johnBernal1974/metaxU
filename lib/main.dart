@@ -1,10 +1,9 @@
-import 'package:apptaxis/Pages/email_verification_page.dart';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'Pages/Forgot_PasswordPage/forgot_password_page.dart';
 import 'Pages/Login_page/login_page.dart';
 import 'Pages/Porterias/HomePorteriaPage.dart';
 import 'Pages/Porterias/contacto_porteria_page.dart';
@@ -19,16 +18,17 @@ import 'Pages/compartir_aplicacion_page/View/compartir_aplicacion_page.dart';
 import 'Pages/complete_security_page.dart';
 import 'Pages/confirmar_otro_viaje/confirmar_otro_viaje.dart';
 import 'Pages/contactanos_page/View/contactanos_page.dart';
+import 'Pages/corregir_nombre_page/corregir_nombre_page.dart';
 import 'Pages/detail_history_page/detail_history_page.dart';
 import 'Pages/eliminar_Cuenta_page/eliminar_cuenta_page.dart';
 import 'Pages/historial_viajes_page/View/historial_viajes_page.dart';
 import 'Pages/map_client_page/map_client_page.dart';
 import 'Pages/politicas_de_privacidad_page/View/politicas_de_privacidad.dart';
 import 'Pages/profile_page/profile_page.dart';
-import 'Pages/taxi_ha_llegado/taxi_ha_llegado_page.dart';
 import 'Pages/travel_calification_page/View/travel_calification_page.dart';
 import 'Pages/travel_info_page/travel_info_page.dart';
 import 'Pages/travel_map_page/View/travel_map_page.dart';
+import 'Pages/verificacion_pendiente/verificacion_pendiente.dart';
 import 'firebase_options.dart';
 import 'src/colors/colors.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -104,9 +104,7 @@ class MyApp extends StatelessWidget {
         'login': (BuildContext context) => const LoginPage(),
         'register': (BuildContext context) => const RegisterPage(),
         'take_foto_perfil': (BuildContext context) => const TakeFotoPerfil(),
-        'email_verification': (BuildContext context) => const EmailVerificationPage(),
         'map_client': (BuildContext context) => const MapClientPage(),
-        'forgot_password': (BuildContext context) => const ForgotPage(),
         'travel_info_page': (BuildContext context) => const ClientTravelInfoPage(),
         'travel_map_page': (BuildContext context) => const TravelMapPage(),
         'bloqueo_page': (BuildContext context) =>  const PaginaDeBloqueo(),
@@ -118,10 +116,11 @@ class MyApp extends StatelessWidget {
         'eliminar_cuenta': (BuildContext context) => const EliminarCuentaPage(),
         'travel_calification_page': (BuildContext context) => const TravelCalificationPage(),
         'detail_history_page': (BuildContext context) => const DetailHistoryPage(),
-        'taxi_ha_llegado_page': (BuildContext context) => const TaxiHaLLegado(),
         'after_calification_page': (context) => const AfterCalificationPage(),
         'complete_security': (context) => const CompleteSecurityPage(),
         'upload_cedula': (context) => const UploadCedulaPage(),
+        'verificacion_pendiente': (context) => const VerificacionPendientePage(),
+        'corregir_nombre': (context) => const CorregirNombrePage(),
 
         //porterias
         'home_porteria': (context) => const HomePorteriaPage(),

@@ -944,6 +944,10 @@ class _RegisterPageState extends State<RegisterPage> {
         cedulaFrontalTomada: false,
         the23CedulaReversoUsuario: "",
         cedulaReversoTomada: false,
+        fotoPerfilEstado: "",
+        cedulaFrontalEstado: "",
+        cedulaReversoEstado: "",
+        nombreEstado: "",
       );
 
       await _clientProvider.create(client);

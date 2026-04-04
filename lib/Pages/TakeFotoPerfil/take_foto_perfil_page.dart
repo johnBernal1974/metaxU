@@ -21,6 +21,7 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
   final double _radiusWithImage = 100;
   final ConnectionService connectionService = ConnectionService();
   bool _isLoading = false;
+  String? mensaje;
 
   @override
   void initState() {
@@ -48,6 +49,8 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
 
   @override
   Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    mensaje = args?['mensaje'];
     return PopScope(
       canPop: false, // 🚫 bloquea botón atrás físico y del AppBar
       onPopInvoked: (didPop) {
@@ -83,6 +86,27 @@ class _TakeFotoPerfilState extends State<TakeFotoPerfil> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+
+                /// 🔥 MENSAJE DE RECHAZO
+                if (mensaje != null)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(top: 15),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      mensaje!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                 _cajonFotoPerfil(),
                 const SizedBox(height: 15),
                 _instruccionesFoto(),

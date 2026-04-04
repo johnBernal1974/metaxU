@@ -109,7 +109,6 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 5),
               _nombres(),
               _apellidos(),
-              _email(),
               _celular(),
             ],
           ),

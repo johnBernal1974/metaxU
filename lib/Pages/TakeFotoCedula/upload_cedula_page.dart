@@ -17,12 +17,16 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
   late TakeCedulaController _controller;
   final ConnectionService connectionService = ConnectionService();
   String tipoCedula = 'ambas'; // frontal | reverso | ambas
+  String? mensaje;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
     final args = ModalRoute.of(context)?.settings.arguments as Map?;
+
     tipoCedula = (args?['tipo'] ?? 'ambas').toString();
+    mensaje = args?['mensaje'];
   }
 
 
@@ -143,6 +147,26 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
               ),
 
               const SizedBox(height: 20),
+              if (mensaje != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    mensaje!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+
+              const SizedBox(height: 20),
 
               // ✅ SOLO muestra FRONTAL si aplica
               if (tipoCedula == 'frontal' || tipoCedula == 'ambas')
@@ -163,7 +187,7 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
                   onTap: _controller.takeBack,
                 ),
 
-              const SizedBox(height: 18),
+              const SizedBox(height: 50),
 
               // ✅ Botón subir según tipo
               Visibility(
@@ -191,7 +215,7 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 70),
             ],
           ),
         ),

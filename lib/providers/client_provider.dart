@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:apptaxis/models/client.dart';
 
-class ClientProvider{
+class ClientProvider with ChangeNotifier {
 
   late CollectionReference _ref;
 

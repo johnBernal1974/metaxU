@@ -152,8 +152,16 @@ class TakeCedulaController {
 
         updates.addAll({
           'cedula_frontal_tomada': true,
-          '16_Cedula_frontal_usuario': 'corregida', // pendiente implícito
+
+          // 🔹 compatibilidad
+          '16_Cedula_frontal_usuario': frontUrl,
           '16_Cedula_frontal_url': frontUrl,
+
+          // 🔥 NUEVO SISTEMA
+          'cedula_frontal_estado': 'tomada',
+
+          // 🔒 flujo admin
+          'status': 'procesando',
         });
       }
 
@@ -174,8 +182,16 @@ class TakeCedulaController {
 
         updates.addAll({
           'cedula_reverso_tomada': true,
-          '23_Cedula_reverso_usuario': 'corregida',
+
+          // 🔹 compatibilidad
+          '23_Cedula_reverso_usuario': backUrl,
           '23_Cedula_reverso_url': backUrl,
+
+          // 🔥 NUEVO SISTEMA
+          'cedula_reverso_estado': 'tomada',
+
+          // 🔒 flujo admin
+          'status': 'procesando',
         });
       }
 
@@ -187,10 +203,16 @@ class TakeCedulaController {
 
       if (context.mounted) {
         closeSimpleProgressDialog(context);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Documento enviado. ¡Gracias!')),
         );
-        Navigator.pop(context); // vuelve a la pantalla anterior
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'verificacion_pendiente',
+              (route) => false,
+        );
       }
     } catch (e) {
       if (kDebugMode) print('Error subiendo cédula: $e');

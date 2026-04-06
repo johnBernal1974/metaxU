@@ -66,34 +66,6 @@ class ClientProvider with ChangeNotifier {
     }
   }
 
-  // Future<String> verificarFotoPerfil() async {
-  //   try {
-  //     // Obtener la referencia del usuario actual
-  //     User? user = FirebaseAuth.instance.currentUser;
-  //     if (user != null) {
-  //       // Obtener el estado de la foto de perfil del usuario actual desde la base de datos
-  //       DocumentSnapshot snapshot = await FirebaseFirestore.instance.collection('Clients').doc(user.uid).get();
-  //       if (snapshot.exists) {
-  //         // Verificar si la foto de perfil está verificada o no
-  //         Map<String, dynamic> userData = snapshot.data() as Map<String, dynamic>;
-  //         String fotoPerfil = userData['15_Foto_perfil_usuario'];
-  //         return fotoPerfil;
-  //       } else {
-  //         // Si no se encuentra el documento del usuario, la foto de perfil no está verificada
-  //         return "false";
-  //       }
-  //     } else {
-  //       // Si no hay usuario autenticado, retornar false
-  //       return "false";
-  //     }
-  //   } catch (error) {
-  //     if (kDebugMode) {
-  //       print('Error al verificar la foto de perfil: $error');
-  //     }
-  //     return "false";
-  //   }
-  // } para validacion de foto de perfil
-
   Future<String> verificarFotoPerfil() async {
     try {
       final user = FirebaseAuth.instance.currentUser;

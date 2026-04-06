@@ -159,14 +159,29 @@ class MyAuthProvider {
       }
 
       /// ==============================
-      /// 🔥 1. VALIDACIONES POR DOCUMENTO (PRIMERO)
+      /// 🔥 1. VALIDAR SI FALTAN FOTOS (PRIMERO)
       /// ==============================
 
       final fotoEstado = (client.fotoPerfilEstado ?? '').toLowerCase();
+      final fotoUrl = (client.fotoPerfilUrl ?? '').trim();
+
+      if (fotoEstado.isEmpty || fotoUrl.isEmpty) {
+        _navigating = true;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'take_foto_perfil',
+              (route) => false,
+        );
+        return;
+      }
+
+      /// ==============================
+      /// 🔥 2. VALIDAR RECHAZOS
+      /// ==============================
+
       final cedulaFront = (client.cedulaFrontalEstado ?? '').toLowerCase();
       final cedulaBack = (client.cedulaReversoEstado ?? '').toLowerCase();
 
-      /// 📸 FOTO
       if (fotoEstado == 'rechazada') {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(
@@ -180,7 +195,6 @@ class MyAuthProvider {
         return;
       }
 
-      /// 🪪 CÉDULA FRONTAL
       if (cedulaFront == 'rechazada') {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(
@@ -189,13 +203,13 @@ class MyAuthProvider {
               (route) => false,
           arguments: {
             'tipo': 'frontal',
-            'mensaje': 'La foto delantera de tu cédula fue rechazada. Por favor verifica que no quede borrosa ni recortada',
+            'mensaje':
+            'La foto delantera de tu cédula fue rechazada. Verifica que no esté borrosa ni recortada.',
           },
         );
         return;
       }
 
-      /// 🪪 CÉDULA REVERSO
       if (cedulaBack == 'rechazada') {
         _navigating = true;
         Navigator.pushNamedAndRemoveUntil(
@@ -204,14 +218,15 @@ class MyAuthProvider {
               (route) => false,
           arguments: {
             'tipo': 'reverso',
-            'mensaje': 'La foto trasera de tu cédula fue rechazada. Por favor verifica que no quede borrosa ni recortada',
+            'mensaje':
+            'La foto trasera de tu cédula fue rechazada. Verifica que no esté borrosa ni recortada.',
           },
         );
         return;
       }
 
       /// ==============================
-      /// 🔒 2. STATUS (DESPUÉS)
+      /// 🔒 3. STATUS (DESPUÉS DE VALIDAR TODO)
       /// ==============================
 
       final status = (client.status ?? '').trim().toLowerCase();
@@ -231,22 +246,6 @@ class MyAuthProvider {
         Navigator.pushNamedAndRemoveUntil(
           context,
           'bloqueo_page',
-              (route) => false,
-        );
-        return;
-      }
-
-      /// ==============================
-      /// ⚠️ COMPATIBILIDAD (NO ROMPER)
-      /// ==============================
-
-      final fotoUrl = (client.fotoPerfilUrl ?? '').trim();
-
-      if (fotoUrl.isEmpty) {
-        _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          'take_foto_perfil',
               (route) => false,
         );
         return;

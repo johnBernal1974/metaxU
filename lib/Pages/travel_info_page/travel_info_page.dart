@@ -1045,6 +1045,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                       /// 🔥 2. CREAR NUEVO VIAJE COMO STANDARD
                       final base = _controller.total?.toInt() ?? 0;
 
+                      final tipoNotificacion = 'servicio';
+
+                      final tipoSolicitud = 'normal';
+
                       await _controller.createTravelInfo(
                         tipoServicio: "standard",
                         valorVipExtra: 0,

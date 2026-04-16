@@ -18,6 +18,7 @@ import 'package:apptaxis/models/client.dart';
 
 import '../TakeFotoPerfil/take_foto_perfil_page.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -899,6 +900,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       // 5) Si ya existe doc por UID => entrar
       final existingByUid = await _clientProvider.getById(uid);
+      String? token = await FirebaseMessaging.instance.getToken();
       if (existingByUid != null) {
         await _stopLoading();
         Snackbar.showSnackbar(key.currentContext!, 'Ya tienes cuenta. Ingresando...');
@@ -931,7 +933,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
         rol: "regular",
         fechaRegistro: DateHelpers.getStartDate(),
-        token: "",
+        token: token ?? "",
         status: "registrado",
 
         isTraveling: false,

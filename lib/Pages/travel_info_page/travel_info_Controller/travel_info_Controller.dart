@@ -1332,6 +1332,14 @@ class TravelInfoController{
 
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+
+      // 🔥 CLAVES NUEVAS
+      'tipo': 'servicio',
+      'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
+          ? 'porteria'
+          : 'normal',
+
+      // 🔥 TU DATA ORIGINAL
       'idClient': user.uid,
       'origin': from,
       'originLat': fromLatlng.latitude.toString(),
@@ -1342,6 +1350,7 @@ class TravelInfoController{
       'tarifa': totalInt.toString(),
       'apuntes_usuario': apuntesAlConductor,
     };
+    print("🔥 ENVIANDO DATA: $data");
 
     try {
       await _pushNotificationsProvider.sendMessage(token, data);

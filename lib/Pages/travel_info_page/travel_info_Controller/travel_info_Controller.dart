@@ -103,6 +103,10 @@ class TravelInfoController{
 
   bool yaIntentoTodosLosVIP = false;
 
+  double _radioActual = 0.0;
+  double _radioMaximo = 1.0;
+  Timer? _timerExpansion;
+
 
   // ✅ listo solo si ya hay ruta y tarifa
   bool get canConfirmTrip {
@@ -771,7 +775,7 @@ class TravelInfoController{
 
     _permitirStandard = false;
 
-    /// 🔥 RESET SOLO AL INICIO (CLAVE)
+    /// 🔥 RESET SOLO AL INICIO
     nearbyDrivers.clear();
     notifiedDrivers.clear();
     _isSendingNotifications = false;
@@ -780,59 +784,107 @@ class TravelInfoController{
 
     _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 60));
 
-    /// 🔥 cancelar suscripción anterior (MUY IMPORTANTE)
+    /// 🔥 cancelar suscripción y timer anteriores
+    _streamSubscription?.cancel();
+    _timerExpansion?.cancel();
+
+    /// 🔥 iniciar radio base (el mismo del mapa)
+    _radioActual = radioDeBusqueda ?? 0.5;
+
+    _buscarConductores();
+  }
+
+  void _buscarConductores() {
+
+    if (_radioActual > _radioMaximo) {
+      print("🚫 Se alcanzó el radio máximo");
+      return;
+    }
+
+    print("📡 Buscando conductores con radio: $_radioActual km");
+
     _streamSubscription?.cancel();
 
     Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
       fromLatlng.latitude,
       fromLatlng.longitude,
-      radioDeBusqueda ?? 1,
+      _radioActual,
     );
 
     _streamSubscription = stream.listen((List<DocumentSnapshot> documentList) async {
 
       /// 🔥 STOP GLOBAL
       if (_tiempoAgotado() || serviceAccepted) {
-        if (kDebugMode) {
-          print("⛔ STOP listener NORMAL");
-        }
+        print("⛔ STOP listener NORMAL");
         return;
       }
 
       /// 🔥 EVITAR múltiples ejecuciones
       if (_isSendingNotifications) {
-        if (kDebugMode) {
-          print("⛔ Envío en progreso (NORMAL)");
-        }
+        print("⛔ Envío en progreso (NORMAL)");
         return;
       }
 
-      if (documentList.isEmpty) {
-        if (kDebugMode) {
-          print('No se encontraron conductores cercanos.');
+      List<String> driversFiltrados = [];
+
+      for (DocumentSnapshot d in documentList) {
+        try {
+          Map<String, dynamic> positionData = d.get('position');
+
+          if (positionData.containsKey('geopoint')) {
+            GeoPoint geoPoint = positionData['geopoint'];
+
+            double distanceInMeters = Geolocator.distanceBetween(
+              fromLatlng.latitude,
+              fromLatlng.longitude,
+              geoPoint.latitude,
+              geoPoint.longitude,
+            );
+
+            double distanceInKm = distanceInMeters / 1000;
+
+            print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
+
+            /// 🔥 FILTRO REAL
+            if (distanceInKm <= _radioActual) {
+              driversFiltrados.add(d.id);
+            }
+          }
+        } catch (e) {
+          print("⚠️ Error driver ${d.id}: $e");
         }
-        return;
       }
 
-      /// 🔥 IDs actuales del stream
-      List<String> driversStream = documentList.map((d) => d.id).toList();
-
-      /// 🔥 SOLO nuevos (no notificados)
-      List<String> nuevosDrivers = driversStream
+      /// 🔥 SOLO nuevos
+      List<String> nuevosDrivers = driversFiltrados
           .where((id) => !notifiedDrivers.contains(id))
           .toList();
 
-      // 🔥 PRE-CARGAR VEHÍCULOS ACTIVOS (OPTIMIZACIÓN)
-      for (String driverId in nuevosDrivers) {
+      if (nuevosDrivers.isEmpty) {
 
+        print("⏳ No hay conductores, ampliando radio...");
+
+        /// 🔥 aumentar 100 metros
+        _radioActual += 0.1;
+
+        _timerExpansion?.cancel();
+        _timerExpansion = Timer(const Duration(seconds: 2), () {
+          _buscarConductores();
+        });
+
+        return;
+      }
+
+      print("🆕 Conductores encontrados: ${nuevosDrivers.length}");
+
+      /// 🔥 precargar vehículos
+      for (String driverId in nuevosDrivers) {
         try {
           Driver? driver = await _driverProvider.getById(driverId);
 
           if (driver == null || driver.vehiculoActivoId.isEmpty) continue;
 
-          // 🔥 SOLO si no está en cache
           if (!vehiculosCache.containsKey(driverId)) {
-
             final doc = await FirebaseFirestore.instance
                 .collection('Drivers')
                 .doc(driverId)
@@ -844,27 +896,13 @@ class TravelInfoController{
               vehiculosCache[driverId] = doc.data()!;
             }
           }
-
         } catch (e) {
           print("Error precargando vehículo: $e");
         }
       }
 
-      if (nuevosDrivers.isEmpty) {
-        if (kDebugMode) {
-          print("Sin nuevos conductores");
-        }
-        return;
-      }
-
-      if (kDebugMode) {
-        print('🆕 Nuevos conductores encontrados: ${nuevosDrivers.length}');
-      }
-
-      /// 🔥 agregar sin borrar los anteriores
       nearbyDrivers.addAll(nuevosDrivers);
 
-      /// 🔥 BLOQUEAR
       _isSendingNotifications = true;
 
       try {
@@ -873,18 +911,11 @@ class TravelInfoController{
           notifiedDrivers.length,
         );
       } catch (e) {
-        if (kDebugMode) {
-          print("Error en envío NORMAL: $e");
-        }
+        print("Error en envío NORMAL: $e");
       }
 
-      /// 🔥 DESBLOQUEAR
       _isSendingNotifications = false;
 
-    }, onError: (error) {
-      if (kDebugMode) {
-        print('Error al escuchar el stream de conductores cercanos: $error');
-      }
     });
   }
 

@@ -100,27 +100,19 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
       /// ===================================
       /// 1️⃣ Intentar validar como CLIENTE
       /// ===================================
-
       try {
-
         await SessionManager.loginGuard(collection: 'Clients');
-
       } catch (e) {
-
         final err = e.toString();
 
         /// ===================================
-        /// 2️⃣ Si no existe en Clients → probar PORTERIA
+        /// 2️⃣ Si no existe en Clients → PORTERIA
         /// ===================================
-
         if (err.contains('PROFILE_NOT_FOUND')) {
-
           await SessionManager.loginGuard(collection: 'UsuariosPorteria');
-
         } else {
           rethrow;
         }
-
       }
 
       if (!mounted) return;
@@ -132,18 +124,22 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
       _navigated = true;
 
-      /// Este método ya decide si va a:
-      /// map_client o home_porteria
+      /// Decide navegación final
       _authProvider.checkIfUserIsLogged(context);
 
     } catch (e) {
 
       if (!mounted) return;
 
-      final okInternet = await connectionService.hasInternetConnection();
+      final err = e.toString().toLowerCase();
 
-      /// Si fue falla de internet → no cerrar sesión
-      if (!okInternet) {
+      /// 🔥 1. ERRORES DE RED → NO LOGOUT
+      if (err.contains('network') ||
+          err.contains('timeout') ||
+          err.contains('socket') ||
+          err.contains('failed') ||
+          err.contains('unavailable') ||
+          err.contains('connection')) {
 
         if (context.mounted) {
           connectionService.showPersistentConnectionCard(
@@ -157,16 +153,14 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         setState(() {
           _esperandoInternet = true;
           _msgEstado =
-          'Conexión inestable. Esperando internet para validar sesión...';
+          'Conexión inestable. Reintentando validar tu sesión...';
         });
 
         return;
       }
 
-      final err = e.toString();
-
-      /// Usuario autenticado pero sin perfil
-      if (err.contains('PROFILE_NOT_FOUND')) {
+      /// 🔥 2. USUARIO SIN PERFIL
+      if (err.contains('profile_not_found')) {
 
         if (!mounted) return;
 
@@ -186,16 +180,13 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
         return;
       }
 
-      /// Error real → cerrar sesión
-      SessionManager.stopHeartbeat();
-      await _authProvider.signOut();
-
+      /// 🔴 3. ERROR REAL → LOGIN
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            err.contains('Ya hay una sesión activa')
+            err.contains('ya hay una sesión activa')
                 ? 'Tu cuenta ya está abierta en otro dispositivo. Cierra sesión allá o espera 1 minuto e intenta de nuevo.'
                 : 'No se pudo validar tu sesión. Intenta nuevamente.',
           ),

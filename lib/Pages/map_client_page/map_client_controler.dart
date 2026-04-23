@@ -13,6 +13,7 @@ import '../../../../providers/push_notifications_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/snackbar.dart';
+import '../../providers/price_provider.dart';
 import '../../service/connection_service_singleton.dart';
 
 class ClientMapController {
@@ -37,7 +38,7 @@ class ClientMapController {
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
   late StreamSubscription<DocumentSnapshot<Object?>> _clientInfoSuscription;
-  late StreamSubscription<List<DocumentSnapshot>>? _driversSubscription;
+  StreamSubscription<List<DocumentSnapshot>>? _driversSubscription;
   late PushNotificationsProvider _pushNotificationsProvider;
 
   ClientMapController() {
@@ -193,62 +194,99 @@ class ClientMapController {
   }
 
 
-  void getNearbyDrivers() {
-    if (_position != null) {
+  void getNearbyDrivers() async {
+    if (_position == null) return;
+
+    try {
+      // 🔥 Obtener radio dinámico desde Firestore
+      double radio = 1;
+
+      try {
+        final price = await PricesProvider().getAll();
+        radio = price.theRadioDeBusqueda;
+      } catch (e) {
+        if (kDebugMode) {
+          print("⚠️ Error obteniendo radio dinámico, usando 1km por defecto: $e");
+        }
+      }
+
+      if (kDebugMode) {
+        print("📡 Buscando conductores en un radio de: $radio km");
+      }
+
+      // 🔥 Cancelar suscripción anterior (IMPORTANTE)
+      _driversSubscription?.cancel();
+
       Stream<List<DocumentSnapshot>> stream =
-      _geofireProvider.getNearbyDrivers(_position!.latitude, _position!.longitude, 1);
+      _geofireProvider.getNearbyDrivers(
+        _position!.latitude,
+        _position!.longitude,
+        radio,
+      );
 
       _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-        // Limpiar marcadores de conductores existentes
-        List<MarkerId> driverMarkersToRemove = [];
 
-        for (MarkerId m in markers.keys) {
-          if (m.value != 'client') {
-            driverMarkersToRemove.add(m);
-          }
-        }
+        // 🔥 Limpiar SOLO markers de conductores
+        markers.removeWhere((key, marker) => key.value != 'client');
 
-        for (var m in driverMarkersToRemove) {
-          markers.remove(m);
-        }
+        // 🔥 Mantener marcador del cliente
+        addMarker(
+          'client',
+          _position!.latitude,
+          _position!.longitude,
+          'Tu posición',
+          "",
+          markerClient,
+        );
 
-        // Mantener el marcador del cliente
-        if (_position != null) {
-          addMarker(
-            'client',
-            _position!.latitude,
-            _position!.longitude,
-            'Tu posición',
-            "",
-            markerClient,
-          );
-        }
-
+        // 🔥 Agregar conductores
         for (DocumentSnapshot d in documentList) {
-          Map<String, dynamic> positionData = d.get('position');
-          if (positionData.containsKey('geopoint')) {
-            GeoPoint geoPoint = positionData['geopoint'];
-            double latitude = geoPoint.latitude;
-            double longitude = geoPoint.longitude;
+          try {
+            Map<String, dynamic> positionData = d.get('position');
 
-            addMarkerDriver(
-              d.id,
-              latitude,
-              longitude,
-              'Conductor disponible',
-              "",
-              markerDriver,
-            );
-          } else {
+            if (positionData.containsKey('geopoint')) {
+              GeoPoint geoPoint = positionData['geopoint'];
+
+              double distanceInMeters = Geolocator.distanceBetween(
+                _position!.latitude,
+                _position!.longitude,
+                geoPoint.latitude,
+                geoPoint.longitude,
+              );
+
+              double distanceInKm = distanceInMeters / 1000;
+              if (kDebugMode) {
+                print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
+              }
+
+              // 🔥 FILTRO REAL POR RADIO
+              if (distanceInKm <= radio) {
+                addMarkerDriver(
+                  d.id,
+                  geoPoint.latitude,
+                  geoPoint.longitude,
+                  'Conductor disponible',
+                  "",
+                  markerDriver,
+                );
+              }
+
+            }
+          } catch (e) {
             if (kDebugMode) {
-              print('GeoPoint is null or not found.');
+              print("⚠️ Error leyendo posición de driver ${d.id}: $e");
             }
           }
         }
 
-        // Actualizar el estado para reflejar los cambios en el mapa
+        // 🔥 Refrescar mapa
         refresh();
       });
+
+    } catch (e) {
+      if (kDebugMode) {
+        print("❌ Error general en getNearbyDrivers: $e");
+      }
     }
   }
 

@@ -90,14 +90,35 @@ class MyAuthProvider {
     _navigating = false;
 
     _authSub = _firebaseAuth.authStateChanges().listen((User? user) async {
+
       if (!context.mounted) return;
       if (_navigating) return;
 
-      /// 1️⃣ NO LOGUEADO
+      /// =========================
+      /// 🔥 1. MANEJO SEGURO DE NULL
+      /// =========================
       if (user == null) {
-        _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'login', (route) => false);
-        return;
+
+        // ⏳ Esperar un poco (clave)
+        await Future.delayed(const Duration(seconds: 2));
+
+        final retryUser = _firebaseAuth.currentUser;
+
+        // 🔁 Reintento: si aparece usuario → continuar normal
+        if (retryUser != null) {
+          user = retryUser;
+        } else {
+          // ❗ Solo aquí realmente mandamos al login
+          if (_navigating) return;
+          _navigating = true;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            'login',
+                (route) => false,
+          );
+          return;
+        }
       }
 
       final userId = user.uid;
@@ -105,41 +126,80 @@ class MyAuthProvider {
       /// ==============================
       /// 2️⃣ PORTERÍA
       /// ==============================
+      try {
 
-      final porteriaDoc = await FirebaseFirestore.instance
-          .collection("UsuariosPorteria")
-          .doc(userId)
-          .get();
+        final porteriaDoc = await FirebaseFirestore.instance
+            .collection("UsuariosPorteria")
+            .doc(userId)
+            .get();
 
-      if (!context.mounted) return;
-      if (_navigating) return;
+        if (!context.mounted) return;
+        if (_navigating) return;
 
-      if (porteriaDoc.exists) {
-        _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          'home_porteria',
-              (route) => false,
-        );
-        return;
+        if (porteriaDoc.exists) {
+          _navigating = true;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            'home_porteria',
+                (route) => false,
+          );
+          return;
+        }
+
+      } catch (e) {
+        final err = e.toString().toLowerCase();
+
+        /// 🔥 ERROR DE RED → NO HACER NADA
+        if (err.contains('network') ||
+            err.contains('timeout') ||
+            err.contains('socket') ||
+            err.contains('failed') ||
+            err.contains('unavailable')) {
+          return;
+        }
+
+        rethrow;
       }
 
       /// ==============================
       /// 3️⃣ CLIENTE
       /// ==============================
-
       final clientProvider = ClientProvider();
-      final Client? client = await clientProvider.getById(userId);
+      Client? client;
+
+      try {
+        client = await clientProvider.getById(userId);
+      } catch (e) {
+        final err = e.toString().toLowerCase();
+
+        /// 🔥 ERROR DE RED → NO HACER NADA
+        if (err.contains('network') ||
+            err.contains('timeout') ||
+            err.contains('socket') ||
+            err.contains('failed') ||
+            err.contains('unavailable')) {
+          return;
+        }
+
+        rethrow;
+      }
 
       if (!context.mounted) return;
       if (_navigating) return;
 
+      /// 🔥 Usuario autenticado pero sin perfil
       if (client == null) {
-        await _firebaseAuth.signOut();
 
-        if (!context.mounted) return;
+        // ⚠️ AQUÍ NO hacemos logout automático
         _navigating = true;
-        Navigator.pushNamedAndRemoveUntil(context, 'register', (_) => false);
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'register',
+              (_) => false,
+        );
+
         return;
       }
 
@@ -147,26 +207,28 @@ class MyAuthProvider {
 
       if (nombreEstado == 'rechazado') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'corregir_nombre',
               (route) => false,
           arguments: {
-            'mensaje': 'Tu nombre no es válido. Por favor ingresa tu nombre real.',
+            'mensaje':
+            'Tu nombre no es válido. Por favor ingresa tu nombre real.',
           },
         );
         return;
       }
 
       /// ==============================
-      /// 🔥 1. VALIDAR SI FALTAN FOTOS (PRIMERO)
+      /// 🔥 VALIDAR FOTO PERFIL
       /// ==============================
-
       final fotoEstado = (client.fotoPerfilEstado ?? '').toLowerCase();
       final fotoUrl = (client.fotoPerfilUrl ?? '').trim();
 
       if (fotoEstado.isEmpty || fotoUrl.isEmpty) {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'take_foto_perfil',
@@ -176,20 +238,23 @@ class MyAuthProvider {
       }
 
       /// ==============================
-      /// 🔥 2. VALIDAR RECHAZOS
+      /// 🔥 VALIDAR RECHAZOS
       /// ==============================
-
-      final cedulaFront = (client.cedulaFrontalEstado ?? '').toLowerCase();
-      final cedulaBack = (client.cedulaReversoEstado ?? '').toLowerCase();
+      final cedulaFront =
+      (client.cedulaFrontalEstado ?? '').toLowerCase();
+      final cedulaBack =
+      (client.cedulaReversoEstado ?? '').toLowerCase();
 
       if (fotoEstado == 'rechazada') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'take_foto_perfil',
               (route) => false,
           arguments: {
-            'mensaje': 'Tu foto de perfil fue rechazada. Por favor tómala nuevamente.',
+            'mensaje':
+            'Tu foto de perfil fue rechazada. Por favor tómala nuevamente.',
           },
         );
         return;
@@ -197,6 +262,7 @@ class MyAuthProvider {
 
       if (cedulaFront == 'rechazada') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'upload_cedula',
@@ -204,7 +270,7 @@ class MyAuthProvider {
           arguments: {
             'tipo': 'frontal',
             'mensaje':
-            'La foto delantera de tu cédula fue rechazada. Verifica que no esté borrosa ni recortada.',
+            'La foto delantera de tu cédula fue rechazada.',
           },
         );
         return;
@@ -212,6 +278,7 @@ class MyAuthProvider {
 
       if (cedulaBack == 'rechazada') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'upload_cedula',
@@ -219,20 +286,20 @@ class MyAuthProvider {
           arguments: {
             'tipo': 'reverso',
             'mensaje':
-            'La foto trasera de tu cédula fue rechazada. Verifica que no esté borrosa ni recortada.',
+            'La foto trasera de tu cédula fue rechazada.',
           },
         );
         return;
       }
 
       /// ==============================
-      /// 🔒 3. STATUS (DESPUÉS DE VALIDAR TODO)
+      /// 🔒 STATUS
       /// ==============================
-
       final status = (client.status ?? '').trim().toLowerCase();
 
       if (status == 'registrado' || status == 'procesando') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'verificacion_pendiente',
@@ -243,6 +310,7 @@ class MyAuthProvider {
 
       if (status == 'bloqueado') {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'bloqueo_page',
@@ -254,12 +322,12 @@ class MyAuthProvider {
       /// ==============================
       /// 🔐 SEGURIDAD
       /// ==============================
-
       final pregunta = (client.preguntaPalabraClave ?? '').trim();
       final respuesta = (client.palabraClave ?? '').trim();
 
       if (pregunta.isEmpty || respuesta.isEmpty) {
         _navigating = true;
+
         Navigator.pushNamedAndRemoveUntil(
           context,
           'complete_security',
@@ -271,7 +339,6 @@ class MyAuthProvider {
       /// ==============================
       /// 🚗 MAPA
       /// ==============================
-
       final isTraveling = client.isTraveling;
 
       _navigating = true;
@@ -303,6 +370,7 @@ class MyAuthProvider {
   Future<bool> isUserLoggedIn() async {
     return _firebaseAuth.currentUser != null;
   }
+
 
   // =========================
   // Helpers

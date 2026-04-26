@@ -60,8 +60,11 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   int _valorVipExtra = 0;
   bool _cargandoValorVip = false;
 
-  int _segundosRestantes = 60;
+  int _segundosRestantes = 30;
   Timer? _timerBusqueda;
+
+  int _reintentosBusqueda = 0;
+  String _mensajeBusqueda = "Buscando conductores cercanos...";
 
 
 
@@ -918,13 +921,27 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
               ],
             ),
-            Text(
-              'Buscando taxi... ${_segundosRestantes}s',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18.r,
-                color: negro,
-              ),
+            Column(
+              children: [
+                Text(
+                  _mensajeBusqueda,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14.r,
+                    color: Colors.black87,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '${_segundosRestantes}s',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18.r,
+                    color: negro,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 50.r),
             OutlinedButton(
@@ -980,12 +997,20 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
     setState(() {
       _isSearching = true;
-      _segundosRestantes = 60;
+      _segundosRestantes = 30;
+      _mensajeBusqueda = "🔍 Buscando conductores cercanos...";
     });
 
     _timerBusqueda?.cancel();
 
     _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) {
+
+      // 🛑 SI YA ACEPTARON → DETENER TODO
+      if (_controller.serviceAccepted) {
+        print("🛑 Servicio aceptado, detener contador");
+        timer.cancel();
+        return;
+      }
 
       /// 🔥 DETECTAR FIN DE VIP Y MOSTRAR DIÁLOGO
       if (_tipoServicioSeleccionado == "vip" &&
@@ -994,11 +1019,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
         print("⚠️ No hay VIP reales → mostrar opción");
 
-        /// 🔥 evitar que se repita
         _controller.yaIntentoTodosLosVIP = false;
-
-        /// 🔥 detener contador si quieres (opcional)
-        // timer.cancel();
 
         if (!mounted) return;
 
@@ -1022,32 +1043,23 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               actionsAlignment: MainAxisAlignment.center,
               actions: [
 
-                /// 🔥 BOTÓN PRINCIPAL (CENTRADO)
+                /// 🔥 IR A STANDARD
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary,
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
                     ),
                     onPressed: () async {
+
                       Navigator.pop(context);
 
                       print("🔁 Usuario acepta estándar");
 
-                      /// 🔥 1. ELIMINAR VIAJE ACTUAL (MUERTO)
                       await _controller.deleteTravelInfo();
 
-                      /// 🔥 2. CREAR NUEVO VIAJE COMO STANDARD
                       final base = _controller.total?.toInt() ?? 0;
-
-                      final tipoNotificacion = 'servicio';
-
-                      final tipoSolicitud = 'normal';
 
                       await _controller.createTravelInfo(
                         tipoServicio: "standard",
@@ -1057,23 +1069,22 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         caracteristicaVehiculo: _caracteristicaSeleccionada,
                       );
 
-                      /// 🔥 3. INICIAR NUEVA BÚSQUEDA
+                      // 🔥 REINICIAR TODO
+                      _reintentosBusqueda = 0;
+
                       _controller.getNearbyDrivers();
+
+// 🔥 esperar 1.5 segundos para que el usuario vea el mensaje
+                      Future.delayed(const Duration(milliseconds: 1500), () {
+                        if (!mounted) return;
+                        _startSearch();
+                      });
                     },
-                    child: const Text(
-                      "Buscar servicio estándar",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    child: const Text("Buscar servicio estándar"),
                   ),
                 ),
 
-                /// 🔽 ESPACIO
-                const SizedBox(height: 8),
-
-                /// 🔴 CANCELAR DEBAJO
+                /// 🔴 CANCELAR
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
@@ -1088,10 +1099,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         _isSearching = false;
                       });
                     },
-                    child: const Text(
-                      "Cancelar",
-                      textAlign: TextAlign.center,
-                    ),
+                    child: const Text("Cancelar"),
                   ),
                 ),
               ],
@@ -1100,12 +1108,43 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         );
       }
 
+      /// 🔥 CUANDO SE ACABA EL TIEMPO
       if (_segundosRestantes <= 0) {
+
+        // 🔁 SOLO 1 REINTENTO
+        if (_reintentosBusqueda < 1) {
+
+          _reintentosBusqueda++;
+
+          print("🔁 Reintento automático #$_reintentosBusqueda");
+          if (mounted) {
+            setState(() {
+              _mensajeBusqueda = "🔁 Reintentando búsqueda...";
+            });
+          }
+
+          timer.cancel();
+
+          if (mounted) {
+            setState(() {
+              _segundosRestantes = 30;
+            });
+          }
+
+          // 🔥 reiniciar backend
+          _controller.getNearbyDrivers();
+
+          // 🔥 reiniciar contador
+          _startSearch();
+
+          return;
+        }
+
+        /// ⛔ YA NO MÁS REINTENTOS
         timer.cancel();
 
-        print("⛔ Tiempo agotado en UI");
+        print("⛔ Tiempo agotado definitivamente");
 
-        /// 🔥 cerrar UI
         if (mounted) {
           setState(() {
             isVisibleTarjetaSolicitandoConductor = false;
@@ -1113,10 +1152,8 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
           });
         }
 
-        /// 🔥 eliminar request
         _controller.deleteTravelInfo();
 
-        /// 🔥 mostrar diálogo bonito
         if (context.mounted) {
           showDialog(
             context: context,
@@ -1125,20 +1162,16 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
 
-                    Image.asset(
-                      'assets/metax_logo.png',
-                      height: 70,
-                    ),
+                    Image.asset('assets/metax_logo.png', height: 70),
 
                     const SizedBox(height: 10),
 
                     const Text(
-                      "Tiempo de búsqueda agotado",
+                      "Búsqueda terminada",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
@@ -1149,7 +1182,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                     const SizedBox(height: 10),
 
                     const Text(
-                      "No encontramos un conductor disponible en este momento 🚕\n\nPuedes intentarlo nuevamente.",
+                      "No encontramos un conductor disponible 🚕\n\nPuedes intentarlo nuevamente.",
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -1168,11 +1201,31 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         return;
       }
 
+      if (_segundosRestantes == 25) {
+        setState(() {
+          _mensajeBusqueda = "📡 Buscando más conductores...";
+        });
+      }
+
+      if (_segundosRestantes == 15) {
+        setState(() {
+          _mensajeBusqueda = "🚕 Probando con más conductores...";
+        });
+      }
+
+      if (_segundosRestantes == 8) {
+        setState(() {
+          _mensajeBusqueda = "⚡ Últimos intentos...";
+        });
+      }
+
+      /// 🔥 CONTADOR NORMAL
       if (mounted) {
         setState(() {
           _segundosRestantes--;
         });
       }
+
     });
   }
 

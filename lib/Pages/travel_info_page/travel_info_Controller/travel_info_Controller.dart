@@ -827,8 +827,44 @@ class TravelInfoController{
 
       List<String> driversFiltrados = [];
 
+      // for (DocumentSnapshot d in documentList) {
+      //   try {
+      //     Map<String, dynamic> positionData = d.get('position');
+      //
+      //     if (positionData.containsKey('geopoint')) {
+      //       GeoPoint geoPoint = positionData['geopoint'];
+      //
+      //       double distanceInMeters = Geolocator.distanceBetween(
+      //         fromLatlng.latitude,
+      //         fromLatlng.longitude,
+      //         geoPoint.latitude,
+      //         geoPoint.longitude,
+      //       );
+      //
+      //       double distanceInKm = distanceInMeters / 1000;
+      //
+      //       print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
+      //
+      //       /// 🔥 FILTRO REAL
+      //       if (distanceInKm <= _radioActual) {
+      //         driversFiltrados.add(d.id);
+      //       }
+      //     }
+      //   } catch (e) {
+      //     print("⚠️ Error driver ${d.id}: $e");
+      //   }
+      // }26 abril 2026 - para filtrar los no activos antes de enviar notificaciones
+
       for (DocumentSnapshot d in documentList) {
         try {
+          Map<String, dynamic> data = d.data() as Map<String, dynamic>;
+
+          /// 🔥 NUEVO FILTRO (USANDO TU updatedAt)
+          if (!estaActivoRecientementeDesdeLocation(data)) {
+            print("⛔ Driver ${d.id} sin ubicación reciente, saltando...");
+            continue;
+          }
+
           Map<String, dynamic> positionData = d.get('position');
 
           if (positionData.containsKey('geopoint')) {
@@ -845,11 +881,11 @@ class TravelInfoController{
 
             print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
 
-            /// 🔥 FILTRO REAL
             if (distanceInKm <= _radioActual) {
               driversFiltrados.add(d.id);
             }
           }
+
         } catch (e) {
           print("⚠️ Error driver ${d.id}: $e");
         }
@@ -859,6 +895,9 @@ class TravelInfoController{
       List<String> nuevosDrivers = driversFiltrados
           .where((id) => !notifiedDrivers.contains(id))
           .toList();
+
+      // 🔥 REEMPLAZAR lista completa por solo los activos actuales
+      nearbyDrivers = driversFiltrados;
 
       if (nuevosDrivers.isEmpty) {
 
@@ -901,7 +940,12 @@ class TravelInfoController{
         }
       }
 
-      nearbyDrivers.addAll(nuevosDrivers);
+      // 🔥 eliminar conductores que ya no están activos
+      nearbyDrivers = nearbyDrivers.where((driverId) {
+        return nuevosDrivers.contains(driverId);
+      }).toList();
+
+      //nearbyDrivers.addAll(nuevosDrivers);
 
       _isSendingNotifications = true;
 
@@ -1089,7 +1133,104 @@ class TravelInfoController{
   }
 
 
+  // Future<void> _attemptToSendNotification(List<String> driverIds, int index) async {
+  //
+  //   if (_tiempoAgotado()) {
+  //     print("⛔ Tiempo global agotado (NORMAL), detener notificaciones");
+  //     notifiedDrivers.clear();
+  //     return;
+  //   }
+  //
+  //   if (index >= driverIds.length) {
+  //
+  //     print("🏁 Fin de lista de conductores");
+  //
+  //     /// 🔥 marcar que ya intentamos todos los VIP
+  //     if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip" && !_permitirStandard) {
+  //       yaIntentoTodosLosVIP = true;
+  //       print("⚠️ Ya se intentaron todos los VIP");
+  //     }
+  //
+  //     return;
+  //   }
+  //
+  //   String driverId = driverIds[index];
+  //
+  //   if (notifiedDrivers.contains(driverId)) {
+  //     return await _attemptToSendNotification(driverIds, index + 1);
+  //   }
+  //
+  //   notifiedDrivers.add(driverId);
+  //
+  //   print("Enviando notificación al conductor $driverId");
+  //
+  //   try {
+  //
+  //     Driver? driver = await _driverProvider.getById(driverId);
+  //
+  //     print("🧍 tipoServicioSolicitado*******************: $tipoServicioSolicitado");
+  //
+  //     // 🔥 VALIDACIÓN VIP (YA SIN FIRESTORE)
+  //     if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
+  //
+  //       final vehiculoData = vehiculosCache[driverId];
+  //
+  //       // 🔥 SI NO HAY VEHÍCULO EN CACHE → SALTAR
+  //       if (vehiculoData == null) {
+  //         print("❌ Vehículo no cargado en cache");
+  //         return await _attemptToSendNotification(driverIds, index + 1);
+  //       }
+  //
+  //       final soportaVIP = vehiculoData['soportaVIP'] ?? false;
+  //
+  //       // 🔥 BLOQUEO SOLO EN FASE VIP
+  //       if (!_permitirStandard && !soportaVIP) {
+  //         print("⛔ Conductor no VIP (fase 1)");
+  //         return await _attemptToSendNotification(driverIds, index + 1);
+  //       }
+  //
+  //       // 🔥 FALLBACK
+  //       if (_permitirStandard) {
+  //         print("⚠️ Fallback activo → permitiendo estándar");
+  //       }
+  //     }
+  //
+  //     // 🔥 ENVÍO NOTIFICACIÓN
+  //     if (driver?.token != null && driver!.token.isNotEmpty) {
+  //
+  //       bool accepted = await sendNotification(driver.token);
+  //
+  //       if (accepted) {
+  //         serviceAccepted = true;
+  //
+  //         _timeoutBusqueda?.cancel();
+  //         _streamSubscription?.cancel();
+  //
+  //         notifiedDrivers.clear();
+  //
+  //         return;
+  //       }
+  //     }
+  //
+  //   } catch (e) {
+  //     print("Error driver: $e");
+  //   }
+  //
+  //   /// 🔥 continuar secuencia CONTROLADA
+  //   return await _attemptToSendNotification(driverIds, index + 1);
+  // } cambio para enviar e 2 conductores a la vez 26 abril de 2026
+
+
+
   Future<void> _attemptToSendNotification(List<String> driverIds, int index) async {
+
+    // 🔥 STOP inmediato si ya aceptaron
+    if (serviceAccepted) {
+      print("🛑 Servicio ya aceptado, deteniendo envíos");
+      return;
+    }
+
+    print("📊 Intentando drivers desde index: $index | total: ${driverIds.length}");
 
     if (_tiempoAgotado()) {
       print("⛔ Tiempo global agotado (NORMAL), detener notificaciones");
@@ -1101,7 +1242,6 @@ class TravelInfoController{
 
       print("🏁 Fin de lista de conductores");
 
-      /// 🔥 marcar que ya intentamos todos los VIP
       if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip" && !_permitirStandard) {
         yaIntentoTodosLosVIP = true;
         print("⚠️ Ya se intentaron todos los VIP");
@@ -1110,72 +1250,111 @@ class TravelInfoController{
       return;
     }
 
-    String driverId = driverIds[index];
+    // 🔥 ARMAR BATCH DE 2
+    List<String> batch = [];
 
-    if (notifiedDrivers.contains(driverId)) {
-      return await _attemptToSendNotification(driverIds, index + 1);
+    for (int i = index; i < index + 2 && i < driverIds.length; i++) {
+      if (!notifiedDrivers.contains(driverIds[i])) {
+        batch.add(driverIds[i]);
+        notifiedDrivers.add(driverIds[i]);
+      }
     }
 
-    notifiedDrivers.add(driverId);
+    if (batch.isEmpty) {
+      return await _attemptToSendNotification(driverIds, index + 2);
+    }
 
-    print("Enviando notificación al conductor $driverId");
+    print("🚀 Batch seleccionado: $batch");
 
     try {
 
-      Driver? driver = await _driverProvider.getById(driverId);
+      await Future.wait(
+        batch.map((driverId) async {
 
-      print("🧍 tipoServicioSolicitado*******************: $tipoServicioSolicitado");
+          // 🔥 STOP dentro del batch
+          if (serviceAccepted) return;
 
-      // 🔥 VALIDACIÓN VIP (YA SIN FIRESTORE)
-      if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
+          try {
 
-        final vehiculoData = vehiculosCache[driverId];
+            print("📡 Enviando notificación a driver: $driverId");
 
-        // 🔥 SI NO HAY VEHÍCULO EN CACHE → SALTAR
-        if (vehiculoData == null) {
-          print("❌ Vehículo no cargado en cache");
-          return await _attemptToSendNotification(driverIds, index + 1);
-        }
+            Driver? driver = await _driverProvider.getById(driverId);
 
-        final soportaVIP = vehiculoData['soportaVIP'] ?? false;
+            if (driver == null) {
+              print("⚠️ Driver $driverId no encontrado");
+              return;
+            }
 
-        // 🔥 BLOQUEO SOLO EN FASE VIP
-        if (!_permitirStandard && !soportaVIP) {
-          print("⛔ Conductor no VIP (fase 1)");
-          return await _attemptToSendNotification(driverIds, index + 1);
-        }
+            // 🔥 VALIDACIÓN VIP
+            if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
 
-        // 🔥 FALLBACK
-        if (_permitirStandard) {
-          print("⚠️ Fallback activo → permitiendo estándar");
-        }
-      }
+              final vehiculoData = vehiculosCache[driverId];
 
-      // 🔥 ENVÍO NOTIFICACIÓN
-      if (driver?.token != null && driver!.token.isNotEmpty) {
+              if (vehiculoData == null) {
+                print("❌ Vehículo no cargado en cache ($driverId)");
+                return;
+              }
 
-        bool accepted = await sendNotification(driver.token);
+              final soportaVIP = vehiculoData['soportaVIP'] ?? false;
 
-        if (accepted) {
-          serviceAccepted = true;
+              if (!_permitirStandard && !soportaVIP) {
+                print("⛔ Conductor $driverId no es VIP");
+                return;
+              }
 
-          _timeoutBusqueda?.cancel();
-          _streamSubscription?.cancel();
+              if (_permitirStandard) {
+                print("⚠️ Fallback activo → permitiendo estándar ($driverId)");
+              }
+            }
 
-          notifiedDrivers.clear();
+            // 🔥 VALIDAR TOKEN
+            if (driver.token == null || driver.token.isEmpty) {
+              print("⚠️ Driver $driverId sin token");
+              return;
+            }
 
-          return;
-        }
-      }
+            print("📤 Enviando push a token: ${driver.token.substring(0, 10)}...");
+
+            bool accepted = await sendNotification(driver.token);
+
+            if (accepted) {
+
+              print("✅ Driver $driverId ACEPTÓ el servicio");
+
+              serviceAccepted = true;
+
+              _timeoutBusqueda?.cancel();
+              _streamSubscription?.cancel();
+
+              notifiedDrivers.clear();
+
+              return;
+            } else {
+              print("⏱ Driver $driverId no respondió");
+            }
+
+          } catch (e) {
+            print("❌ Error driver $driverId: $e");
+          }
+
+        }),
+      );
 
     } catch (e) {
-      print("Error driver: $e");
+      print("❌ Error en batch: $e");
     }
 
-    /// 🔥 continuar secuencia CONTROLADA
-    return await _attemptToSendNotification(driverIds, index + 1);
-  }
+    // 🔥 STOP si alguien aceptó
+    if (serviceAccepted) {
+      print("🛑 STOP GLOBAL: servicio aceptado");
+      return;
+    }
 
+    print("➡️ Batch finalizado, pasando al siguiente...");
+
+    // 🔥 SIGUIENTE BATCH
+    return await _attemptToSendNotification(driverIds, index + 2);
+  }
 
   void permitirStandardManual() async {
 
@@ -1398,7 +1577,7 @@ class TravelInfoController{
       }
 
       /// usar el menor entre 12 y el tiempo restante
-      int tiempoEspera = segundosRestantes > 13 ? 13 : segundosRestantes;
+      int tiempoEspera = segundosRestantes > 8 ? 8 : segundosRestantes;
 
       print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor (NORMAL)");
 
@@ -1463,6 +1642,7 @@ class TravelInfoController{
   }
 
   Future<void> _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
+    if (serviceAccepted) return;
 
     if (_tiempoAgotado()) {
       print("⛔ Tiempo global agotado (PORTERIA)");
@@ -1554,5 +1734,31 @@ class TravelInfoController{
     /// 🔥 continuar secuencia
     return await _attemptToSendNotificationPorteria(driverIds, index + 1);
   }
+
+  //*nuevo para filtrar los conductores no activos antes de enviar notificacion//************************
+
+
+  bool estaActivoRecientementeDesdeLocation(Map<String, dynamic> data) {
+    try {
+      final now = DateTime.now();
+
+      // 🔥 OJO: está dentro de position
+      final position = data['position'];
+      if (position == null) return false;
+
+      final updatedAt = position['updatedAt']?.toDate();
+      if (updatedAt == null) return false;
+
+      final minutos = now.difference(updatedAt).inMinutes;
+
+      // 🔥 AQUÍ defines la regla
+      return minutos <= 2;
+
+    } catch (e) {
+      print("⚠️ Error validando activity location: $e");
+      return false;
+    }
+  }
+
 
 }

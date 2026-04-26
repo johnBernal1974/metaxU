@@ -240,8 +240,55 @@ class ClientMapController {
         );
 
         // 🔥 Agregar conductores
+        // for (DocumentSnapshot d in documentList) {
+        //   try {
+        //     Map<String, dynamic> positionData = d.get('position');
+        //
+        //     if (positionData.containsKey('geopoint')) {
+        //       GeoPoint geoPoint = positionData['geopoint'];
+        //
+        //       double distanceInMeters = Geolocator.distanceBetween(
+        //         _position!.latitude,
+        //         _position!.longitude,
+        //         geoPoint.latitude,
+        //         geoPoint.longitude,
+        //       );
+        //
+        //       double distanceInKm = distanceInMeters / 1000;
+        //       if (kDebugMode) {
+        //         print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
+        //       }
+        //
+        //       // 🔥 FILTRO REAL POR RADIO
+        //       if (distanceInKm <= radio) {
+        //         addMarkerDriver(
+        //           d.id,
+        //           geoPoint.latitude,
+        //           geoPoint.longitude,
+        //           'Conductor disponible',
+        //           "",
+        //           markerDriver,
+        //         );
+        //       }
+        //
+        //     }
+        //   } catch (e) {
+        //     if (kDebugMode) {
+        //       print("⚠️ Error leyendo posición de driver ${d.id}: $e");
+        //     }
+        //   }
+        // } para filtra los marcadores de vehiculos inactivos 26 abril 2026
+
         for (DocumentSnapshot d in documentList) {
           try {
+            Map<String, dynamic> data = d.data() as Map<String, dynamic>;
+
+            /// 🔥 NUEVO FILTRO
+            if (!estaActivoRecientemente(data)) {
+              print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
+              continue;
+            }
+
             Map<String, dynamic> positionData = d.get('position');
 
             if (positionData.containsKey('geopoint')) {
@@ -255,11 +302,7 @@ class ClientMapController {
               );
 
               double distanceInKm = distanceInMeters / 1000;
-              if (kDebugMode) {
-                print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
-              }
 
-              // 🔥 FILTRO REAL POR RADIO
               if (distanceInKm <= radio) {
                 addMarkerDriver(
                   d.id,
@@ -270,12 +313,10 @@ class ClientMapController {
                   markerDriver,
                 );
               }
+            }
 
-            }
           } catch (e) {
-            if (kDebugMode) {
-              print("⚠️ Error leyendo posición de driver ${d.id}: $e");
-            }
+            print("⚠️ Error leyendo driver ${d.id}: $e");
           }
         }
 
@@ -592,6 +633,28 @@ class ClientMapController {
     );
 
     markers[id] = marker;
+  }
+
+  //***nuevo para filtrar marcadores de vehiculos que no estan activos // ****************
+
+  bool estaActivoRecientemente(Map<String, dynamic> data) {
+    try {
+      final now = DateTime.now();
+
+      final position = data['position'];
+      if (position == null) return false;
+
+      final updatedAt = position['updatedAt']?.toDate();
+      if (updatedAt == null) return false;
+
+      final minutos = now.difference(updatedAt).inMinutes;
+
+      return minutos <= 2; // 🔥 regla
+
+    } catch (e) {
+      print("⚠️ Error validando actividad: $e");
+      return false;
+    }
   }
 }
 

@@ -13,7 +13,8 @@ class SoundManager {
 
   final AudioPlayer _player = AudioPlayer();
 
-  bool _isPlaying = false;
+  String? _lastSound;
+  DateTime? _lastTime;
 
   Future<void> playTaxiLlegada() async {
     await _play("assets/audio/tu_taxi_ha_llegado.mp3");
@@ -23,31 +24,35 @@ class SoundManager {
     await _play("assets/audio/el_conductor_cancelo_el_servicio.wav");
   }
 
-  Future<void> _play(String asset) async {
+  Future<void> playServicioAceptado() async {
+    await _play("assets/audio/servicio_aceptado_new.mp3");
+  }
 
+  Future<void> _play(String asset) async {
     try {
 
-      if (_isPlaying) {
-        await _player.stop();
+      final now = DateTime.now();
+
+      // 🔒 evita eco por eventos repetidos del stream
+      if (_lastSound == asset &&
+          _lastTime != null &&
+          now.difference(_lastTime!) < const Duration(milliseconds: 800)) {
+        return;
       }
 
-      _isPlaying = true;
+      _lastSound = asset;
+      _lastTime = now;
+
+      // 🔥 SIEMPRE detener antes
+      await _player.stop();
 
       await _player.setAsset(asset);
+      await _player.setVolume(1.0);
       await _player.play();
-
-      _player.playerStateStream.listen((state) {
-
-        if (state.processingState == ProcessingState.completed) {
-          _isPlaying = false;
-        }
-
-      });
 
     } catch (e) {
       debugPrint("Error reproduciendo sonido: $e");
     }
-
   }
 
 }

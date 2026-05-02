@@ -17,6 +17,7 @@ import '../../../../providers/travel_info_provider.dart';
 import '../../../helpers/bottom_sheet_driver_info.dart';
 import '../../../helpers/conectivity_service.dart';
 import '../../../helpers/snackbar.dart';
+import '../../../helpers/sound_manager.dart';
 import '../../../models/driver.dart';
 import '../../../models/travel_info.dart';
 import 'package:apptaxis/models/client.dart';
@@ -34,7 +35,7 @@ class TravelMapController{
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.3445324, -74.3639381),
-    zoom: 12.0,
+    zoom: 16.0,
   );
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
   late BitmapDescriptor markerDriver;
@@ -43,16 +44,14 @@ class TravelMapController{
   late DriverProvider _driverProvider;
   late ClientProvider _clientProvider;
   bool isConected = true;
-  //late StreamSubscription<DocumentSnapshot<Object?>> _statusSuscription;
-  //late StreamSubscription<DocumentSnapshot<Object?>> _driverInfoSuscription;
+
   StreamSubscription<DocumentSnapshot<Object?>>? _streamLocationController;
   StreamSubscription<DocumentSnapshot<Object?>>? _streamTravelController;
 
   bool soundIsaceptado = false;
+  bool _cancelSoundPlayed = false;
+  bool _followDriver = true;
 
-
-
-  //late StreamSubscription<DocumentSnapshot<Object?>> _streamStatusController;
   late TravelInfoProvider _travelInfoProvider;
   late BitmapDescriptor fromMarker;
   late BitmapDescriptor toMarker;
@@ -81,11 +80,8 @@ class TravelMapController{
   //bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
-  //sounds
-  late AudioPlayer _playerTaxiHaLlegado;
-  bool _audioTaxiLlegadoYaReproducido = false;
 
-  late AudioPlayer _playerConductorHaCancelado;
+  bool _audioTaxiLlegadoYaReproducido = false;
   bool _audioConductorHaCanceladoYaReproducido = false;
 
   //evitar traergetdriverinfo dos veces
@@ -94,8 +90,6 @@ class TravelMapController{
   //para calificacion
   double? ratingAvg;
   int ratingCount = 0;
-
-
 
   Future? init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -132,8 +126,7 @@ class TravelMapController{
         zoom: 20.0,
       );
     }
-    _playerTaxiHaLlegado = AudioPlayer();
-    _playerConductorHaCancelado = AudioPlayer();
+
   }
 
 
@@ -154,7 +147,8 @@ class TravelMapController{
       switch (travelInfo!.status) {
         case 'accepted':
           if (!soundIsaceptado) {
-            await soundServicioAceptado(); // 🔊 AQUÍ SUENA SEGURO
+            soundIsaceptado = true;
+            await SoundManager().playServicioAceptado();
           }
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           currentStatus = 'Viaje aceptado';
@@ -170,7 +164,7 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'client_notificado':
-          soundTaxiHaLlegado('assets/audio/tu_taxi_ha_llegado.mp3');
+          await SoundManager().playTaxiLlegada();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
@@ -179,7 +173,10 @@ class TravelMapController{
           startTravel();
           break;
         case 'cancelByDriverAfterAccepted':
-          await _soundConductorHaCancelado();
+          if (!_cancelSoundPlayed) {
+            _cancelSoundPlayed = true;
+            await SoundManager().playCancelacionConductor();
+          }
           if(context.mounted){
             Navigator.pushReplacementNamed(context, 'map_client');
           }
@@ -190,7 +187,10 @@ class TravelMapController{
 
           break;
         case 'cancelTimeIsOver':
-          await _soundConductorHaCancelado();
+          if (!_cancelSoundPlayed) {
+            _cancelSoundPlayed = true;
+            await SoundManager().playCancelacionConductor();
+          }
           if(context.mounted){
             Navigator.pushReplacementNamed(context, 'map_client');
           }
@@ -211,52 +211,7 @@ class TravelMapController{
   }
 
 
-  Future<void> soundTaxiHaLlegado([
-    String audioPath = 'assets/audio/tu_taxi_ha_llegado.mp3',
-  ]) async {
-    if (_audioTaxiLlegadoYaReproducido) return; // evita repetir
-    _audioTaxiLlegadoYaReproducido = true;
 
-    try {
-      await _playerTaxiHaLlegado.stop();
-      await _playerTaxiHaLlegado.setAsset(audioPath);
-      await _playerTaxiHaLlegado.play();
-    } catch (e) {
-      if (kDebugMode) print('sound error: $e');
-    }
-  }
-
-  Future<void> soundServicioAceptado([
-    String audioPath = 'assets/audio/servicio_aceptado_new.mp3',
-  ]) async {
-    if (soundIsaceptado) return;
-
-    soundIsaceptado = true;
-
-    try {
-      await _playerTaxiHaLlegado.stop(); // puedes reutilizar o crear otro player
-      await _playerTaxiHaLlegado.setAsset(audioPath);
-      await _playerTaxiHaLlegado.setVolume(1.0);
-      await _playerTaxiHaLlegado.play();
-    } catch (e) {
-      print('❌ Error sonido aceptado: $e');
-    }
-  }
-
-  Future<void> _soundConductorHaCancelado([
-    String audioPath = 'assets/audio/el_conductor_cancelo_el_servicio.wav',
-  ]) async {
-    if (_audioConductorHaCanceladoYaReproducido) return; // evita repetir
-    _audioConductorHaCanceladoYaReproducido = true;
-
-    try {
-      await _playerConductorHaCancelado.stop();
-      await _playerConductorHaCancelado.setAsset(audioPath);
-      await _playerConductorHaCancelado.play();
-    } catch (e) {
-      if (kDebugMode) print('sound error: $e');
-    }
-  }
 
   void cambiarestadoNotificado(){
     Map<String, dynamic> data = {'status': 'client_notificado'};
@@ -275,9 +230,6 @@ class TravelMapController{
 
     // ✅ CLAVE: limpiar overlay + listener interno del ConnectionService
     connectionService.dispose();
-
-    _playerTaxiHaLlegado.dispose();
-    _playerConductorHaCancelado.dispose();
   }
 
 
@@ -365,6 +317,9 @@ class TravelMapController{
 
       final newPos = LatLng(geoPoint.latitude, geoPoint.longitude);
       _driverLatlng = newPos;
+      if (_followDriver) {
+        _moveCameraSmooth(newPos);
+      }
 
       // ✅ SIN SUAVIZADO: marker en posición real inmediatamente
       addMarkerDriver(
@@ -384,6 +339,25 @@ class TravelMapController{
         checkTravelStatus();
       }
     });
+  }
+
+  Future<void> _moveCameraSmooth(LatLng position) async {
+    try {
+      final controller = await _mapController.future;
+
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: position,
+            zoom: 16,
+            bearing: 0,
+            tilt: 0,
+          ),
+        ),
+      );
+    } catch (e) {
+      print("Error moviendo cámara: $e");
+    }
   }
 
   void pickupTravel () {

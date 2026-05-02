@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:apptaxis/Pages/travel_info_page/travel_info_Controller/travel_info_Controller.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -944,47 +945,129 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               ],
             ),
             SizedBox(height: 50.r),
-            OutlinedButton(
-              onPressed: () {
-                if (!mounted) return;
+        ElevatedButton(
+          onPressed: () async {
+            if (!mounted) return;
 
-                setState(() {
-                  isVisibleTarjetaSolicitandoConductor = false;
-                  _isSearching = false;
-                });
-
-                _controller.deleteTravelInfo();
-                _timerBusqueda?.cancel();
-              },
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: Colors.red.shade400, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10.r),
-                ),
-                padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 12.r),
-              ),
-
-              // 🔥 mismo patrón visual que los otros
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.cancel_outlined,
-                    size: 20.r,
-                    color: Colors.red.shade400,
+            final confirm = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
                   ),
-                  SizedBox(width: 8.r),
-                  Text(
-                    'Cancelar solicitud',
-                    style: TextStyle(
-                      color: Colors.red.shade400,
-                      fontSize: 14.r,
-                      fontWeight: FontWeight.w600,
+                  title: const Text("Cancelar solicitud"),
+                  content: const Text(
+                    "¿Estás seguro de que quieres cancelar el servicio?",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text("No"),
                     ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text("Sí, cancelar"),
+                    ),
+                  ],
+                );
+              },
+            );
+
+            // 👉 Si dijo NO
+            if (confirm != true) return;
+
+            final hasInternet = await connectionService.hasInternetConnection();
+
+            if (!hasInternet) {
+              if(context.mounted){
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Sin conexión a internet"),
+                    content: const Text(
+                        "No podemos verificar el estado del servicio.\n\nEs posible que ya haya sido aceptado."
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Entendido"),
+                      )
+                    ],
                   ),
-                ],
-              ),
+                );
+              }
+
+              return;
+            }
+
+            // 🔥 VALIDAR EN FIRESTORE
+            final uid = FirebaseAuth.instance.currentUser?.uid;
+
+            if (uid == null) return;
+
+            final doc = await FirebaseFirestore.instance
+                .collection('TravelInfo')
+                .doc(uid)
+                .get();
+
+            if (!doc.exists) return;
+
+            final status = doc.get('status');
+
+            // 🟢 CASO 1: AÚN NO ACEPTADO
+            if (status == 'created') {
+              setState(() {
+                isVisibleTarjetaSolicitandoConductor = false;
+                _isSearching = false;
+              });
+
+              await _controller.deleteTravelInfo();
+              _timerBusqueda?.cancel();
+            }
+
+            // 🔴 CASO 2: YA ACEPTADO
+            else {
+              if (!mounted) return;
+
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                'travel_map_page',
+                    (route) => false,
+                arguments: uid,
+              );
+            }
+          },
+
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10.r),
             ),
+            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 12.r),
+          ),
+
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cancel_outlined, size: 20.r),
+              SizedBox(width: 8.r),
+              Text(
+                'Cancelar solicitud',
+                style: TextStyle(
+                  fontSize: 14.r,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        )
 
           ],
         ),
@@ -1003,7 +1086,22 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
     _timerBusqueda?.cancel();
 
-    _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) async {
+
+      if (!await connectionService.hasInternetConnection()) {
+        print("⛔ Sin internet → detener búsqueda");
+
+        timer.cancel();
+
+        if (mounted) {
+          setState(() {
+            _mensajeBusqueda = "📡 Sin conexión, reconectando...";
+            _isSearching = false;
+          });
+        }
+
+        return;
+      }
 
       // 🛑 SI YA ACEPTARON → DETENER TODO
       if (_controller.serviceAccepted) {

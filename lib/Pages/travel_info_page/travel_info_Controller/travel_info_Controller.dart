@@ -1392,9 +1392,7 @@ class TravelInfoController{
     }
   }
 
-  void _soundServicioAceptado() {
-    playAudio('assets/audio/servicio_aceptado_new.wav');
-  }
+
 
   void _checkDriverResponse() {
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
@@ -1405,7 +1403,7 @@ class TravelInfoController{
 
         if (travelInfo.status == 'accepted') {
           serviceAccepted = true; // Detener el envío de notificaciones
-          _soundServicioAceptado();
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const TravelMapPage()),

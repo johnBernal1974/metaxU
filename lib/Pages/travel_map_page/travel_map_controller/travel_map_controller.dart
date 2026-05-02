@@ -48,6 +48,8 @@ class TravelMapController{
   StreamSubscription<DocumentSnapshot<Object?>>? _streamLocationController;
   StreamSubscription<DocumentSnapshot<Object?>>? _streamTravelController;
 
+  bool soundIsaceptado = false;
+
 
 
   //late StreamSubscription<DocumentSnapshot<Object?>> _streamStatusController;
@@ -64,7 +66,6 @@ class TravelMapController{
   bool isPickUpTravel = false;
   bool isStartTravel = false;
   bool isFinishtTravel = false;
-  bool soundIsaceptado = false;
   Set<Polyline> polylines ={};
   List<LatLng> points = List.from([]);
   //int seconds = 0;
@@ -146,12 +147,15 @@ class TravelMapController{
 
   void checkTravelStatus() async {
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
-    _streamTravelController = stream.listen((DocumentSnapshot document) {
+    _streamTravelController = stream.listen((DocumentSnapshot document) async {
       if (document.data() == null) return;
       travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
+          if (!soundIsaceptado) {
+            await soundServicioAceptado(); // 🔊 AQUÍ SUENA SEGURO
+          }
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           currentStatus = 'Viaje aceptado';
           pickupTravel();
@@ -175,17 +179,25 @@ class TravelMapController{
           startTravel();
           break;
         case 'cancelByDriverAfterAccepted':
-          Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
+          await _soundConductorHaCancelado();
+          if(context.mounted){
+            Navigator.pushReplacementNamed(context, 'map_client');
+          }
           _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context, 'El conductor canceló el servicio');
+          if(context.mounted){
+            Snackbar.showSnackbar(context, 'El conductor canceló el servicio');
+          }
 
           break;
         case 'cancelTimeIsOver':
-          Navigator.pushReplacementNamed(context, 'map_client');
-          _soundConductorHaCancelado();
+          await _soundConductorHaCancelado();
+          if(context.mounted){
+            Navigator.pushReplacementNamed(context, 'map_client');
+          }
           _actualizarIsTravelingFalse();
-          Snackbar.showSnackbar(context,  'El conductor canceló el servicio por tiempo de espera cumplido');
+          if(context.mounted){
+            Snackbar.showSnackbar(context,  'El conductor canceló el servicio por tiempo de espera cumplido');
+          }
           break;
         case 'finished':
           currentStatus = 'Viaje finalizado';
@@ -211,6 +223,23 @@ class TravelMapController{
       await _playerTaxiHaLlegado.play();
     } catch (e) {
       if (kDebugMode) print('sound error: $e');
+    }
+  }
+
+  Future<void> soundServicioAceptado([
+    String audioPath = 'assets/audio/servicio_aceptado_new.mp3',
+  ]) async {
+    if (soundIsaceptado) return;
+
+    soundIsaceptado = true;
+
+    try {
+      await _playerTaxiHaLlegado.stop(); // puedes reutilizar o crear otro player
+      await _playerTaxiHaLlegado.setAsset(audioPath);
+      await _playerTaxiHaLlegado.setVolume(1.0);
+      await _playerTaxiHaLlegado.play();
+    } catch (e) {
+      print('❌ Error sonido aceptado: $e');
     }
   }
 

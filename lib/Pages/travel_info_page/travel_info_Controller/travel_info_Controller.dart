@@ -106,6 +106,7 @@ class TravelInfoController{
   double _radioActual = 0.0;
   double _radioMaximo = 1.0;
   Timer? _timerExpansion;
+  int tiempoEsperaPorteria = 10;
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -693,15 +694,35 @@ class TravelInfoController{
     }
   }
 
-  void obtenerRadiodeBusqueda() async {
+  Future<void> obtenerRadiodeBusqueda() async {
     try {
+
       Price price = await _pricesProvider.getAll();
+
       radioDeBusqueda = price.theRadioDeBusqueda;
+
+      /// 🔥 NUEVO
+      tiempoEsperaPorteria =
+          price.tiempoEsperaPorteria ?? 10;
+
       if (kDebugMode) {
-        print("**************************Radio de busqueda: $radioDeBusqueda **************************");
+
+        print(
+            "**************************"
+                "Radio de busqueda: $radioDeBusqueda "
+                "**************************"
+        );
+
+        print(
+            "⏱️ Tiempo espera portería: "
+                "$tiempoEsperaPorteria"
+        );
       }
+
       refresh();
+
     } catch (e) {
+
       if (kDebugMode) {
         print('Error al obtener el radio de busqueda: $e');
       }
@@ -1602,6 +1623,9 @@ class TravelInfoController{
 
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+
+      'tipo': 'servicio',
+
       'tipoSolicitud': 'porteria',
 
       'origin': dataRequest?["direccion"],
@@ -1610,9 +1634,15 @@ class TravelInfoController{
       'originLng': dataRequest?["lng"].toString(),
 
       'nombreConjunto': dataRequest?["nombreConjunto"] ?? '',
+      'nombrePorteria': dataRequest?["nombrePorteria"] ?? '',
+
+      'usuario': dataRequest?["usuario"] ?? '',
+      'apto': dataRequest?["apto"] ?? '',
+
       'metodoPago': dataRequest?["metodoPago"] ?? '',
       'caracteristica': dataRequest?["caracteristica"] ?? '',
       'barrio': dataRequest?["barrio"] ?? "",
+
       'id': requestId ?? '',
 
       'mensaje': 'Servicio solicitado desde portería'
@@ -1630,7 +1660,16 @@ class TravelInfoController{
     }
 
     /// usar el menor entre 20 y el tiempo restante
-    int tiempoEspera = segundosRestantes > 14 ? 14 : segundosRestantes;
+    int tiempoEspera =
+    segundosRestantes > tiempoEsperaPorteria
+        ? tiempoEsperaPorteria
+        : segundosRestantes;
+
+    print(
+        "⏱️ PORTERIA esperando "
+            "$tiempoEspera segundos "
+            "para conductor"
+    );
 
     print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor");
 
@@ -1642,8 +1681,16 @@ class TravelInfoController{
   Future<void> _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
     if (serviceAccepted) return;
 
-    if (_tiempoAgotado()) {
-      print("⛔ Tiempo global agotado (PORTERIA)");
+    if (_tiempoAgotado() || serviceAccepted) {
+
+      print("⛔ STOP listener porteria");
+
+      await _streamSubscriptionPorteria?.cancel();
+      _streamSubscriptionPorteria = null;
+
+      _timeoutBusqueda?.cancel();
+      _timeoutBusqueda = null;
+
       return;
     }
 
@@ -1705,6 +1752,44 @@ class TravelInfoController{
 
       Driver? driver = await _driverProvider.getById(driverId);
 
+      final locationDoc = await FirebaseFirestore.instance
+          .collection("Locations")
+          .doc(driverId)
+          .get();
+
+      if (!locationDoc.exists) {
+
+        print("⛔ Driver no existe");
+
+        return await _attemptToSendNotificationPorteria(
+          driverIds,
+          index + 1,
+        );
+      }
+
+      final driverData = locationDoc.data();
+
+      if (driverData == null) {
+
+        print("⛔ Driver sin data");
+
+        return await _attemptToSendNotificationPorteria(
+          driverIds,
+          index + 1,
+        );
+      }
+
+      /// 🔥 VALIDAR SI REALMENTE ESTÁ ACTIVO
+      if (!estaActivoRecientemente(driverData)) {
+
+        print("⛔ Driver inactivo recientemente: $driverId");
+
+        return await _attemptToSendNotificationPorteria(
+          driverIds,
+          index + 1,
+        );
+      }
+
       if (driver?.token != null) {
 
         bool accepted = await sendNotificationPorteria(driver!.token);
@@ -1754,6 +1839,34 @@ class TravelInfoController{
 
     } catch (e) {
       print("⚠️ Error validando activity location: $e");
+      return false;
+    }
+  }
+  //para porterias
+
+  bool estaActivoRecientemente(Map<String, dynamic> data) {
+    try {
+
+      final now = DateTime.now();
+
+      final position = data['position'];
+
+      if (position == null) return false;
+
+      final updatedAt = position['updatedAt']?.toDate();
+
+      if (updatedAt == null) return false;
+
+      final segundos = now.difference(updatedAt).inSeconds;
+      print("🕒 Driver actualizado hace $segundos segundos");
+
+      /// 🔥 PORTERÍAS = MÁS ESTRICTO
+      return segundos <= 90;
+
+    } catch (e) {
+
+      print("⚠️ Error validando actividad: $e");
+
       return false;
     }
   }

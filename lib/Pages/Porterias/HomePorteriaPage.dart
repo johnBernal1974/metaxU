@@ -46,6 +46,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
   final Set<String> taxisNotificados = {};
 
   bool _solicitandoServicio = false;
+  int tiempoEsperaPorteria = 10;
 
 
   final List<String> _caracteristicasVehiculo = [
@@ -101,6 +102,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
 
     _loadPorteria();
   }
+
 
   Future<void> _loadPorteria() async {
 
@@ -913,7 +915,7 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
     );
 
     /// obtener radio de búsqueda
-    _travelController.obtenerRadiodeBusqueda();
+    await _travelController.obtenerRadiodeBusqueda();
 
     /// 3️⃣ VALIDAR SI HAY CONDUCTORES EN EL RADIO
 
@@ -976,6 +978,16 @@ class _HomePorteriaPageState extends State<HomePorteriaPage> {
       "from": direccion,
       "fromLat": latPorteria,
       "fromLng": lngPorteria,
+
+      "usuario": usuario,
+      "apto": apto,
+
+      "nombreConjunto": nombreConjunto,
+      "nombrePorteria": nombrePorteria,
+      "barrio": barrio,
+
+      "metodoPago": _metodoPagoSeleccionado,
+      "caracteristica": _caracteristicaSeleccionada,
 
       "status": "created",
       "tipoSolicitud": "porteria",

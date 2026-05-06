@@ -37,6 +37,8 @@ class Price {
   String theLinkDescargaClient;
   String theLinkDescargaDriver;
 
+  int? tiempoEsperaPorteria;
+
 
   Price({
 
@@ -62,6 +64,8 @@ class Price {
     required this.theDinamica,
     required this.theLinkDescargaClient,
     required this.theLinkDescargaDriver,
+    required this.tiempoEsperaPorteria,
+
 
 
   });
@@ -94,6 +98,7 @@ class Price {
     theDinamica: json["dinamica"]?.toDouble() ?? 0.0,
     theLinkDescargaClient: json["link_descarga_client"]?? '',
     theLinkDescargaDriver: json["link_descarga_driver"]?? '',
+    tiempoEsperaPorteria: json['tiempoEsperaPorteria'] ?? 10,
 
   );
 

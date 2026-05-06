@@ -363,8 +363,8 @@ class _ViajesPorteriaPageState extends State<ViajesPorteriaPage> {
                 child: Text(
                   textoEstado,
                   style: TextStyle(
-                    fontSize: 11.r,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 15.r,
+                    fontWeight: FontWeight.w900,
                     color: colorEstado,
                   ),
                 ),

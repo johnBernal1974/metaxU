@@ -553,29 +553,32 @@ class ClientMapController {
           } catch(e) {
             print("❌ Error promo: $e");
           }
-          Navigator.pushNamed(
-            context,
-            "travel_info_page",
+          if(context.mounted){
+            Navigator.pushNamed(
+              context,
+              "travel_info_page",
 
-            arguments: {
+              arguments: {
 
-              'from': from,
+                'from': from,
 
-              'to': to,
+                'to': to,
 
-              'fromlatlng': fromlatlng,
+                'fromlatlng': fromlatlng,
 
-              'tolatlng': tolatlng,
+                'tolatlng': tolatlng,
 
-              'navKey':
-              DateTime.now()
-                  .microsecondsSinceEpoch
-                  .toString(),
+                'navKey':
+                DateTime.now()
+                    .microsecondsSinceEpoch
+                    .toString(),
 
-              'promocion_aplicada':
-              promocion,
-            },
-          );
+                'promocion_aplicada':
+                promocion,
+              },
+            );
+          }
+
         }
       }
     } else {

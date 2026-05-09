@@ -63,17 +63,19 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   int _valorVipExtra = 0;
   bool _cargandoValorVip = false;
 
-  int _segundosRestantes = 30;
   Timer? _timerBusqueda;
 
   int _reintentosBusqueda = 0;
   String _mensajeBusqueda = "Buscando conductores cercanos...";
+  int _conductoresConsultados = 0;
 
   Promocion? promocionAplicada;
 
   int descuentoPromocion = 0;
 
   int tarifaFinalConDescuento = 0;
+
+
 
 
 
@@ -89,6 +91,19 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         if (mounted) setState(() => _loadingRoute = true);
 
         await _controller.init(context, refresh);
+
+        _controller
+            .conductoresEncontradosCallback =
+            (cantidad) {
+
+          if (!mounted) return;
+
+          setState(() {
+
+            _conductoresConsultados =
+                cantidad;
+          });
+        };
 
         final args = ModalRoute.of(context)?.settings.arguments
         as Map<String, dynamic>?;
@@ -1473,33 +1488,12 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   if (_isSearching)
 
                     SpinKitRipple(
-                      color: primary,
-                      size: 170.r,
+
+                      color: primary.withOpacity(0.85),
+
+                      size: 240.r,
                     ),
 
-                  Container(
-
-                    width: 28.r,
-                    height: 28.r,
-
-                    decoration: BoxDecoration(
-
-                      color: primary,
-
-                      shape: BoxShape.circle,
-
-                      boxShadow: [
-
-                        BoxShadow(
-                          color:
-                          primary.withOpacity(0.35),
-
-                          blurRadius: 14,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
 
@@ -1535,7 +1529,8 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                   children: [
 
                     Text(
-                      _mensajeBusqueda,
+
+                      'Buscando un conductor...',
 
                       textAlign: TextAlign.center,
 
@@ -1547,6 +1542,22 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                     ),
 
                     SizedBox(height: 5.r),
+                    if (_conductoresConsultados > 0)
+
+                      Text(
+
+                        '$_conductoresConsultados '
+                            '${_conductoresConsultados == 1 ? 'taxi cercano' : 'taxis cercanos'}',
+
+                        style: TextStyle(
+
+                          fontSize: 12.r,
+
+                          color: Colors.black54,
+
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
 
                   ],
                 ),
@@ -1559,255 +1570,233 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   }
 
   void _startSearch() {
+
     if (!mounted) return;
 
     setState(() {
+
       _isSearching = true;
-      _segundosRestantes = 30;
-      _mensajeBusqueda = "🔍 Buscando conductores cercanos...";
     });
 
     _timerBusqueda?.cancel();
 
-    _timerBusqueda = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _reintentosBusqueda = 0;
 
-      if (!await connectionService.hasInternetConnection()) {
-        print("⛔ Sin internet → detener búsqueda");
+    _timerBusqueda = Timer.periodic(
 
-        timer.cancel();
+      const Duration(seconds: 1),
 
-        if (mounted) {
-          setState(() {
-            _mensajeBusqueda = "📡 Sin conexión, reconectando...";
-            _isSearching = false;
-          });
-        }
+          (timer) async {
 
-        return;
-      }
+        /// 🌐 INTERNET
+        if (!await connectionService
+            .hasInternetConnection()) {
 
-      // 🛑 SI YA ACEPTARON → DETENER TODO
-      if (_controller.serviceAccepted) {
-        print("🛑 Servicio aceptado, detener contador");
-        timer.cancel();
-        return;
-      }
-
-      /// 🔥 DETECTAR FIN DE VIP Y MOSTRAR DIÁLOGO
-      if (_tipoServicioSeleccionado == "vip" &&
-          _controller.yaIntentoTodosLosVIP &&
-          !_controller.serviceAccepted) {
-
-        print("⚠️ No hay VIP reales → mostrar opción");
-
-        _controller.yaIntentoTodosLosVIP = false;
-
-        if (!mounted) return;
-
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Text(
-                "Sin vehículos VIP",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              content: const Text(
-                "No encontramos vehículos VIP disponibles.\n\n¿Deseas buscar un servicio estándar?",
-                textAlign: TextAlign.center,
-              ),
-              actionsAlignment: MainAxisAlignment.center,
-              actions: [
-
-                /// 🔥 IR A STANDARD
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      foregroundColor: Colors.black,
-                    ),
-                    onPressed: () async {
-
-                      Navigator.pop(context);
-
-                      print("🔁 Usuario acepta estándar");
-
-                      await _controller.deleteTravelInfo();
-
-                      final base = _controller.total?.toInt() ?? 0;
-
-                      await _controller.createTravelInfo(
-                        tipoServicio: "standard",
-                        valorVipExtra: 0,
-                        tarifaFinal: base,
-                        metodoPago: _metodoPagoSeleccionado,
-                        caracteristicaVehiculo: _caracteristicaSeleccionada,
-                      );
-
-                      // 🔥 REINICIAR TODO
-                      _reintentosBusqueda = 0;
-
-                      _controller.getNearbyDrivers();
-
-// 🔥 esperar 1.5 segundos para que el usuario vea el mensaje
-                      Future.delayed(const Duration(milliseconds: 1500), () {
-                        if (!mounted) return;
-                        _startSearch();
-                      });
-                    },
-                    child: const Text("Buscar servicio estándar"),
-                  ),
-                ),
-
-                /// 🔴 CANCELAR
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-
-                      _controller.deleteTravelInfo();
-                      _timerBusqueda?.cancel();
-
-                      setState(() {
-                        isVisibleTarjetaSolicitandoConductor = false;
-                        _isSearching = false;
-                      });
-                    },
-                    child: const Text("Cancelar"),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      }
-
-      /// 🔥 CUANDO SE ACABA EL TIEMPO
-      if (_segundosRestantes <= 0) {
-
-        // 🔁 SOLO 1 REINTENTO
-        if (_reintentosBusqueda < 1) {
-
-          _reintentosBusqueda++;
-
-          print("🔁 Reintento automático #$_reintentosBusqueda");
-          if (mounted) {
-            setState(() {
-              _mensajeBusqueda = "🔁 Reintentando búsqueda...";
-            });
-          }
+          print("⛔ Sin internet → detener búsqueda");
 
           timer.cancel();
 
           if (mounted) {
+
             setState(() {
-              _segundosRestantes = 30;
+
+              _mensajeBusqueda =
+              "📡 Sin conexión, reconectando...";
+
+              _isSearching = false;
             });
           }
-
-          // 🔥 reiniciar backend
-          _controller.getNearbyDrivers();
-
-          // 🔥 reiniciar contador
-          _startSearch();
 
           return;
         }
 
-        /// ⛔ YA NO MÁS REINTENTOS
-        timer.cancel();
+        /// 🛑 YA ACEPTADO
+        if (_controller.serviceAccepted) {
 
-        print("⛔ Tiempo agotado definitivamente");
+          print(
+              "🛑 Servicio aceptado → detener búsqueda");
 
-        if (mounted) {
-          setState(() {
-            isVisibleTarjetaSolicitandoConductor = false;
-            _isSearching = false;
-          });
+          timer.cancel();
+
+          return;
         }
 
-        _controller.deleteTravelInfo();
+        /// 🔥 SIN VIP
+        if (_tipoServicioSeleccionado == "vip" &&
+            _controller.yaIntentoTodosLosVIP &&
+            !_controller.serviceAccepted) {
 
-        if (context.mounted) {
+          print(
+              "⚠️ No hay VIP reales → mostrar opción");
+
+          _controller.yaIntentoTodosLosVIP = false;
+
+          if (!mounted) return;
+
           showDialog(
+
             context: context,
+
+            barrierDismissible: false,
+
             builder: (context) {
+
               return AlertDialog(
+
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                  BorderRadius.circular(16),
                 ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
 
-                    Image.asset('assets/metax_logo.png', height: 70),
+                title: const Text(
 
-                    const SizedBox(height: 10),
+                  "Sin vehículos VIP",
 
-                    const Text(
-                      "Búsqueda terminada",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                  textAlign: TextAlign.center,
+
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+
+                content: const Text(
+
+                  "No encontramos vehículos VIP disponibles.\n\n¿Deseas buscar un servicio estándar?",
+
+                  textAlign: TextAlign.center,
+                ),
+
+                actionsAlignment:
+                MainAxisAlignment.center,
+
+                actions: [
+
+                  /// 🔥 STANDARD
+                  SizedBox(
+
+                    width: double.infinity,
+
+                    child: ElevatedButton(
+
+                      style:
+                      ElevatedButton.styleFrom(
+
+                        backgroundColor:
+                        primary,
+
+                        foregroundColor:
+                        Colors.black,
+                      ),
+
+                      onPressed: () async {
+
+                        Navigator.pop(context);
+
+                        print(
+                            "🔁 Usuario acepta estándar");
+
+                        await _controller
+                            .deleteTravelInfo();
+
+                        final base =
+                            _controller.total?.toInt()
+                                ?? 0;
+
+                        await _controller
+                            .createTravelInfo(
+
+                          tipoServicio:
+                          "standard",
+
+                          valorVipExtra: 0,
+
+                          tarifaFinal: base,
+
+                          metodoPago:
+                          _metodoPagoSeleccionado,
+
+                          caracteristicaVehiculo:
+                          _caracteristicaSeleccionada,
+                        );
+
+                        /// 🔥 REINICIAR
+                        _reintentosBusqueda = 0;
+
+                        _controller
+                            .getNearbyDrivers();
+
+                        Future.delayed(
+
+                          const Duration(
+                              milliseconds: 1500),
+
+                              () {
+
+                            if (!mounted) return;
+
+                            _startSearch();
+                          },
+                        );
+                      },
+
+                      child: const Text(
+                        "Buscar servicio estándar",
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 10),
+                  /// 🔴 CANCELAR
+                  SizedBox(
 
-                    const Text(
-                      "No encontramos un conductor disponible 🚕\n\nPuedes intentarlo nuevamente.",
-                      textAlign: TextAlign.center,
+                    width: double.infinity,
+
+                    child: TextButton(
+
+                      onPressed: () {
+
+                        Navigator.pop(context);
+
+                        _controller
+                            .deleteTravelInfo();
+
+                        _timerBusqueda?.cancel();
+
+                        setState(() {
+
+                          isVisibleTarjetaSolicitandoConductor =
+                          false;
+
+                          _isSearching = false;
+                        });
+                      },
+
+                      child: const Text(
+                        "Cancelar",
+                      ),
                     ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text("Entendido"),
                   ),
                 ],
               );
             },
           );
+
+          return;
         }
 
-        return;
-      }
+        /// 🔥 CICLOS
+        _reintentosBusqueda++;
 
-      if (_segundosRestantes == 25) {
-        setState(() {
-          _mensajeBusqueda = "📡 Buscando más conductores...";
-        });
-      }
 
-      if (_segundosRestantes == 15) {
-        setState(() {
-          _mensajeBusqueda = "🚕 Probando con más conductores...";
-        });
-      }
+        /// 🔥 REINTENTO REAL
+        if (_reintentosBusqueda % 18 == 0) {
 
-      if (_segundosRestantes == 8) {
-        setState(() {
-          _mensajeBusqueda = "⚡ Últimos intentos...";
-        });
-      }
+          print(
+              "🔁 Nueva búsqueda automática");
 
-      /// 🔥 CONTADOR NORMAL
-      if (mounted) {
-        setState(() {
-          _segundosRestantes--;
-        });
-      }
-
-    });
+          _controller.getNearbyDrivers();
+        }
+      },
+    );
   }
 
 }

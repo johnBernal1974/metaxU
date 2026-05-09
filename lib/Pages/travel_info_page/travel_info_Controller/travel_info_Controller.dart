@@ -57,6 +57,7 @@ class TravelInfoController{
   List<LatLng> points = List.from([]);
   late BitmapDescriptor fromMarker;
   late BitmapDescriptor toMarker;
+  late BitmapDescriptor driverMarker;
   String? min;
   String? km;
   double? total;
@@ -119,6 +120,8 @@ class TravelInfoController{
   bool get isCalculatingTrip => !canConfirmTrip;
 
   Map<String, Map<String, dynamic>> vehiculosCache = {};
+  Function(int cantidad)?
+  conductoresEncontradosCallback;
 
 
   Future<void> init(BuildContext context, Function refresh) async {
@@ -264,8 +267,14 @@ class TravelInfoController{
     // Crea o actualiza los marcadores
     fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png');
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
+
     addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
     addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
+
+    driverMarker =
+    await createMarkerImageFromAssets(
+      'assets/marker_conductores.png',
+    );
     // Crear los límites para incluir ambos marcadores
     LatLngBounds bounds = LatLngBounds(
       northeast: LatLng(
@@ -847,34 +856,12 @@ class TravelInfoController{
       }
 
       List<String> driversFiltrados = [];
+      /// 🔥 LIMPIAR SOLO TAXIS
+      markers.removeWhere(
 
-      // for (DocumentSnapshot d in documentList) {
-      //   try {
-      //     Map<String, dynamic> positionData = d.get('position');
-      //
-      //     if (positionData.containsKey('geopoint')) {
-      //       GeoPoint geoPoint = positionData['geopoint'];
-      //
-      //       double distanceInMeters = Geolocator.distanceBetween(
-      //         fromLatlng.latitude,
-      //         fromLatlng.longitude,
-      //         geoPoint.latitude,
-      //         geoPoint.longitude,
-      //       );
-      //
-      //       double distanceInKm = distanceInMeters / 1000;
-      //
-      //       print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
-      //
-      //       /// 🔥 FILTRO REAL
-      //       if (distanceInKm <= _radioActual) {
-      //         driversFiltrados.add(d.id);
-      //       }
-      //     }
-      //   } catch (e) {
-      //     print("⚠️ Error driver ${d.id}: $e");
-      //   }
-      // }26 abril 2026 - para filtrar los no activos antes de enviar notificaciones
+            (key, value) =>
+            key.value.startsWith('driver_'),
+      );
 
       for (DocumentSnapshot d in documentList) {
         try {
@@ -903,7 +890,32 @@ class TravelInfoController{
             print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
 
             if (distanceInKm <= _radioActual) {
+
               driversFiltrados.add(d.id);
+
+              /// 🔥 MARKER TAXI
+              final markerId =
+              MarkerId('driver_${d.id}');
+
+              markers[markerId] = Marker(
+
+                markerId: markerId,
+
+                position: LatLng(
+                  geoPoint.latitude,
+                  geoPoint.longitude,
+                ),
+
+                icon: driverMarker,
+
+                anchor: const Offset(0.5, 0.5),
+
+                rotation: 0,
+
+                flat: true,
+
+                zIndex: 2,
+              );
             }
           }
 
@@ -936,6 +948,9 @@ class TravelInfoController{
       }
 
       print("🆕 Conductores encontrados: ${nuevosDrivers.length}");
+      conductoresEncontradosCallback?.call(
+        driversFiltrados.length,
+      );
 
       /// 🔥 precargar vehículos
       for (String driverId in nuevosDrivers) {
@@ -980,6 +995,7 @@ class TravelInfoController{
       }
 
       _isSendingNotifications = false;
+      refresh();
 
     });
   }

@@ -312,8 +312,11 @@ class TravelMapController{
       final geoPoint = pos['geopoint'] as GeoPoint?;
       if (geoPoint == null) return;
 
-      final headingRaw = pos['heading'];
-      final heading = (headingRaw is num) ? headingRaw.toDouble() : 0.0;
+      final headingRaw = data['heading'];
+
+      final heading = (headingRaw is num)
+          ? headingRaw.toDouble()
+          : 0.0;
 
       final newPos = LatLng(geoPoint.latitude, geoPoint.longitude);
       _driverLatlng = newPos;

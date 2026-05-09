@@ -80,7 +80,7 @@ class ClientMapController {
     _pushNotificationsProvider = PushNotificationsProvider();
 
     markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    markerDriver = await createMarkerImageFromAssets('assets/marker_conductores.png');
+    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
 
     checkGPS();
     await obtenerDatos();
@@ -239,45 +239,7 @@ class ClientMapController {
           markerClient,
         );
 
-        // 🔥 Agregar conductores
-        // for (DocumentSnapshot d in documentList) {
-        //   try {
-        //     Map<String, dynamic> positionData = d.get('position');
-        //
-        //     if (positionData.containsKey('geopoint')) {
-        //       GeoPoint geoPoint = positionData['geopoint'];
-        //
-        //       double distanceInMeters = Geolocator.distanceBetween(
-        //         _position!.latitude,
-        //         _position!.longitude,
-        //         geoPoint.latitude,
-        //         geoPoint.longitude,
-        //       );
-        //
-        //       double distanceInKm = distanceInMeters / 1000;
-        //       if (kDebugMode) {
-        //         print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
-        //       }
-        //
-        //       // 🔥 FILTRO REAL POR RADIO
-        //       if (distanceInKm <= radio) {
-        //         addMarkerDriver(
-        //           d.id,
-        //           geoPoint.latitude,
-        //           geoPoint.longitude,
-        //           'Conductor disponible',
-        //           "",
-        //           markerDriver,
-        //         );
-        //       }
-        //
-        //     }
-        //   } catch (e) {
-        //     if (kDebugMode) {
-        //       print("⚠️ Error leyendo posición de driver ${d.id}: $e");
-        //     }
-        //   }
-        // } para filtra los marcadores de vehiculos inactivos 26 abril 2026
+
 
         for (DocumentSnapshot d in documentList) {
           try {
@@ -303,14 +265,34 @@ class ClientMapController {
 
               double distanceInKm = distanceInMeters / 1000;
 
+              double rotation = 0;
+
+              try {
+
+                rotation =
+                    double.tryParse(
+                      data['heading']
+                          ?.toString() ?? '0',
+                    ) ?? 0;
+
+              } catch (_) {}
+
               if (distanceInKm <= radio) {
                 addMarkerDriver(
+
                   d.id,
+
                   geoPoint.latitude,
+
                   geoPoint.longitude,
+
                   'Conductor disponible',
+
                   "",
+
                   markerDriver,
+
+                  rotation: rotation,
                 );
               }
             }
@@ -658,24 +640,46 @@ class ClientMapController {
     markers[id] = marker;
   }
   void addMarkerDriver(
+
       String markerId,
+
       double lat,
+
       double lng,
+
       String title,
+
       String content,
-      BitmapDescriptor iconMarker
-      ) {
+
+      BitmapDescriptor iconMarker, {
+
+        double rotation = 0,
+      }) {
+
     MarkerId id = MarkerId(markerId);
+
     Marker marker = Marker(
+
       markerId: id,
+
       icon: iconMarker,
+
       position: LatLng(lat, lng),
-      infoWindow: InfoWindow(title: title, snippet: content),
+
+      infoWindow: InfoWindow(
+        title: title,
+        snippet: content,
+      ),
+
       draggable: false,
+
       zIndex: 2,
+
       flat: true,
-      anchor: const Offset(0.5, 1.0),
-      // rotation: _position?.heading ?? 0,
+
+      anchor: const Offset(0.5, 0.5),
+
+      rotation: rotation,
     );
 
     markers[id] = marker;

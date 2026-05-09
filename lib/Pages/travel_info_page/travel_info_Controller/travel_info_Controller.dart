@@ -273,7 +273,7 @@ class TravelInfoController{
 
     driverMarker =
     await createMarkerImageFromAssets(
-      'assets/marker_conductores.png',
+      'assets/marker_taxi.png',
     );
     // Crear los límites para incluir ambos marcadores
     LatLngBounds bounds = LatLngBounds(
@@ -893,9 +893,22 @@ class TravelInfoController{
 
               driversFiltrados.add(d.id);
 
+              double rotation = 0;
+
+              try {
+
+                rotation =
+                    double.tryParse(
+                      data['heading']
+                          ?.toString() ?? '0',
+                    ) ?? 0;
+
+              } catch (_) {}
+
               /// 🔥 MARKER TAXI
               final markerId =
               MarkerId('driver_${d.id}');
+
 
               markers[markerId] = Marker(
 
@@ -910,7 +923,7 @@ class TravelInfoController{
 
                 anchor: const Offset(0.5, 0.5),
 
-                rotation: 0,
+                rotation: rotation,
 
                 flat: true,
 
@@ -1003,6 +1016,58 @@ class TravelInfoController{
   bool _tiempoAgotado() {
     if (_deadlineBusqueda == null) return true;
     return DateTime.now().isAfter(_deadlineBusqueda!);
+  }
+
+  double getBearing(
+      LatLng begin,
+      LatLng end,
+      ) {
+
+    double lat =
+    (begin.latitude - end.latitude).abs();
+
+    double lng =
+    (begin.longitude - end.longitude).abs();
+
+    if (begin.latitude < end.latitude &&
+        begin.longitude < end.longitude) {
+
+      return degrees(
+        atan(lng / lat),
+      );
+    }
+
+    else if (begin.latitude >= end.latitude &&
+        begin.longitude < end.longitude) {
+
+      return (90 -
+          degrees(
+            atan(lng / lat),
+          )) + 90;
+    }
+
+    else if (begin.latitude >= end.latitude &&
+        begin.longitude >= end.longitude) {
+
+      return degrees(
+        atan(lng / lat),
+      ) + 180;
+    }
+
+    else if (begin.latitude < end.latitude &&
+        begin.longitude >= end.longitude) {
+
+      return (90 -
+          degrees(
+            atan(lng / lat),
+          )) + 270;
+    }
+
+    return -1;
+  }
+
+  double degrees(double radians) {
+    return radians * 57.295779513;
   }
 
 

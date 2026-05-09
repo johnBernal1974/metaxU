@@ -1497,11 +1497,22 @@ class TravelInfoController{
 
 
   Future<void> createTravelInfo({
+
     required String tipoServicio,
+
     required int valorVipExtra,
+
     required int tarifaFinal,
+
     required String metodoPago,
+
     required String caracteristicaVehiculo,
+
+    String? promocionId,
+
+    int descuentoPromocion = 0,
+
+    int tarifaOriginal = 0,
   }) async {
 
     tipoServicioSolicitado = tipoServicio;
@@ -1521,8 +1532,12 @@ class TravelInfoController{
       toLng: toLatlng.longitude,
 
       tarifa: tarifaFinal.toDouble(),
-      tarifaDescuento: 0,
-      tarifaInicial: tarifaFinal.toDouble(),
+
+      tarifaDescuento:
+      descuentoPromocion.toDouble(),
+
+      tarifaInicial:
+      tarifaOriginal.toDouble(),
 
       distancia: distancia.toDouble(),
       tiempoViaje: tiempoEnMinutos,
@@ -1536,6 +1551,7 @@ class TravelInfoController{
       valorVipExtra: valorVipExtra,
       metodoPago: metodoPago,
       caracteristicaVehiculo: caracteristicaVehiculo,
+      promocionId: promocionId ?? '',
 
       // 🔥 VEHÍCULO (vacío hasta que acepten)
       placa: '',

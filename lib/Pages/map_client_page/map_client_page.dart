@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -13,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/session_manager.dart';
+import '../../models/promocion.dart';
 import '../../providers/client_provider.dart';
 import '../../src/colors/colors.dart';
 import '../Login_page/login_page.dart';
@@ -21,6 +23,7 @@ import 'map_client_controler.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:convert';
+import 'package:shimmer/shimmer.dart';
 
 
 
@@ -32,7 +35,9 @@ class MapClientPage extends StatefulWidget {
   State<MapClientPage> createState() => _MapClientPageState();
 }
 
-class _MapClientPageState extends State<MapClientPage> {
+class _MapClientPageState
+    extends State<MapClientPage>
+    with TickerProviderStateMixin {
   final ClientMapController _controller = ClientMapController();
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
@@ -77,6 +82,13 @@ class _MapClientPageState extends State<MapClientPage> {
   final GlobalKey _cajonKey = GlobalKey();
   double bottomMaps = 0;
 
+  List<Promocion> promocionesActivas = [];
+  late AnimationController _promoController;
+
+  late Animation<double> _giftScale;
+
+  late Animation<double> _borderGlow;
+
 
   void _safeSheetRepaint() {
     if (!_isSheetOpen) return;
@@ -111,6 +123,69 @@ class _MapClientPageState extends State<MapClientPage> {
   @override
   void initState() {
     super.initState();
+
+    _promoController = AnimationController(
+
+      vsync: this,
+
+      duration: const Duration(
+        milliseconds: 1200,
+      ),
+    );
+
+    _giftScale = Tween<double>(
+      begin: 1,
+      end: 1.16,
+    ).animate(
+      CurvedAnimation(
+        parent: _promoController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    _borderGlow = Tween<double>(
+      begin: 0.20,
+      end: 0.45,
+    ).animate(
+      CurvedAnimation(
+        parent: _promoController,
+        curve: Curves.easeInOut,
+      ),
+    );
+
+    /// 🔥 LOOP
+    Future.delayed(
+      const Duration(milliseconds: 600),
+          () {
+
+        Timer.periodic(
+          const Duration(seconds: 3),
+              (timer) async {
+
+            if (!mounted) {
+              timer.cancel();
+              return;
+            }
+
+            /// 🔥 PRIMER DESTELLO
+            await _promoController.forward();
+
+            await _promoController.reverse();
+
+            /// 🔥 SEGUNDO DESTELLO
+            await Future.delayed(
+              const Duration(milliseconds: 180),
+            );
+
+            if (!mounted) return;
+
+            await _promoController.forward();
+
+            await _promoController.reverse();
+          },
+        );
+      },
+    );
 
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       _authProvider = MyAuthProvider();
@@ -152,9 +227,83 @@ class _MapClientPageState extends State<MapClientPage> {
       checkForUpdate();
       _loadSearchHistory();
       _loadFavorites();
+      await _cargarPromociones();
     });
   }
 
+
+  Future<void> _cargarPromociones() async {
+
+    try {
+
+      /// 🔥 Esperar cliente
+      int intentos = 0;
+
+      while (_controller.client == null && intentos < 20) {
+
+        await Future.delayed(
+          const Duration(milliseconds: 300),
+        );
+
+        intentos++;
+      }
+
+      final client = _controller.client;
+
+      if (client == null) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Promociones')
+          .where('activo', isEqualTo: true)
+          .get();
+
+      List<Promocion> promos = [];
+
+      for (var doc in snapshot.docs) {
+
+        final promo = Promocion.fromJson(
+          doc.id,
+          doc.data(),
+        );
+
+        bool mostrar = false;
+
+        /// 🎁 PRIMER VIAJE
+        if (promo.tipo == 'primer_viaje') {
+
+          mostrar = client.viajes == 0;
+        }
+
+        /// 🎂 CUMPLEAÑOS
+        else if (promo.tipo == 'cumpleanos') {
+
+          // luego lo hacemos
+        }
+
+        /// 🔥 REACTIVACION
+        else if (promo.tipo == 'reactivacion') {
+
+          // luego lo hacemos
+        }
+
+        if (mostrar) {
+          promos.add(promo);
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        promocionesActivas = promos;
+      });
+
+    } catch (e) {
+
+      if (kDebugMode) {
+        print('❌ Error promociones: $e');
+      }
+    }
+  }
 
   Future<void> _checkConnection() async {
     await connectionService.checkConnectionAndShowCard(context, () {
@@ -168,6 +317,7 @@ class _MapClientPageState extends State<MapClientPage> {
     SessionManager.stopHeartbeat();
     _debounce?.cancel();
     _controller.dispose();
+    _promoController.dispose();
     super.dispose();
   }
 
@@ -375,6 +525,11 @@ class _MapClientPageState extends State<MapClientPage> {
               padding: EdgeInsets.fromLTRB(15.r, 10.r, 15.r, bottomSafe * 0.5),
               child: Column(
                 children: [
+                  if (promocionesActivas.isNotEmpty)
+                    _sliderPromociones(),
+
+                  if (promocionesActivas.isNotEmpty)
+                    SizedBox(height: 12.r),
 
                   /// BUSCADOR + FAVORITOS
                   Row(
@@ -498,6 +653,395 @@ class _MapClientPageState extends State<MapClientPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _sliderPromociones() {
+
+    return SizedBox(
+      height: 135.r,
+
+      child: ListView.separated(
+
+        scrollDirection: Axis.horizontal,
+
+        itemCount: promocionesActivas.length,
+
+        separatorBuilder: (_, __) =>
+            SizedBox(width: 10.r),
+
+        itemBuilder: (_, index) {
+
+          final promo = promocionesActivas[index];
+
+          return _cardPromocion(promo);
+        },
+      ),
+    );
+  }
+
+  Widget _cardPromocion(
+      Promocion promo,
+      ) {
+
+    return GestureDetector(
+
+      onTap: () {
+        _mostrarDetallePromocion(promo);
+      },
+
+      child: Stack(
+
+        children: [
+
+          /// ✨ SHIMMER BORDER
+          Positioned.fill(
+
+            child: IgnorePointer(
+
+              child: ClipRRect(
+
+                borderRadius:
+                BorderRadius.circular(22.r),
+
+                child: Shimmer.fromColors(
+
+                  period:
+                  const Duration(seconds: 3),
+
+                  baseColor:
+                  Colors.transparent,
+
+                  highlightColor:
+                  Colors.white.withOpacity(0.75),
+
+                  direction:
+                  ShimmerDirection.ltr,
+
+                  child: Container(
+
+                    decoration: BoxDecoration(
+
+                      borderRadius:
+                      BorderRadius.circular(22.r),
+
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          /// 🔥 CARD
+          AnimatedBuilder(
+
+            animation: _promoController,
+
+            builder: (_, __) {
+
+              return Container(
+
+                width: 320.r,
+
+                padding: EdgeInsets.all(14.r),
+
+                decoration: BoxDecoration(
+
+                  color: Colors.white,
+
+                  borderRadius:
+                  BorderRadius.circular(22.r),
+
+                  border: Border.all(
+
+                    color: Colors.green.withOpacity(
+                      _borderGlow.value.clamp(0.0, 1.0),
+                    ),
+
+                    width: 2.5,
+                  ),
+
+                  boxShadow: [
+
+                    /// NORMAL
+                    BoxShadow(
+
+                      color: Colors.black.withOpacity(0.08),
+
+                      blurRadius: 10,
+
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+
+                child: Row(
+                  children: [
+
+                    /// 🎁 REGALO
+                    Container(
+
+                      height: 68.r,
+                      width: 68.r,
+
+                      padding: EdgeInsets.all(2.r),
+
+                      decoration: BoxDecoration(
+
+                        color:
+                        primary.withOpacity(0.12),
+
+                        borderRadius:
+                        BorderRadius.circular(18.r),
+                      ),
+
+                      child: ScaleTransition(
+
+                        scale: _giftScale,
+
+                        child: Image.asset(
+                          'assets/${promo.imagen}',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(width: 12.r),
+
+                    /// 📝 INFO
+                    Expanded(
+
+                      child: Column(
+
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+
+                        mainAxisAlignment:
+                        MainAxisAlignment.center,
+
+                        children: [
+
+                          Text(
+
+                            promo.titulo,
+
+                            style: TextStyle(
+                              fontSize: 14.r,
+                              fontWeight: FontWeight.w900,
+                              color: negro,
+                            ),
+                          ),
+
+                          SizedBox(height: 4.r),
+
+                          Text(
+
+                            promo.descripcion,
+
+                            maxLines: 2,
+
+                            overflow:
+                            TextOverflow.ellipsis,
+
+                            style: TextStyle(
+                              fontSize: 12.r,
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+
+                          SizedBox(height: 6.r),
+
+                          Text(
+
+                            '\$${NumberFormat('#,###', 'es_CO').format(promo.bono)}',
+
+                            style: TextStyle(
+                              fontSize: 14.r,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDetallePromocion(
+      Promocion promo,
+      ) {
+
+    final formato = NumberFormat.currency(
+      locale: 'es_CO',
+      symbol: '\$',
+      decimalDigits: 0,
+    );
+
+    showModalBottomSheet(
+
+      context: context,
+
+      backgroundColor: Colors.transparent,
+
+      isScrollControlled: true,
+
+      builder: (_) {
+
+        return Container(
+
+          padding: EdgeInsets.all(22.r),
+
+          decoration: BoxDecoration(
+            color: Colors.white,
+
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(30.r),
+            ),
+          ),
+
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+
+              Container(
+                width: 45,
+                height: 5,
+
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+
+                  borderRadius:
+                  BorderRadius.circular(20),
+                ),
+              ),
+
+              SizedBox(height: 20.r),
+
+              Image.asset(
+                'assets/${promo.imagen}',
+                height: 90.r,
+              ),
+
+              SizedBox(height: 15.r),
+
+              Text(
+                promo.titulo,
+
+                style: TextStyle(
+                  fontSize: 22.r,
+                  fontWeight: FontWeight.w900,
+                  color: negro,
+                ),
+              ),
+
+              SizedBox(height: 10.r),
+
+              Text(
+                promo.descripcion,
+
+                textAlign: TextAlign.center,
+
+                style: TextStyle(
+                  fontSize: 15.r,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+
+              SizedBox(height: 15.r),
+
+              Container(
+
+                padding: EdgeInsets.all(16.r),
+
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.1),
+
+                  borderRadius:
+                  BorderRadius.circular(18.r),
+                ),
+
+                child: Column(
+                  children: [
+
+                    Text(
+                      'Valor del bono',
+
+                      style: TextStyle(
+                        fontSize: 13.r,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    SizedBox(height: 5.r),
+
+                    Text(
+                      '\$${NumberFormat('#,###', 'es_CO').format(promo.bono)}',
+
+                      style: TextStyle(
+                        fontSize: 26.r,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 22.r),
+
+              SizedBox(
+                width: double.infinity,
+
+                child: ElevatedButton(
+
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+
+                    padding: EdgeInsets.symmetric(
+                      vertical: 14.r,
+                    ),
+
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(18.r),
+                    ),
+                  ),
+
+                  child: Text(
+                    'Entendido',
+
+                    style: TextStyle(
+                      fontSize: 15.r,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 10.r),
+            ],
+          ),
+        );
+      },
     );
   }
 

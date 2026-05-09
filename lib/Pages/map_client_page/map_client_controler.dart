@@ -526,13 +526,56 @@ class ClientMapController {
         }
       } else {
         if (context.mounted) {
-          Navigator.pushNamed(context, "travel_info_page", arguments: {
-            'from': from,
-            'to': to,
-            'fromlatlng': fromlatlng,
-            'tolatlng': tolatlng,
-            'navKey': DateTime.now().microsecondsSinceEpoch.toString(),
-          });
+          Map<String, dynamic>? promocion;
+
+          try {
+
+            final snapshot = await FirebaseFirestore.instance
+                .collection('Promociones')
+                .where('activo', isEqualTo: true)
+                .limit(1)
+                .get();
+
+            if (snapshot.docs.isNotEmpty) {
+
+              final doc = snapshot.docs.first;
+
+              if (doc['tipo'] == 'primer_viaje'
+                  && c.viajes == 0) {
+
+                promocion = {
+                  'id': doc.id,
+                  ...doc.data(),
+                };
+              }
+            }
+
+          } catch(e) {
+            print("❌ Error promo: $e");
+          }
+          Navigator.pushNamed(
+            context,
+            "travel_info_page",
+
+            arguments: {
+
+              'from': from,
+
+              'to': to,
+
+              'fromlatlng': fromlatlng,
+
+              'tolatlng': tolatlng,
+
+              'navKey':
+              DateTime.now()
+                  .microsecondsSinceEpoch
+                  .toString(),
+
+              'promocion_aplicada':
+              promocion,
+            },
+          );
         }
       }
     } else {

@@ -37,6 +37,8 @@ class TravelInfo {
   // 🔥 NUEVO (CLAVE)
   String tipoVehiculoServicio; // Público / Operación nacional
 
+  String promocionId;
+
   TravelInfo({
     required this.id,
     required this.status,
@@ -70,6 +72,7 @@ class TravelInfo {
     required this.color,
     required this.tipoVehiculo,
     required this.tipoVehiculoServicio,
+    required this.promocionId,
   });
 
   factory TravelInfo.fromJson(Map<String, dynamic> json) => TravelInfo(
@@ -107,6 +110,7 @@ class TravelInfo {
 
     // 🔥 NUEVO
     tipoVehiculoServicio: json["tipoVehiculoServicio"] ?? '',
+    promocionId: json["promocion_id"] ?? '',
   );
 
   Map<String, dynamic> toJson() => {
@@ -142,5 +146,6 @@ class TravelInfo {
     "color": color,
     "tipoVehiculo": tipoVehiculo,
     "tipoVehiculoServicio": tipoVehiculoServicio,
+    "promocion_id": promocionId,
   };
 }

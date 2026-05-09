@@ -12,6 +12,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../helpers/FormValidators.dart';
 import '../../helpers/conectivity_service.dart';
 import '../../helpers/header_text.dart';
+import '../../models/promocion.dart';
 import '../../src/colors/colors.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -32,6 +33,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   late bool isVisibleTarjetaEncomiendas = false;
   late bool isVisibleTarjetaSolicitandoConductor = false;
   late String formattedTarifa;
+  late String formattedTarifaFinal;
   int? tarifa;
   bool _isSearching = false;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
@@ -67,6 +69,12 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   int _reintentosBusqueda = 0;
   String _mensajeBusqueda = "Buscando conductores cercanos...";
 
+  Promocion? promocionAplicada;
+
+  int descuentoPromocion = 0;
+
+  int tarifaFinalConDescuento = 0;
+
 
 
   @override
@@ -81,6 +89,27 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         if (mounted) setState(() => _loadingRoute = true);
 
         await _controller.init(context, refresh);
+
+        final args = ModalRoute.of(context)?.settings.arguments
+        as Map<String, dynamic>?;
+
+        if (args != null) {
+
+          final promoMap =
+          args['promocion_aplicada'];
+
+          if (promoMap != null) {
+
+            promocionAplicada =
+                Promocion.fromJson(
+                  promoMap['id'],
+                  promoMap,
+                );
+
+            descuentoPromocion =
+                promocionAplicada!.bono;
+          }
+        }
 
         // ✅ AQUÍ llamas el valor VIP
         await _cargarValorVip();
@@ -138,7 +167,20 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     final esVip = _tipoServicioSeleccionado == 'vip';
 
     tarifa = base + (esVip ? _valorVipExtra : 0);
-    formattedTarifa = FormatUtils.formatCurrency(tarifa!);
+
+    tarifaFinalConDescuento =
+        tarifa! - descuentoPromocion;
+
+    if (tarifaFinalConDescuento < 0) {
+      tarifaFinalConDescuento = 0;
+    }
+    formattedTarifa =
+        FormatUtils.formatCurrency(tarifa!);
+
+    formattedTarifaFinal =
+        FormatUtils.formatCurrency(
+          tarifaFinalConDescuento,
+        );
     String from = _controller.from;
     String to = _controller.to;
     return WillPopScope(
@@ -150,30 +192,393 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         backgroundColor: grisMapa,
         key: _controller.key,
         body: Stack(
+
           children: [
-            Align(
-              alignment: Alignment.topCenter,
-              child: _googleMapsWidget(),
+
+            Column(
+              children: [
+
+                /// 🔥 MAPA DINÁMICO
+                Expanded(
+                  flex: descuentoPromocion > 0 ? 3 : 4,
+
+                  child: _googleMapsWidget(),
+                ),
+
+                /// 🔥 CAJÓN DINÁMICO
+                SafeArea(
+                  top: false,
+
+                  child: AnimatedContainer(
+
+                    duration:
+                    const Duration(milliseconds: 350),
+
+                    curve: Curves.easeInOut,
+
+                    child: isVisibleTarjetaSolicitandoConductor
+
+                        ? _cardSolicitudMinimizada()
+
+                        : _cardInfoViaje(
+                      from,
+                      to,
+                    ),
+                  ),
+                 ),
+
+              ],
             ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              child: _cardInfoViaje(from, to),
-            ),
-          ),
+
+            /// 🔙 BOTÓN
             Align(
               alignment: Alignment.topLeft,
               child: _buttonVolverAtras(),
             ),
 
+            /// 🔥 BUSCANDO CONDUCTOR
             Align(
               alignment: Alignment.bottomCenter,
               child: _tarjetaSolicitandoConductor(),
             ),
           ],
         ),
+      ),
+    );
+  }
 
+  Widget _cardSolicitudMinimizada() {
+
+    return Container(
+
+      width: double.infinity,
+
+      padding: EdgeInsets.only(
+        top: 16.r,
+        left: 20.r,
+        right: 20.r,
+        bottom:
+        MediaQuery.of(context)
+            .padding
+            .bottom + 15.r,
+      ),
+
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(28.r),
+          topRight: Radius.circular(28.r),
+        ),
+
+        boxShadow: [
+
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+
+          /// 🔥 HANDLE
+          Container(
+            width: 45.r,
+            height: 5.r,
+
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius:
+              BorderRadius.circular(20.r),
+            ),
+          ),
+
+          SizedBox(height: 14.r),
+
+          /// DESTINO
+          Row(
+            children: [
+
+              Icon(
+                Icons.location_on,
+                color: primary,
+                size: 18.r,
+              ),
+
+              SizedBox(width: 8.r),
+
+              Expanded(
+                child: Text(
+
+                  _controller.to ?? '',
+
+                  maxLines: 1,
+
+                  overflow:
+                  TextOverflow.ellipsis,
+
+                  style: TextStyle(
+                    fontSize: 14.r,
+                    fontWeight: FontWeight.w800,
+                    color: negro,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 14.r),
+
+          /// TARIFA
+          Container(
+
+            padding: EdgeInsets.symmetric(
+              horizontal: 14.r,
+              vertical: 10.r,
+            ),
+
+            decoration: BoxDecoration(
+
+              color:
+              descuentoPromocion > 0
+                  ? Colors.green.withOpacity(0.08)
+                  : grisMapa,
+
+              borderRadius:
+              BorderRadius.circular(16.r),
+            ),
+
+            child: Row(
+
+              mainAxisAlignment:
+              MainAxisAlignment.spaceBetween,
+
+              children: [
+
+                Text(
+                  descuentoPromocion > 0
+                      ? 'TOTAL PROMO'
+                      : 'TOTAL',
+
+                  style: TextStyle(
+                    fontSize: 12.r,
+                    fontWeight: FontWeight.w800,
+                    color:
+                    descuentoPromocion > 0
+                        ? Colors.green
+                        : Colors.black54,
+                  ),
+                ),
+
+                Text(
+                  formattedTarifaFinal,
+
+                  style: TextStyle(
+                    fontSize: 18.r,
+                    fontWeight: FontWeight.w900,
+
+                    color:
+                    descuentoPromocion > 0
+                        ? Colors.green
+                        : negro,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: 16.r),
+
+          /// CANCELAR
+          SizedBox(
+
+            width: double.infinity,
+            height: 48.r,
+
+            child: ElevatedButton.icon(
+
+              onPressed: () async {
+
+                if (!mounted) return;
+
+                final confirm = await showDialog<bool>(
+
+                  context: context,
+
+                  barrierDismissible: false,
+
+                  builder: (context) {
+
+                    return AlertDialog(
+
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                        BorderRadius.circular(15),
+                      ),
+
+                      title: const Text(
+                        "Cancelar solicitud",
+                      ),
+
+                      content: const Text(
+                        "¿Estás seguro de que quieres cancelar el servicio?",
+                      ),
+
+                      actions: [
+
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(context, false),
+
+                          child: const Text("No"),
+                        ),
+
+                        ElevatedButton(
+
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+
+                          onPressed: () =>
+                              Navigator.pop(context, true),
+
+                          child: const Text(
+                            "Sí, cancelar",
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+
+                if (confirm != true) return;
+
+                final hasInternet =
+                await connectionService
+                    .hasInternetConnection();
+
+                if (!hasInternet) {
+
+                  if(context.mounted){
+
+                    showDialog(
+                      context: context,
+
+                      builder: (_) => AlertDialog(
+
+                        title:
+                        const Text(
+                          "Sin conexión a internet",
+                        ),
+
+                        content: const Text(
+                          "No podemos verificar el estado del servicio.\n\nEs posible que ya haya sido aceptado.",
+                        ),
+
+                        actions: [
+
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(context),
+
+                            child:
+                            const Text("Entendido"),
+                          )
+                        ],
+                      ),
+                    );
+                  }
+
+                  return;
+                }
+
+                final uid =
+                    FirebaseAuth.instance
+                        .currentUser
+                        ?.uid;
+
+                if (uid == null) return;
+
+                final doc = await FirebaseFirestore.instance
+                    .collection('TravelInfo')
+                    .doc(uid)
+                    .get();
+
+                if (!doc.exists) return;
+
+                final status = doc.get('status');
+
+                /// 🔥 TODAVÍA NO ACEPTADO
+                if (status == 'created') {
+
+                  setState(() {
+
+                    isVisibleTarjetaSolicitandoConductor =
+                    false;
+
+                    _isSearching = false;
+                  });
+
+                  await _controller.deleteTravelInfo();
+
+                  _timerBusqueda?.cancel();
+                }
+
+                /// 🔥 YA ACEPTADO
+                else {
+
+                  if (!mounted) return;
+
+                  Navigator.pushNamedAndRemoveUntil(
+
+                    context,
+
+                    'travel_map_page',
+
+                        (route) => false,
+
+                    arguments: uid,
+                  );
+                }
+              },
+
+              icon: Icon(
+                Icons.close,
+                size: 18.r,
+              ),
+
+              label: Text(
+                'Cancelar solicitud',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.r,
+                ),
+              ),
+
+              style: ElevatedButton.styleFrom(
+
+                backgroundColor:
+                Colors.red,
+
+                foregroundColor:
+                Colors.white,
+
+                elevation: 0,
+
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                  BorderRadius.circular(16.r),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -183,13 +588,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       setState(() {
       });
     }
-
   }
 
   Widget _googleMapsWidget() {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.40,
-      child: GoogleMap(
+    return GoogleMap(
         mapType: MapType.normal,
         initialCameraPosition: _controller.initialPosition,
         onMapCreated: _controller.onMapCreated,
@@ -198,8 +600,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         tiltGesturesEnabled: false,
         markers: Set<Marker>.of(_controller.markers.values),
         polylines: _loadingRoute ? {} : _controller.polylines,
-      ),
-    );
+      );
   }
 
 
@@ -228,7 +629,6 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   Widget _cardInfoViaje(String from, String to){
     return Container(
-      height: MediaQuery.of(context).size.height * 0.55,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.only(
@@ -359,18 +759,29 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 /// 💰 TARIFA
                 Flexible(
                   flex: 2,
+
                   child: Container(
                     alignment: Alignment.centerRight,
-                    padding: EdgeInsets.symmetric(horizontal: 6.r),
+
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 6.r,
+                    ),
+
                     child: Container(
+
                       padding: EdgeInsets.symmetric(
                         horizontal: 12.r,
-                        vertical: 6.r,
+                        vertical: 8.r,
                       ),
+
                       decoration: BoxDecoration(
+
                         color: Colors.white,
+
                         borderRadius: BorderRadius.circular(20.r),
+
                         boxShadow: [
+
                           BoxShadow(
                             color: Colors.black.withOpacity(0.08),
                             offset: const Offset(0, 2),
@@ -378,14 +789,52 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                           ),
                         ],
                       ),
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: headerText(
-                          text: formattedTarifa,
-                          fontSize: 18.r,
-                          color: Colors.black,
-                          fontWeight: FontWeight.w900,
-                        ),
+
+                      child: Column(
+                        crossAxisAlignment:
+                        CrossAxisAlignment.end,
+
+                        mainAxisSize: MainAxisSize.min,
+
+                        children: [
+
+                          Text(
+
+                            descuentoPromocion > 0
+                                ? 'PROMO'
+                                : 'Total',
+
+                            style: TextStyle(
+
+                              fontSize: 10.r,
+
+                              color: descuentoPromocion > 0
+                                  ? Colors.green
+                                  : Colors.black54,
+
+                              fontWeight: FontWeight.w900,
+
+                              letterSpacing:
+                              descuentoPromocion > 0
+                                  ? 0.5
+                                  : 0,
+                            ),
+                          ),
+
+                          SizedBox(height: 2.r),
+
+                          headerText(
+                            text: formattedTarifaFinal,
+
+                            fontSize: 20.r,
+
+                            color: descuentoPromocion > 0
+                                ? Colors.green
+                                : Colors.black,
+
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -423,7 +872,10 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
             child: _textApuntes(),
           ),
 
-          Expanded(child: Container()),
+          if (descuentoPromocion > 0)
+            _resumenPromocion(),
+
+          SizedBox(height: 12.r),
 
           /// BOTÓN
           Container(
@@ -499,6 +951,146 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               ),
             ),
           )
+        ],
+      ),
+    );
+  }
+
+  Widget _resumenPromocion() {
+
+    return Container(
+
+      margin: EdgeInsets.symmetric(
+        horizontal: 17.r,
+        vertical: 6.r,
+      ),
+
+      padding: EdgeInsets.all(12.r),
+
+      decoration: BoxDecoration(
+
+        color: Colors.green.withOpacity(0.06),
+
+        borderRadius: BorderRadius.circular(18.r),
+
+        border: Border.all(
+          color: Colors.green.withOpacity(0.25),
+        ),
+      ),
+
+      child: Column(
+        children: [
+
+          /// SUBTOTAL
+          Row(
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
+
+            children: [
+
+              Text(
+                'Tarifa estimada',
+
+                style: TextStyle(
+                  fontSize: 13.r,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+
+              Text(
+                formattedTarifa,
+
+                style: TextStyle(
+                  fontSize: 13.r,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 8.r),
+
+          /// BONO
+          Row(
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
+
+            children: [
+
+              Row(
+                children: [
+
+                  Icon(
+                    Icons.local_offer,
+                    color: Colors.green,
+                    size: 16.r,
+                  ),
+
+                  SizedBox(width: 5.r),
+
+                  Text(
+                    'Bono MetaX',
+
+                    style: TextStyle(
+                      fontSize: 13.r,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+
+              Text(
+                '- ${FormatUtils.formatCurrency(descuentoPromocion)}',
+
+                style: TextStyle(
+                  fontSize: 14.r,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 12.r),
+
+          Divider(
+            color: Colors.green.withOpacity(0.2),
+            height: 1,
+          ),
+
+          SizedBox(height: 12.r),
+
+          /// TOTAL FINAL
+          Row(
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
+
+            children: [
+
+              Text(
+                'Total a pagar',
+
+                style: TextStyle(
+                  fontSize: 15.r,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.black,
+                ),
+              ),
+
+              Text(
+                formattedTarifaFinal,
+
+                style: TextStyle(
+                  fontSize: 17.r,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -816,15 +1408,34 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
     final base = _controller.total?.toInt() ?? 0;
     final esVip = _tipoServicioSeleccionado == 'vip';
-    final tarifaFinal = base + (esVip ? _valorVipExtra : 0);
+    final tarifaFinal = tarifaFinalConDescuento;
 
     /// 🔥 3. CREAR VIAJE
     _controller.createTravelInfo(
-      tipoServicio: _tipoServicioSeleccionado,
-      valorVipExtra: esVip ? _valorVipExtra : 0,
-      tarifaFinal: tarifaFinal,
-      metodoPago: _metodoPagoSeleccionado,
-      caracteristicaVehiculo: _caracteristicaSeleccionada,
+
+      tipoServicio:
+      _tipoServicioSeleccionado,
+
+      valorVipExtra:
+      esVip ? _valorVipExtra : 0,
+
+      tarifaFinal:
+      tarifaFinalConDescuento,
+
+      metodoPago:
+      _metodoPagoSeleccionado,
+
+      caracteristicaVehiculo:
+      _caracteristicaSeleccionada,
+
+      promocionId:
+      promocionAplicada?.id,
+
+      descuentoPromocion:
+      descuentoPromocion,
+
+      tarifaOriginal:
+      tarifa!,
     );
 
     /// 🔥 4. INICIAR BÚSQUEDA
@@ -837,239 +1448,111 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       return Container(); // Retorna un widget vacío si el widget ya no está montado
     }
     return Visibility(
-      visible: isVisibleTarjetaSolicitandoConductor,
-      child: Container(
-        height: double.infinity,
-        padding: EdgeInsets.only(top: 50.r, left: 30.r, right: 30.r),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30.r),
-            topRight: Radius.circular(30.r),
-          ),
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              primary,
-              blancoCards,
-            ],
-            stops: [0.0, 0.5], // 👈 mitad y mitad
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: negro.withOpacity(0.4),
-              offset: Offset(0, 8.r),
-              blurRadius: 9.r,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
 
-            SizedBox(height: 10.r),
-            Image.asset("assets/imagen_taxi.png", height: 100),
-            Column(
-              children: [
-                Text(
-                  "Buscando un taxi\nque te lleve a:",
-                  style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 24.r, // 🔽 más compacto
-                      color: negro,
-                      height: 1.1
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+      visible:
+      isVisibleTarjetaSolicitandoConductor,
 
-                SizedBox(height: 8.r),
-                const Divider(color: Colors.black54, height: 1),
+      child: IgnorePointer(
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(width: 4.r),
-                    Flexible(
-                      child: Text(
-                        _controller.to ?? '', // 👈 destino
-                        style: TextStyle(
-                          fontSize: 14.r,
-                          color: negro,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 3,
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                if (_isSearching)
-                  SpinKitRipple(
-                    color: primary,
-                    size: 200.r,
-                  ),
-                Image.asset(
-                  'assets/metax_logo.png',
-                  width: 80.r,
-                  height: 80.r,
-                ),
+        ignoring: true,
 
-              ],
-            ),
-            Column(
-              children: [
-                Text(
-                  _mensajeBusqueda,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14.r,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  '${_segundosRestantes}s',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18.r,
-                    color: negro,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 50.r),
-        ElevatedButton(
-          onPressed: () async {
-            if (!mounted) return;
+        child: Center(
 
-            final confirm = await showDialog<bool>(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) {
-                return AlertDialog(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  title: const Text("Cancelar solicitud"),
-                  content: const Text(
-                    "¿Estás seguro de que quieres cancelar el servicio?",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text("No"),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text("Sí, cancelar"),
-                    ),
-                  ],
-                );
-              },
-            );
+          child: Column(
 
-            // 👉 Si dijo NO
-            if (confirm != true) return;
-
-            final hasInternet = await connectionService.hasInternetConnection();
-
-            if (!hasInternet) {
-              if(context.mounted){
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text("Sin conexión a internet"),
-                    content: const Text(
-                        "No podemos verificar el estado del servicio.\n\nEs posible que ya haya sido aceptado."
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Entendido"),
-                      )
-                    ],
-                  ),
-                );
-              }
-
-              return;
-            }
-
-            // 🔥 VALIDAR EN FIRESTORE
-            final uid = FirebaseAuth.instance.currentUser?.uid;
-
-            if (uid == null) return;
-
-            final doc = await FirebaseFirestore.instance
-                .collection('TravelInfo')
-                .doc(uid)
-                .get();
-
-            if (!doc.exists) return;
-
-            final status = doc.get('status');
-
-            // 🟢 CASO 1: AÚN NO ACEPTADO
-            if (status == 'created') {
-              setState(() {
-                isVisibleTarjetaSolicitandoConductor = false;
-                _isSearching = false;
-              });
-
-              await _controller.deleteTravelInfo();
-              _timerBusqueda?.cancel();
-            }
-
-            // 🔴 CASO 2: YA ACEPTADO
-            else {
-              if (!mounted) return;
-
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                'travel_map_page',
-                    (route) => false,
-                arguments: uid,
-              );
-            }
-          },
-
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.r),
-            ),
-            padding: EdgeInsets.symmetric(horizontal: 16.r, vertical: 12.r),
-          ),
-
-          child: Row(
             mainAxisSize: MainAxisSize.min,
+
             children: [
-              Icon(Icons.cancel_outlined, size: 20.r),
-              SizedBox(width: 8.r),
-              Text(
-                'Cancelar solicitud',
-                style: TextStyle(
-                  fontSize: 14.r,
-                  fontWeight: FontWeight.w600,
+
+              Stack(
+
+                alignment: Alignment.center,
+
+                children: [
+
+                  if (_isSearching)
+
+                    SpinKitRipple(
+                      color: primary,
+                      size: 170.r,
+                    ),
+
+                  Container(
+
+                    width: 28.r,
+                    height: 28.r,
+
+                    decoration: BoxDecoration(
+
+                      color: primary,
+
+                      shape: BoxShape.circle,
+
+                      boxShadow: [
+
+                        BoxShadow(
+                          color:
+                          primary.withOpacity(0.35),
+
+                          blurRadius: 14,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 18.r),
+
+              Container(
+
+                padding: EdgeInsets.symmetric(
+                  horizontal: 18.r,
+                  vertical: 12.r,
+                ),
+
+                decoration: BoxDecoration(
+
+                  color: Colors.white,
+
+                  borderRadius:
+                  BorderRadius.circular(18.r),
+
+                  boxShadow: [
+
+                    BoxShadow(
+                      color:
+                      Colors.black.withOpacity(0.08),
+
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+
+                child: Column(
+
+                  children: [
+
+                    Text(
+                      _mensajeBusqueda,
+
+                      textAlign: TextAlign.center,
+
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.r,
+                        color: negro,
+                      ),
+                    ),
+
+                    SizedBox(height: 5.r),
+
+                  ],
                 ),
               ),
             ],
           ),
-        )
-
-          ],
         ),
       ),
     );

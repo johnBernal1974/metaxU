@@ -117,7 +117,7 @@ class ClientMapController {
       currentLocation = LatLng(_position!.latitude, _position!.longitude);
       initialPosition = CameraPosition(
         target: LatLng(_position!.latitude, _position!.longitude),
-        zoom: 20.0,
+        zoom: 16.0,
       );
     }
     saveToken();

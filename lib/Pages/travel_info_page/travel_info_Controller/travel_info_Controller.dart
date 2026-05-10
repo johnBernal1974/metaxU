@@ -1612,7 +1612,10 @@ class TravelInfoController{
       toLat: toLatlng.latitude,
       toLng: toLatlng.longitude,
 
-      tarifa: tarifaFinal.toDouble(),
+      tarifa: tarifaOriginal.toDouble(),
+
+      totalClientePaga:
+      tarifaFinal.toDouble(),
 
       tarifaDescuento:
       descuentoPromocion.toDouble(),

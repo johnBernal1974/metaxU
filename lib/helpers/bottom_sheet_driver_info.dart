@@ -6,6 +6,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../providers/driver_provider.dart';
 import '../models/driver.dart';
 import '../models/client.dart';
+import '../providers/client_provider.dart';
 import '../src/colors/colors.dart';
 
 class BottomSheetDriverInfo extends StatefulWidget {
@@ -43,6 +44,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
   Client? client;
   Driver? driver;
   late DriverProvider _driverProvider;
+  late ClientProvider _clientProvider;
   late MyAuthProvider _authProvider;
   String tipoServicio = '';
 
@@ -63,7 +65,9 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     super.initState();
     _driverProvider = DriverProvider();
     _authProvider = MyAuthProvider();
+    _clientProvider = ClientProvider();
     getDriverInfo();
+    getClientInfo();
     getDriverRatingFromDoc();
   }
 
@@ -358,6 +362,22 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     );
   }
 
+  void getClientInfo() async {
+
+    final user =
+    _authProvider.getUser();
+
+    if (user == null) return;
+
+    client =
+    await _clientProvider
+        .getById(user.uid);
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Widget _iconBox({required Widget child}) {
     return Container(
       width: 48,
@@ -401,9 +421,17 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
 
   void _openWhatsApp(BuildContext context) async {
     final phoneNumber = '+57${widget.celular}';
-    String? name = driver?.the01Nombres;
-    String? nameUser = widget.name;
-    String message = 'Hola $nameUser, mi nombre es $name y soy el conductor que aceptó tu solicitud.';
+    String conductorNombre =
+        driver?.the01Nombres ?? '';
+
+    String clienteNombre =
+        client?.nombres ?? '';
+
+    String message =
+
+        'Hola $conductorNombre, '
+        'soy $clienteNombre y me acabas de aceptar '
+        'una solicitud de viaje en Meta X.';
 
     final whatsappLink = Uri.parse('whatsapp://send?phone=$phoneNumber&text=${Uri.encodeQueryComponent(message)}');
 

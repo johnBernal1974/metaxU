@@ -488,16 +488,122 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
                   Row(
                     children: [
-                      const Icon(Icons.payments_outlined,
-                          color: Colors.green),
-                      const SizedBox(width: 6),
-                      Text(
-                        "\$ ${formatCurrency.format(_controller.travelInfo?.tarifa ?? 0)}",
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                      (_controller.travelInfo
+                          ?.tarifaDescuento ?? 0) > 0
+
+                          ? Container(
+
+                        padding:
+                        const EdgeInsets.all(6),
+
+                        decoration: BoxDecoration(
+
+                          color: Colors.green
+                              .withOpacity(0.08),
+
+                          borderRadius:
+                          BorderRadius.circular(12),
                         ),
+
+                        child: Image.asset(
+
+                          'assets/regalo.png',
+
+                          width: 24,
+
+                          height: 24,
+                        ),
+                      )
+
+                          : const Icon(
+
+                        Icons.payments_outlined,
+
+                        color: Colors.green,
+
+                        size: 24,
                       ),
+                      const SizedBox(width: 6),
+                      Builder(
+
+                        builder: (_) {
+
+                          final total =
+
+                              _controller
+                                  .travelInfo
+                                  ?.totalClientePaga
+
+                                  ??
+
+                                  0;
+
+                          final descuento =
+
+                              _controller
+                                  .travelInfo
+                                  ?.tarifaDescuento
+
+                                  ??
+
+                                  0;
+
+                          final esGratis =
+                              total <= 0;
+
+                          final tienePromo =
+                              descuento > 0;
+
+                          return Column(
+
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+
+                            children: [
+
+                              if (tienePromo && !esGratis)
+
+                                const Text(
+
+                                  'Solo debes pagar',
+
+                                  style: TextStyle(
+
+                                    fontSize: 10,
+
+                                    fontWeight:
+                                    FontWeight.w700,
+
+                                    color: Colors.black,
+                                  ),
+                                ),
+
+                              Text(
+
+                                esGratis
+
+                                    ? 'Viaje gratis 🎉'
+
+                                    : "\$ ${formatCurrency.format(total)}",
+
+                                style: TextStyle(
+
+                                  fontSize:
+                                  esGratis ? 18 : 22,
+
+                                  fontWeight:
+                                  FontWeight.w900,
+
+                                  color:
+                                  esGratis
+                                      ? Colors.green
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      )
                     ],
                   ),
 

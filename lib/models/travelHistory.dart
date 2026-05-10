@@ -22,9 +22,12 @@ class TravelHistory {
   Timestamp? finalViaje;
   double tarifa;
   double tarifaDescuento;
+
+  bool bonoPagado;
   double tarifaInicial;
   double calificacionAlConductor;
   double calificacionAlCliente;
+  double? totalClientePaga;
 
   TravelHistory({
     required this.id,
@@ -41,9 +44,11 @@ class TravelHistory {
     required this.finalViaje,
     required this.tarifa,
     required this.tarifaDescuento,
+    required this.bonoPagado,
     required this.tarifaInicial,
     required this.calificacionAlConductor,
     required this.calificacionAlCliente,
+    this.totalClientePaga,
   });
 
   factory TravelHistory.fromJson(Map<String, dynamic> json) => TravelHistory(
@@ -71,9 +76,15 @@ class TravelHistory {
 
     tarifa: (json["tarifa"] ?? 0).toDouble(),
     tarifaDescuento: (json["tarifaDescuento"] ?? 0).toDouble(),
+    bonoPagado: json["bonoPagado"] ?? false,
     tarifaInicial: (json["tarifaInicial"] ?? 0).toDouble(),
     calificacionAlConductor: (json["calificacionAlConductor"] ?? 0).toDouble(),
     calificacionAlCliente: (json["calificacionAlCliente"] ?? 0).toDouble(),
+    totalClientePaga:
+    json["totalClientePaga"] != null
+        ? (json["totalClientePaga"] as num)
+        .toDouble()
+        : 0.0,
   );
 
 
@@ -92,8 +103,10 @@ class TravelHistory {
     "finalViaje": finalViaje,
     "tarifa": tarifa,
     "tarifaDescuento": tarifaDescuento,
+    "bonoPagado": bonoPagado,
     "tarifaInicial": tarifaInicial,
     "calificacionAlConductor": calificacionAlConductor,
     "calificacionAlCliente": calificacionAlCliente,
+    "totalClientePaga":totalClientePaga,
   };
 }

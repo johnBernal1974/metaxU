@@ -370,38 +370,231 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
 
 
   Widget _tarifa() {
+
     final formatter = NumberFormat.currency(
+
       locale: 'es_CO',
-      symbol: '', // sin símbolo
+
+      symbol: '',
+
       decimalDigits: 0,
+
       name: '',
+
       customPattern: '#,##0',
     );
 
+    final tarifa =
+        _controller.travelHistory?.tarifa ?? 0;
+
+    final tarifaInicial =
+        _controller.travelHistory?.tarifaInicial
+            ?? tarifa;
+
+    final descuento =
+        _controller.travelHistory?.tarifaDescuento
+            ?? 0;
+
+    final totalClientePaga =
+        _controller.travelHistory?.totalClientePaga
+            ?? tarifa;
+
+    final tienePromo =
+        descuento > 0;
+
+    final esGratis =
+        totalClientePaga <= 0;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+
+      crossAxisAlignment:
+      CrossAxisAlignment.start,
+
       children: [
+
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+
+          padding: const EdgeInsets.symmetric(
+
+            horizontal: 15,
+
+            vertical: 10,
+          ),
+
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+
             children: [
+
               const Text(
-                'Tarifa',
+
+                'Valor del viaje',
+
                 style: TextStyle(
+
                   color: negro,
+
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
+
+                  fontWeight:
+                  FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 4),
+
               Text(
-                '\$ ${formatter.format(_controller.travelHistory?.tarifa ?? 0)}',
+
+                '\$ ${formatter.format(tarifaInicial)}',
+
                 style: const TextStyle(
+
                   color: negroLetras,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
+
+                  fontSize: 13,
+
+                  fontWeight:
+                  FontWeight.w800,
                 ),
               ),
+
+              if (tienePromo) ...[
+
+                const SizedBox(height: 14),
+
+                Container(
+
+                  width: double.infinity,
+
+                  padding:
+                  const EdgeInsets.all(12),
+
+                  decoration: BoxDecoration(
+
+                    color:
+                    Colors.green.withOpacity(
+                      0.08,
+                    ),
+
+                    borderRadius:
+                    BorderRadius.circular(14),
+
+                    border: Border.all(
+
+                      color:
+                      Colors.green.withOpacity(
+                        0.15,
+                      ),
+                    ),
+                  ),
+
+                    child: Column(
+
+                      crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                      children: [
+
+                        Row(
+
+                          children: [
+
+                            const Icon(
+
+                              Icons.card_giftcard,
+
+                              color: Colors.green,
+
+                              size: 18,
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            Expanded(
+
+                              child: Text(
+
+                                esGratis
+
+                                    ? '¡Tu viaje fue gratis!'
+
+                                    : 'MetaX cubrió parte de tu viaje',
+
+                                style: const TextStyle(
+
+                                  fontWeight:
+                                  FontWeight.w900,
+
+                                  color:
+                                  Colors.green,
+
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        Text(
+
+                          'Bono MetaX: '
+                              '\$ ${formatter.format(descuento)}',
+
+                          style: const TextStyle(
+
+                            fontSize: 11,
+
+                            color: negro,
+                          ),
+                        ),
+
+                        const SizedBox(height: 10),
+
+                        if (!esGratis)
+
+                          const Text(
+
+                            'Solo debías pagar',
+
+                            style: TextStyle(
+
+                              fontSize: 11,
+
+                              fontWeight:
+                              FontWeight.w700,
+
+                              color: Colors.green,
+                            ),
+                          ),
+
+                        const SizedBox(height: 4),
+
+                        Text(
+
+                          esGratis
+
+                              ? 'Total pagado: GRATIS 🎉'
+
+                              : '\$ ${formatter.format(totalClientePaga)}',
+
+                          style: const TextStyle(
+
+                            fontSize: 14,
+
+                            fontWeight:
+                            FontWeight.w900,
+
+                            color: negro,
+                          ),
+                        ),
+                      ],
+                    )
+                ),
+              ],
             ],
           ),
         ),

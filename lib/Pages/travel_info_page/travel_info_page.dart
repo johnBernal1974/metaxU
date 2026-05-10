@@ -27,17 +27,12 @@ class ClientTravelInfoPage extends StatefulWidget {
 class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
   final TravelInfoController _controller = Get.put(TravelInfoController());
-  late bool isVisibleCheckCarro = true;
-  late bool isVisibleCheckMoto = false;
-  late bool isVisibleCheckEncomienda = false;
-  late bool isVisibleTarjetaEncomiendas = false;
   late bool isVisibleTarjetaSolicitandoConductor = false;
   late String formattedTarifa;
   late String formattedTarifaFinal;
   int? tarifa;
   bool _isSearching = false;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
-  String? tipoServicio ;
   late bool isVisibleCajonApuntesAlConductor = false;
   final TextEditingController _con = TextEditingController();
   String? apuntesAlConductor;
@@ -178,24 +173,56 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   @override
   Widget build(BuildContext context) {
     ScreenUtil.init(context, designSize: const Size(375, 812));
-    final base = _controller.total?.toInt() ?? 0;
+    final base =
+
+    _controller.total == null
+
+        ? null
+
+        : _controller.total!.toInt();
     final esVip = _tipoServicioSeleccionado == 'vip';
 
-    tarifa = base + (esVip ? _valorVipExtra : 0);
+    tarifa =
 
-    tarifaFinalConDescuento =
-        tarifa! - descuentoPromocion;
+    base == null
 
-    if (tarifaFinalConDescuento < 0) {
+        ? null
+
+        : base + (esVip ? _valorVipExtra : 0);
+
+    if (tarifa == null) {
+
       tarifaFinalConDescuento = 0;
+
+    } else {
+
+      tarifaFinalConDescuento =
+          tarifa! - descuentoPromocion;
+
+      if (tarifaFinalConDescuento < 0) {
+
+        tarifaFinalConDescuento = 0;
+      }
     }
     formattedTarifa =
-        FormatUtils.formatCurrency(tarifa!);
+
+    tarifa == null
+
+        ? ''
+
+        : FormatUtils.formatCurrency(
+      tarifa!,
+    );
 
     formattedTarifaFinal =
-        FormatUtils.formatCurrency(
-          tarifaFinalConDescuento,
-        );
+
+    tarifa == null
+
+        ? ''
+
+        : FormatUtils.formatCurrency(
+      tarifaFinalConDescuento,
+    );
     String from = _controller.from;
     String to = _controller.to;
     return WillPopScope(
@@ -391,10 +418,20 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                 ),
 
                 Text(
-                  formattedTarifaFinal,
+
+                  tarifaFinalConDescuento <= 0
+
+                      ? 'Gratis 🎉'
+
+                      : formattedTarifaFinal,
 
                   style: TextStyle(
-                    fontSize: 18.r,
+
+                    fontSize:
+                    tarifaFinalConDescuento <= 0
+                        ? 16.r
+                        : 18.r,
+
                     fontWeight: FontWeight.w900,
 
                     color:
@@ -402,7 +439,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                         ? Colors.green
                         : negro,
                   ),
-                ),
+                )
               ],
             ),
           ),
@@ -839,16 +876,30 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                           SizedBox(height: 2.r),
 
                           headerText(
-                            text: formattedTarifaFinal,
 
-                            fontSize: 20.r,
+                            text:
+
+                            tarifa == null
+
+                                ? 'Calculando...'
+
+                                : tarifaFinalConDescuento <= 0
+
+                                ? 'Gratis 🎉'
+
+                                : formattedTarifaFinal,
+
+                            fontSize:
+                            tarifaFinalConDescuento <= 0
+                                ? 16.r
+                                : 20.r,
 
                             color: descuentoPromocion > 0
                                 ? Colors.green
                                 : Colors.black,
 
                             fontWeight: FontWeight.w900,
-                          ),
+                          )
                         ],
                       ),
                     ),
@@ -1096,14 +1147,28 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
               ),
 
               Text(
-                formattedTarifaFinal,
+
+                tarifa == null
+
+                    ? 'Calculando...'
+
+                    : tarifaFinalConDescuento <= 0
+
+                    ? 'Viaje gratis 🎉'
+
+                    : formattedTarifaFinal,
 
                 style: TextStyle(
-                  fontSize: 17.r,
+
+                  fontSize: tarifaFinalConDescuento <= 0
+                      ? 15.r
+                      : 17.r,
+
                   fontWeight: FontWeight.w900,
+
                   color: Colors.green,
                 ),
-              ),
+              )
             ],
           ),
         ],
@@ -1421,9 +1486,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       });
     }
 
-    final base = _controller.total?.toInt() ?? 0;
     final esVip = _tipoServicioSeleccionado == 'vip';
-    final tarifaFinal = tarifaFinalConDescuento;
 
     /// 🔥 3. CREAR VIAJE
     _controller.createTravelInfo(
@@ -1699,8 +1762,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
                             .deleteTravelInfo();
 
                         final base =
-                            _controller.total?.toInt()
-                                ?? 0;
+                            _controller.total?.toInt() ?? 0;
 
                         await _controller
                             .createTravelInfo(

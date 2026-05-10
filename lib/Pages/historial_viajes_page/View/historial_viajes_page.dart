@@ -175,7 +175,12 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                       fechaViaje: fechaFormateada,
                       tarifa: item.tarifa,
                       travelId: item.travelHistoryId,   // ✅ el real
-                      numeroViaje: item.numeroViaje,    // ✅ número
+                      numeroViaje: item.numeroViaje,
+                      tarifaInicial: item.tarifaInicial,
+
+                      tarifaDescuento: item.tarifaDescuento,
+
+                      totalClientePaga: item.totalClientePaga,// ✅ número
                     );
                   },
                 ),
@@ -816,11 +821,22 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
 
   // ✅ card con borrar (ocultar)
   Widget _historyCard({
+
     required String destino,
+
     required String fechaViaje,
+
     required double tarifa,
+
+    required double tarifaInicial,
+
+    required double tarifaDescuento,
+
+    required double totalClientePaga,
+
     required String travelId,
-    required String numeroViaje, // ✅ String
+
+    required String numeroViaje,
   }) {
     final formatter = NumberFormat.currency(
       locale: 'es_CO',
@@ -829,6 +845,11 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
       name: '',
       customPattern: '\u00A4#,##0',
     );
+    final tienePromo =
+        tarifaDescuento > 0;
+
+    final esGratis =
+        totalClientePaga <= 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -933,6 +954,80 @@ class _HistorialViajesPageState extends State<HistorialViajesPage> {
                   ),
 
                   const SizedBox(height: 8),
+                  if (tienePromo)
+
+                    Container(
+
+                      margin: const EdgeInsets.only(
+                        top: 6,
+                        bottom: 4,
+                      ),
+
+                      padding: const EdgeInsets.symmetric(
+
+                        horizontal: 10,
+
+                        vertical: 5,
+                      ),
+
+                      decoration: BoxDecoration(
+
+                        color:
+                        Colors.green.withOpacity(
+                          0.12,
+                        ),
+
+                        borderRadius:
+                        BorderRadius.circular(20),
+
+                        border: Border.all(
+
+                          color:
+                          Colors.green.withOpacity(
+                            0.2,
+                          ),
+                        ),
+                      ),
+
+                      child: Row(
+
+                        mainAxisSize:
+                        MainAxisSize.min,
+
+                        children: [
+
+                          const Icon(
+
+                            Icons.card_giftcard,
+
+                            color: Colors.green,
+
+                            size: 15,
+                          ),
+
+                          const SizedBox(width: 5),
+
+                          Text(
+
+                            esGratis
+
+                                ? 'Viaje gratis'
+
+                                : 'Viaje con promoción',
+
+                            style: const TextStyle(
+
+                              color: Colors.green,
+
+                              fontSize: 10,
+
+                              fontWeight:
+                              FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const Divider(height: 1, color: gris),
                   const SizedBox(height: 6),
 

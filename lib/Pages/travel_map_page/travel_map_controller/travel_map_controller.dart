@@ -80,16 +80,14 @@ class TravelMapController{
   //bool isConnected = false;
   StreamSubscription<ConnectivityResult>? _connectivitySubscription;
 
-
-  bool _audioTaxiLlegadoYaReproducido = false;
-  bool _audioConductorHaCanceladoYaReproducido = false;
-
   //evitar traergetdriverinfo dos veces
   bool _didLoadTravel = false;
 
   //para calificacion
   double? ratingAvg;
   int ratingCount = 0;
+
+  bool _soundTaxiLlegadaPlayed = false;
 
   Future? init(BuildContext context, Function refresh) async {
     this.context = context;
@@ -164,9 +162,27 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'client_notificado':
-          await SoundManager().playTaxiLlegada();
-          currentStatus = 'El Conductor ha llegado';
-          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
+
+          if (!_soundTaxiLlegadaPlayed) {
+
+            _soundTaxiLlegadaPlayed = true;
+
+            await SoundManager()
+                .playTaxiLlegada();
+          }
+
+          currentStatus =
+          'El Conductor ha llegado';
+
+          addMarker(
+            'from',
+            travelInfo!.fromLat,
+            travelInfo!.fromLng,
+            'Recoger aquí',
+            '',
+            fromMarker,
+          );
+
           break;
         case 'started':
           currentStatus = 'El Viaje ha iniciado';

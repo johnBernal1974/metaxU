@@ -202,18 +202,178 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
     );
   }
 
-  Widget _tarifa (){
+  Widget _tarifa() {
+
+    final tarifa =
+
+        _controller.travelHistory
+            ?.tarifaInicial
+
+            ??
+
+            _controller.travelHistory
+                ?.tarifa
+
+            ??
+
+            0;
+
+    final descuento =
+        _controller.travelHistory
+            ?.tarifaDescuento ?? 0;
+
+    final totalCliente =
+        _controller.travelHistory
+            ?.totalClientePaga
+            ?? tarifa;
+
+    final tienePromo = descuento > 0;
+
+    final esGratis =
+        totalCliente <= 0;
+
     return Container(
-      padding: const EdgeInsets.only(left: 25, right: 25),
+
+      margin: const EdgeInsets.symmetric(
+        horizontal: 20,
+      ),
+
+      padding: const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius:
+        BorderRadius.circular(20),
+
+        boxShadow: [
+
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+
       child: Column(
+
         children: [
-          const Text('Tarifa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: negro)),
-          Text(tarifaFormatted ?? '', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
+
+          if (tienePromo) ...[
+
+            _itemCobro(
+              'Valor del viaje',
+              tarifa,
+            ),
+
+            Padding(
+
+              padding:
+              const EdgeInsets.symmetric(
+                vertical: 10,
+              ),
+
+              child: _itemCobro(
+
+                'Bono MetaX',
+
+                -descuento,
+
+                color: Colors.green,
+              ),
+            ),
+
+            const Divider(),
+
+            _itemCobro(
+
+              esGratis
+                  ? 'Viaje gratis'
+                  : 'Debes pagar',
+
+              totalCliente,
+
+              isTotal: true,
+            ),
+
+          ] else ...[
+
+            _itemCobro(
+
+              'Debes pagar',
+
+              tarifa,
+
+              isTotal: true,
+            ),
+          ],
         ],
       ),
     );
   }
 
+  Widget _itemCobro(
+
+      String titulo,
+
+      double valor, {
+
+        Color color = Colors.black,
+
+        bool isTotal = false,
+      }) {
+
+    final formatter = NumberFormat(
+      '#,###',
+      'es_CO',
+    );
+
+    return Row(
+
+      mainAxisAlignment:
+      MainAxisAlignment.spaceBetween,
+
+      children: [
+
+        Text(
+
+          titulo,
+
+          style: TextStyle(
+
+            fontSize:
+            isTotal ? 16 : 14,
+
+            fontWeight:
+            isTotal
+                ? FontWeight.w900
+                : FontWeight.w600,
+
+            color: Colors.black87,
+          ),
+        ),
+
+        Text(
+
+          valor <= 0 && isTotal
+              ? 'GRATIS'
+              : '\$ ${formatter.format(valor)}',
+
+          style: TextStyle(
+
+            fontSize:
+            isTotal ? 24 : 16,
+
+            fontWeight: FontWeight.w900,
+
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _botones() {
     return Container(

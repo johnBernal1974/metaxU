@@ -38,6 +38,7 @@ class TravelInfo {
   String tipoVehiculoServicio; // Público / Operación nacional
 
   String promocionId;
+  double? totalClientePaga;
 
   TravelInfo({
     required this.id,
@@ -73,6 +74,7 @@ class TravelInfo {
     required this.tipoVehiculo,
     required this.tipoVehiculoServicio,
     required this.promocionId,
+    this.totalClientePaga,
   });
 
   factory TravelInfo.fromJson(Map<String, dynamic> json) => TravelInfo(
@@ -111,6 +113,11 @@ class TravelInfo {
     // 🔥 NUEVO
     tipoVehiculoServicio: json["tipoVehiculoServicio"] ?? '',
     promocionId: json["promocion_id"] ?? '',
+    totalClientePaga:
+    json['totalClientePaga'] != null
+        ? (json['totalClientePaga'] as num).toDouble()
+        : 0.0,
+
   );
 
   Map<String, dynamic> toJson() => {
@@ -147,5 +154,6 @@ class TravelInfo {
     "tipoVehiculo": tipoVehiculo,
     "tipoVehiculoServicio": tipoVehiculoServicio,
     "promocion_id": promocionId,
+    'totalClientePaga': totalClientePaga,
   };
 }

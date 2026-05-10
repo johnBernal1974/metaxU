@@ -24,7 +24,10 @@ class ClientTravelInfoPage extends StatefulWidget {
   State<ClientTravelInfoPage> createState() => _ClientTravelInfoPageState();
 }
 
-class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
+class _ClientTravelInfoPageState
+    extends State<ClientTravelInfoPage>
+
+    with TickerProviderStateMixin {
 
   final TravelInfoController _controller = Get.put(TravelInfoController());
   late bool isVisibleTarjetaSolicitandoConductor = false;
@@ -43,6 +46,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   String _metodoPagoSeleccionado = 'Efectivo';
 
   String _caracteristicaSeleccionada = 'No';
+  late AnimationController _waveController;
 
   final List<String> _caracteristicasVehiculo = [
     'No', // 👈 default
@@ -71,61 +75,101 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   int tarifaFinalConDescuento = 0;
 
 
-
+  bool buscandoConductor = false;
 
 
   @override
   void initState() {
+
     super.initState();
+
+    /// 🔥 WAVES
+    _waveController = AnimationController(
+
+      vsync: this,
+
+      duration: const Duration(
+        milliseconds: 4200,
+      ),
+    )..repeat();
 
     _loadingRoute = true;
 
-    SchedulerBinding.instance.addPostFrameCallback((_) async {
-      await connectionService.checkConnectionAndShowCard(context, () async {
+    SchedulerBinding.instance
+        .addPostFrameCallback((_) async {
 
-        if (mounted) setState(() => _loadingRoute = true);
+      await connectionService
+          .checkConnectionAndShowCard(
 
-        await _controller.init(context, refresh);
+        context,
 
-        _controller
-            .conductoresEncontradosCallback =
-            (cantidad) {
+            () async {
 
-          if (!mounted) return;
-
-          setState(() {
-
-            _conductoresConsultados =
-                cantidad;
-          });
-        };
-
-        final args = ModalRoute.of(context)?.settings.arguments
-        as Map<String, dynamic>?;
-
-        if (args != null) {
-
-          final promoMap =
-          args['promocion_aplicada'];
-
-          if (promoMap != null) {
-
-            promocionAplicada =
-                Promocion.fromJson(
-                  promoMap['id'],
-                  promoMap,
-                );
-
-            descuentoPromocion =
-                promocionAplicada!.bono;
+          if (mounted) {
+            setState(() {
+              _loadingRoute = true;
+            });
           }
-        }
 
-        // ✅ AQUÍ llamas el valor VIP
-        await _cargarValorVip();
+          await _controller.init(
+            context,
+            refresh,
+          );
 
-        if (mounted) setState(() => _loadingRoute = false);
-      });
+          _controller
+              .conductoresEncontradosCallback =
+
+              (cantidad) {
+
+            if (!mounted) return;
+
+            setState(() {
+
+              _conductoresConsultados =
+                  cantidad;
+            });
+          };
+
+          final args =
+          ModalRoute.of(context)
+              ?.settings
+              .arguments
+
+          as Map<String, dynamic>?;
+
+          if (args != null) {
+
+            final promoMap =
+            args['promocion_aplicada'];
+
+            if (promoMap != null) {
+
+              promocionAplicada =
+                  Promocion.fromJson(
+
+                    promoMap['id'],
+
+                    promoMap,
+                  );
+
+              descuentoPromocion =
+                  promocionAplicada!
+                      .bono;
+            }
+          }
+
+          /// ✅ CARGAR VIP
+          await _cargarValorVip();
+
+          if (mounted) {
+
+            setState(() {
+
+              _loadingRoute = false;
+            });
+          }
+        },
+      );
     });
   }
 
@@ -167,6 +211,7 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
   void dispose() {
     _timerBusqueda?.cancel();
     _controller.dispose();
+    _waveController.dispose();
     super.dispose();
   }
 
@@ -650,8 +695,35 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
         rotateGesturesEnabled: false,
         zoomControlsEnabled: false,
         tiltGesturesEnabled: false,
-        markers: Set<Marker>.of(_controller.markers.values),
-        polylines: _loadingRoute ? {} : _controller.polylines,
+      markers:
+
+      isVisibleTarjetaSolicitandoConductor
+
+          ? {
+
+        if (_controller.markers.containsKey(
+          const MarkerId('from'),
+        ))
+
+          _controller.markers[
+          const MarkerId('from')
+          ]!,
+      }
+
+          : Set<Marker>.of(
+        _controller.markers.values,
+      ),
+      polylines:
+
+      isVisibleTarjetaSolicitandoConductor
+
+          ? {}
+
+          : _loadingRoute
+
+          ? {}
+
+          : _controller.polylines,
       );
   }
 
@@ -1400,32 +1472,58 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
     _startSearch();
 
     /// 🔥 1. VALIDAR SI HAY CONDUCTORES ANTES DE TODO
-    bool hayConductores = await _controller.hayConductoresEnRadio();
+    bool hayConductores =
+    await _controller.hayConductoresEnRadio();
 
     if (!hayConductores) {
 
       if (mounted) {
+
         setState(() {
-          isVisibleTarjetaSolicitandoConductor = false;
+
+          isVisibleTarjetaSolicitandoConductor =
+          false;
+
           _isSearching = false;
         });
       }
-      if(context.mounted){
+
+      if (context.mounted) {
+
         showDialog(
+
           context: context,
+
           builder: (context) {
+
             return AlertDialog(
+
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+
+                borderRadius:
+                BorderRadius.circular(16),
               ),
-              contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+
+              contentPadding:
+              const EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                10,
+              ),
+
               content: Column(
-                mainAxisSize: MainAxisSize.min,
+
+                mainAxisSize:
+                MainAxisSize.min,
+
                 children: [
 
-                  /// 🔥 LOGO METAX
+                  /// 🔥 LOGO
                   Image.asset(
+
                     'assets/metax_logo.png',
+
                     height: 70,
                   ),
 
@@ -1433,10 +1531,17 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
                   /// 🔥 TÍTULO
                   const Text(
+
                     "Sin taxis cercanos",
-                    textAlign: TextAlign.center,
+
+                    textAlign:
+                    TextAlign.center,
+
                     style: TextStyle(
-                      fontWeight: FontWeight.w900,
+
+                      fontWeight:
+                      FontWeight.w900,
+
                       fontSize: 18,
                     ),
                   ),
@@ -1445,27 +1550,49 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
                   /// 🔥 MENSAJE
                   const Text(
+
                     "No hay taxis disponibles cerca en este momento 🚕\n\nPuedes intentarlo nuevamente en unos segundos.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14),
+
+                    textAlign:
+                    TextAlign.center,
+
+                    style:
+                    TextStyle(fontSize: 14),
                   ),
                 ],
               ),
 
-              /// 🔥 BOTÓN
-              actionsAlignment: MainAxisAlignment.center,
+              actionsAlignment:
+              MainAxisAlignment.center,
+
               actions: [
+
                 SizedBox(
+
                   width: double.infinity,
+
                   child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+
+                    style:
+                    TextButton.styleFrom(
+
+                      padding:
+                      const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ),
                     ),
-                    onPressed: () => Navigator.pop(context),
+
+                    onPressed: () =>
+                        Navigator.pop(context),
+
                     child: const Text(
+
                       "Entendido",
+
                       style: TextStyle(
-                        fontWeight: FontWeight.w700,
+
+                        fontWeight:
+                        FontWeight.w700,
                       ),
                     ),
                   ),
@@ -1479,14 +1606,29 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
       return;
     }
 
-    /// 🔥 2. SOLO SI HAY CONDUCTORES → MOSTRAR UI
+    /// 🔥 2. SOLO SI HAY CONDUCTORES
     if (mounted) {
+
+      /// 🔥 ACTIVAR MODO BÚSQUEDA
+      _controller.buscandoConductor = true;
+
       setState(() {
-        isVisibleTarjetaSolicitandoConductor = true;
+
+        isVisibleTarjetaSolicitandoConductor =
+        true;
       });
     }
 
-    final esVip = _tipoServicioSeleccionado == 'vip';
+    /// 🔥 CENTRAR MAPA EN ORIGEN
+    await _controller.animateCameraToPosition(
+
+      _controller.fromLatlng.latitude,
+
+      _controller.fromLatlng.longitude,
+    );
+
+    final esVip =
+        _tipoServicioSeleccionado == 'vip';
 
     /// 🔥 3. CREAR VIAJE
     _controller.createTravelInfo(
@@ -1518,13 +1660,14 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
     /// 🔥 4. INICIAR BÚSQUEDA
     _controller.getNearbyDrivers();
-
   }
 
   Widget _tarjetaSolicitandoConductor() {
+
     if (!mounted) {
-      return Container(); // Retorna un widget vacío si el widget ya no está montado
+      return Container();
     }
+
     return Visibility(
 
       visible:
@@ -1536,98 +1679,233 @@ class _ClientTravelInfoPageState extends State<ClientTravelInfoPage> {
 
         child: Center(
 
-          child: Column(
+          child: Stack(
 
-            mainAxisSize: MainAxisSize.min,
+            alignment: Alignment.center,
 
             children: [
 
-              Stack(
+              /// 🔥 OLAS CENTRADAS REALES
+              Positioned.fill(
 
-                alignment: Alignment.center,
+                child: Builder(
 
-                children: [
+                  builder: (_) {
 
-                  if (_isSearching)
+                    /// 🔥 ALTURA APROX DEL CAJÓN
+                    final bottomSheetHeight = 260.r;
 
-                    SpinKitRipple(
+                    return Transform.translate(
 
-                      color: primary.withOpacity(0.85),
-
-                      size: 240.r,
-                    ),
-
-                ],
-              ),
-
-              SizedBox(height: 18.r),
-
-              Container(
-
-                padding: EdgeInsets.symmetric(
-                  horizontal: 18.r,
-                  vertical: 12.r,
-                ),
-
-                decoration: BoxDecoration(
-
-                  color: Colors.white,
-
-                  borderRadius:
-                  BorderRadius.circular(18.r),
-
-                  boxShadow: [
-
-                    BoxShadow(
-                      color:
-                      Colors.black.withOpacity(0.08),
-
-                      blurRadius: 10,
-                    ),
-                  ],
-                ),
-
-                child: Column(
-
-                  children: [
-
-                    Text(
-
-                      'Buscando un conductor...',
-
-                      textAlign: TextAlign.center,
-
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.r,
-                        color: negro,
+                      offset: Offset(
+                        0,
+                        -(bottomSheetHeight / 2),
                       ),
-                    ),
 
-                    SizedBox(height: 5.r),
-                    if (_conductoresConsultados > 0)
+                      child: Center(
 
-                      Text(
+                        child: AnimatedBuilder(
 
-                        '$_conductoresConsultados '
-                            '${_conductoresConsultados == 1 ? 'taxi cercano' : 'taxis cercanos'}',
+                          animation: _waveController,
 
-                        style: TextStyle(
+                          builder: (_, __) {
 
-                          fontSize: 12.r,
+                            return Stack(
 
-                          color: Colors.black54,
+                              alignment: Alignment.center,
 
-                          fontWeight: FontWeight.w600,
+                              children: [
+
+                                _buildWave(
+                                  _waveController.value,
+                                  0.32,
+                                ),
+
+                                _buildWave(
+                                  (_waveController.value + 0.33) % 1,
+                                  0.24,
+                                ),
+
+                                _buildWave(
+                                  (_waveController.value + 0.66) % 1,
+                                  0.16,
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
+                    );
+                  },
+                ),
+              ),
 
-                  ],
+              /// 🔥 TARJETA INDEPENDIENTE
+              Positioned(
+
+                top: 60.r,
+
+                left: 0,
+
+                right: 0,
+
+                child: Center(
+
+                  child: Container(
+
+                    padding: EdgeInsets.symmetric(
+
+                      horizontal: 18.r,
+
+                      vertical: 12.r,
+                    ),
+
+                    decoration: BoxDecoration(
+
+                      color: Colors.white,
+
+                      borderRadius:
+                      BorderRadius.circular(
+                        18.r,
+                      ),
+
+                      boxShadow: [
+
+                        BoxShadow(
+
+                          color:
+                          Colors.black.withOpacity(
+                            0.08,
+                          ),
+
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+
+                    child: Column(
+
+                      mainAxisSize:
+                      MainAxisSize.min,
+
+                      children: [
+
+                        Text(
+
+                          'Buscando un conductor...',
+
+                          textAlign: TextAlign.center,
+
+                          style: TextStyle(
+
+                            fontWeight:
+                            FontWeight.w800,
+
+                            fontSize: 14.r,
+
+                            color: negro,
+                          ),
+                        ),
+
+                        SizedBox(height: 5.r),
+
+                        if (_conductoresConsultados > 0)
+
+                          Text(
+
+                            '$_conductoresConsultados '
+                                '${_conductoresConsultados == 1 ? 'taxi cercano' : 'taxis cercanos'}',
+
+                            style: TextStyle(
+
+                              fontSize: 12.r,
+
+                              color: Colors.black54,
+
+                              fontWeight:
+                              FontWeight.w600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWave(
+
+      double progress,
+
+      double opacity,
+      ) {
+
+    final screenWidth =
+        MediaQuery.of(context)
+            .size
+            .width;
+
+    final size =
+
+        120 +
+
+            (screenWidth * 1.8 * progress);
+
+    return Container(
+
+      width: size,
+
+      height: size,
+
+      decoration: BoxDecoration(
+
+        shape: BoxShape.circle,
+
+        color:
+        const Color(0xFFBDBDBD)
+            .withOpacity(
+
+          (1 - progress) *
+              opacity *
+              0.14,
+        ),
+
+        border: Border.all(
+
+          color:
+          const Color(0xFFBDBDBD)
+              .withOpacity(
+
+            (1 - progress) *
+                opacity,
+          ),
+
+          width: 10,
+        ),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color:
+            const Color(0xFFBDBDBD)
+                .withOpacity(
+
+              (1 - progress) *
+                  opacity *
+                  0.25,
+            ),
+
+            blurRadius: 35,
+
+            spreadRadius: 8,
+          ),
+        ],
       ),
     );
   }

@@ -109,6 +109,8 @@ class TravelInfoController{
   Timer? _timerExpansion;
   int tiempoEsperaPorteria = 10;
 
+  bool buscandoConductor = false;
+
 
   // ✅ listo solo si ya hay ruta y tarifa
   bool get canConfirmTrip {
@@ -263,37 +265,145 @@ class TravelInfoController{
 
 
   Future<void> updateMap() async {
-    clearMap();
-    // Crea o actualiza los marcadores
-    fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
 
-    addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
-    addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
+    clearMap();
+
+    fromMarker =
+    await createMarkerImageFromAssets(
+      'assets/ubicacion_client.png',
+    );
+
+    toMarker =
+    await createMarkerImageFromAssets(
+      'assets/marker_destino.png',
+    );
 
     driverMarker =
     await createMarkerImageFromAssets(
       'assets/marker_taxi.png',
     );
-    // Crear los límites para incluir ambos marcadores
-    LatLngBounds bounds = LatLngBounds(
-      northeast: LatLng(
-        fromLatlng.latitude > toLatlng.latitude ? fromLatlng.latitude : toLatlng.latitude,
-        fromLatlng.longitude > toLatlng.longitude ? fromLatlng.longitude : toLatlng.longitude,
-      ),
-      southwest: LatLng(
-        fromLatlng.latitude < toLatlng.latitude ? fromLatlng.latitude : toLatlng.latitude,
-        fromLatlng.longitude < toLatlng.longitude ? fromLatlng.longitude : toLatlng.longitude,
-      ),
-    );
-    // Ajustar los límites con un margen extra
-    bounds = _extendBounds(bounds, fromLatlng);
-    bounds = _extendBounds(bounds, toLatlng);
-    // Ajustar la cámara del mapa a los límites calculados
-    if(context.mounted){
-      await fitBounds(bounds, context);
+
+    /// 🔥 SOLO ORIGEN
+    if (buscandoConductor) {
+
+      addMarker(
+
+        'from',
+
+        fromLatlng.latitude,
+
+        fromLatlng.longitude,
+
+        'Origen',
+
+        '',
+
+        fromMarker,
+      );
+
+      refresh();
+
+      await Future.delayed(
+        const Duration(milliseconds: 200),
+      );
+
+      await animateCameraToPosition(
+
+        fromLatlng.latitude,
+
+        fromLatlng.longitude,
+      );
+
+      return;
     }
 
+    /// 🔥 VIAJE NORMAL
+    addMarker(
+
+      'from',
+
+      fromLatlng.latitude,
+
+      fromLatlng.longitude,
+
+      'Origen',
+
+      '',
+
+      fromMarker,
+    );
+
+    addMarker(
+
+      'to',
+
+      toLatlng.latitude,
+
+      toLatlng.longitude,
+
+      'Destino',
+
+      '',
+
+      toMarker,
+    );
+
+    LatLngBounds bounds = LatLngBounds(
+
+      northeast: LatLng(
+
+        fromLatlng.latitude >
+            toLatlng.latitude
+
+            ? fromLatlng.latitude
+
+            : toLatlng.latitude,
+
+        fromLatlng.longitude >
+            toLatlng.longitude
+
+            ? fromLatlng.longitude
+
+            : toLatlng.longitude,
+      ),
+
+      southwest: LatLng(
+
+        fromLatlng.latitude <
+            toLatlng.latitude
+
+            ? fromLatlng.latitude
+
+            : toLatlng.latitude,
+
+        fromLatlng.longitude <
+            toLatlng.longitude
+
+            ? fromLatlng.longitude
+
+            : toLatlng.longitude,
+      ),
+    );
+
+    bounds =
+        _extendBounds(
+          bounds,
+          fromLatlng,
+        );
+
+    bounds =
+        _extendBounds(
+          bounds,
+          toLatlng,
+        );
+
+    if (context.mounted) {
+
+      await fitBounds(
+        bounds,
+        context,
+      );
+    }
   }
   void clearMap() {
     polylines.clear(); // Limpia todas las polilíneas actuales
@@ -803,6 +913,7 @@ class TravelInfoController{
 
   void getNearbyDrivers() {
 
+    buscandoConductor = true;
     _permitirStandard = false;
 
     /// 🔥 RESET SOLO AL INICIO
@@ -1234,96 +1345,6 @@ class TravelInfoController{
     return completer.future;
   }
 
-
-  // Future<void> _attemptToSendNotification(List<String> driverIds, int index) async {
-  //
-  //   if (_tiempoAgotado()) {
-  //     print("⛔ Tiempo global agotado (NORMAL), detener notificaciones");
-  //     notifiedDrivers.clear();
-  //     return;
-  //   }
-  //
-  //   if (index >= driverIds.length) {
-  //
-  //     print("🏁 Fin de lista de conductores");
-  //
-  //     /// 🔥 marcar que ya intentamos todos los VIP
-  //     if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip" && !_permitirStandard) {
-  //       yaIntentoTodosLosVIP = true;
-  //       print("⚠️ Ya se intentaron todos los VIP");
-  //     }
-  //
-  //     return;
-  //   }
-  //
-  //   String driverId = driverIds[index];
-  //
-  //   if (notifiedDrivers.contains(driverId)) {
-  //     return await _attemptToSendNotification(driverIds, index + 1);
-  //   }
-  //
-  //   notifiedDrivers.add(driverId);
-  //
-  //   print("Enviando notificación al conductor $driverId");
-  //
-  //   try {
-  //
-  //     Driver? driver = await _driverProvider.getById(driverId);
-  //
-  //     print("🧍 tipoServicioSolicitado*******************: $tipoServicioSolicitado");
-  //
-  //     // 🔥 VALIDACIÓN VIP (YA SIN FIRESTORE)
-  //     if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
-  //
-  //       final vehiculoData = vehiculosCache[driverId];
-  //
-  //       // 🔥 SI NO HAY VEHÍCULO EN CACHE → SALTAR
-  //       if (vehiculoData == null) {
-  //         print("❌ Vehículo no cargado en cache");
-  //         return await _attemptToSendNotification(driverIds, index + 1);
-  //       }
-  //
-  //       final soportaVIP = vehiculoData['soportaVIP'] ?? false;
-  //
-  //       // 🔥 BLOQUEO SOLO EN FASE VIP
-  //       if (!_permitirStandard && !soportaVIP) {
-  //         print("⛔ Conductor no VIP (fase 1)");
-  //         return await _attemptToSendNotification(driverIds, index + 1);
-  //       }
-  //
-  //       // 🔥 FALLBACK
-  //       if (_permitirStandard) {
-  //         print("⚠️ Fallback activo → permitiendo estándar");
-  //       }
-  //     }
-  //
-  //     // 🔥 ENVÍO NOTIFICACIÓN
-  //     if (driver?.token != null && driver!.token.isNotEmpty) {
-  //
-  //       bool accepted = await sendNotification(driver.token);
-  //
-  //       if (accepted) {
-  //         serviceAccepted = true;
-  //
-  //         _timeoutBusqueda?.cancel();
-  //         _streamSubscription?.cancel();
-  //
-  //         notifiedDrivers.clear();
-  //
-  //         return;
-  //       }
-  //     }
-  //
-  //   } catch (e) {
-  //     print("Error driver: $e");
-  //   }
-  //
-  //   /// 🔥 continuar secuencia CONTROLADA
-  //   return await _attemptToSendNotification(driverIds, index + 1);
-  // } cambio para enviar e 2 conductores a la vez 26 abril de 2026
-
-
-
   Future<void> _attemptToSendNotification(List<String> driverIds, int index) async {
 
     // 🔥 STOP inmediato si ya aceptaron
@@ -1506,6 +1527,7 @@ class TravelInfoController{
         if (travelInfo.status == 'accepted') {
           serviceAccepted = true; // Detener el envío de notificaciones
 
+          buscandoConductor = false;
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const TravelMapPage()),

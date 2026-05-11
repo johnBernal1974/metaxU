@@ -699,18 +699,22 @@ class _ClientTravelInfoPageState
 
       isVisibleTarjetaSolicitandoConductor
 
-          ? {
+          ?
 
-        if (_controller.markers.containsKey(
-          const MarkerId('from'),
-        ))
+      Set<Marker>.of(
 
-          _controller.markers[
-          const MarkerId('from')
-          ]!,
-      }
+        _controller.markers.values.where(
 
-          : Set<Marker>.of(
+              (marker) =>
+
+          marker.markerId.value !=
+              'to',
+        ),
+      )
+
+          :
+
+      Set<Marker>.of(
         _controller.markers.values,
       ),
       polylines:

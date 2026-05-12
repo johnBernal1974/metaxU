@@ -47,6 +47,7 @@ class _MapClientPageState
   late bool isVisibleiconoLineaVertical = true;
   late bool isVisibleEspacio = true;
   late bool isVisiblePinBusquedaDestino = false;
+  late bool isEditingFrom = false;
   late bool isVisibleBotonPinBusquedaDestino = true;
   late bool isVisibleCerrarIconoBuscarenMapa = false;
   late bool isVisibleCajoncambiandoDireccionDestino = false;
@@ -88,6 +89,9 @@ class _MapClientPageState
   late Animation<double> _giftScale;
 
   late Animation<double> _borderGlow;
+
+  late bool isVisibleEditarOrigen = false;
+  late bool pinSaltando = false;
 
 
   void _safeSheetRepaint() {
@@ -399,16 +403,18 @@ class _MapClientPageState
                     ),
 
                     _cajonCambiandoDirecciondeDestino(),
+                    _cajonEditarOrigen(),
+
                   ],
                 ),
               ),
 
               _iconBuscarEnElMapaDestino(),
 
-              Align(
-                alignment: Alignment.topRight,
-                child: _botonBuscarEnElMapaDestino(),
-              ),
+              // Align(
+              //   alignment: Alignment.topRight,
+              //   child: _botonBuscarEnElMapaDestino(),
+              // ),
 
               Visibility(
                 visible: isLoading,
@@ -479,41 +485,174 @@ class _MapClientPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
 
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/ubicacion_client.png',
-                        height: 15,
-                        width: 15,
-                      ),
-                      const SizedBox(width: 5),
-                      const Text(
-                        'Estás aquí',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: negro,
-                        ),
-                      ),
-                    ],
-                  ),
+                  Container(
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _controller.from ?? '',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: negro,
-                            height: 1,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    padding: const EdgeInsets.symmetric(
+
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+
+                    decoration: BoxDecoration(
+
+                      color: Colors.white,
+
+                      borderRadius:
+                      BorderRadius.circular(18),
+
+                      border: Border.all(
+
+                        color: Colors.grey.shade300,
                       ),
-                    ],
+
+                      boxShadow: [
+
+                        BoxShadow(
+
+                          color:
+                          Colors.black.withOpacity(
+                            0.05,
+                          ),
+
+                          blurRadius: 6,
+
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+
+                    child: Row(
+
+                      children: [
+
+                        /// 📍 ICONO
+                        Image.asset(
+
+                          'assets/ubicacion_client.png',
+
+                          height: 18,
+
+                          width: 18,
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        /// 🔥 TEXTOS
+                        Expanded(
+
+                          child: Column(
+
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+
+                            children: [
+
+                              const Text(
+
+                                'Lugar de recogida',
+
+                                style: TextStyle(
+
+                                  fontSize: 11,
+
+                                  fontWeight:
+                                  FontWeight.w600,
+
+                                  color: Colors.black54,
+                                ),
+                              ),
+
+                              const SizedBox(height: 2),
+
+                              Text(
+
+                                _controller.from ?? '',
+
+                                style: const TextStyle(
+
+                                  fontSize: 14,
+
+                                  fontWeight:
+                                  FontWeight.w900,
+
+                                  color: negro,
+
+                                  height: 1.1,
+                                ),
+
+                                maxLines: 2,
+
+                                overflow:
+                                TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        /// ✏️ EDITAR
+                        GestureDetector(
+
+                          onTap: () async {
+
+                            final hasConnection =
+
+                            await connectionService
+                                .hasInternetConnection();
+
+                            if (!hasConnection) {
+
+                              alertSinInternet();
+
+                              return;
+                            }
+
+                            setState(() {
+
+                              isEditingFrom = true;
+
+                              isVisiblePinBusquedaDestino =
+                              true;
+
+                              isVisibleADondeVamos =
+                              false;
+
+                              isVisibleEditarOrigen = true;
+
+                              isVisibleBotonPinBusquedaDestino =
+                              false;
+
+                              bottomMaps = 300;
+                            });
+                          },
+
+                          child: Container(
+
+                            width: 38,
+
+                            height: 38,
+
+                            decoration: BoxDecoration(
+
+                              color:
+                              grisClaro.withOpacity(0.6),
+
+                              shape: BoxShape.circle,
+                            ),
+
+                            child: const Icon(
+
+                              Icons.edit_location_alt,
+
+                              size: 20,
+
+                              color: negro,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
                 ],
@@ -1151,6 +1290,449 @@ class _MapClientPageState
   }
 
 
+  Widget _cajonEditarOrigen() {
+
+    final bottomSafe =
+        MediaQuery.of(context)
+            .padding
+            .bottom;
+
+    return Visibility(
+
+      visible:
+      isVisibleEditarOrigen,
+
+      child: Container(
+
+        width: double.infinity,
+
+        decoration: BoxDecoration(
+
+          borderRadius:
+          BorderRadius.only(
+
+            topLeft:
+            Radius.circular(30.r),
+
+            topRight:
+            Radius.circular(30.r),
+          ),
+
+          color: Colors.white,
+
+          boxShadow: [
+
+            BoxShadow(
+
+              color:
+              negro.withOpacity(0.4),
+
+              offset:
+              Offset(0, 8.r),
+
+              blurRadius: 9.r,
+            ),
+          ],
+        ),
+
+        child: Column(
+
+          mainAxisSize:
+          MainAxisSize.min,
+
+          children: [
+
+            /// 🔥 HEADER
+            Container(
+
+              width: double.infinity,
+
+              padding:
+              EdgeInsets.symmetric(
+
+                vertical: 16.r,
+
+                horizontal: 20.r,
+              ),
+
+              decoration: BoxDecoration(
+
+                color:
+                primary.withOpacity(0.7),
+
+                borderRadius:
+                BorderRadius.only(
+
+                  topLeft:
+                  Radius.circular(30.r),
+
+                  topRight:
+                  Radius.circular(30.r),
+                ),
+              ),
+
+              child: const Text(
+
+                'Corrige tu ubicación actual',
+
+                style: TextStyle(
+
+                  fontSize: 18,
+
+                  fontWeight:
+                  FontWeight.w900,
+
+                  color: Colors.black,
+                ),
+
+                textAlign:
+                TextAlign.center,
+              ),
+            ),
+
+            /// 🔥 CONTENIDO
+            Padding(
+
+              padding:
+              EdgeInsets.fromLTRB(
+
+                20,
+                20,
+                20,
+                bottomSafe,
+              ),
+
+              child: Column(
+
+                children: [
+
+                  Container(
+
+                    padding:
+                    const EdgeInsets.symmetric(
+
+                      horizontal: 20,
+
+                      vertical: 12,
+                    ),
+
+                    decoration: BoxDecoration(
+
+                      color: Colors.white,
+
+                      borderRadius:
+                      BorderRadius.circular(24),
+
+                      border: Border.all(
+                        color: grisMedio,
+                      ),
+                    ),
+
+                    child: Row(
+
+                      children: [
+
+                        const Icon(
+
+                          Icons.my_location,
+
+                          color: Colors.green,
+                        ),
+
+                        const SizedBox(
+                          width: 10,
+                        ),
+
+                        Expanded(
+
+                          child: Text(
+
+                            _controller.from ?? '',
+
+                            style:
+                            const TextStyle(
+
+                              fontSize: 14,
+
+                              color: Colors.black,
+
+                              fontWeight:
+                              FontWeight.bold,
+
+                              height: 1.1,
+                            ),
+
+                            maxLines: 2,
+
+                            overflow:
+                            TextOverflow
+                                .ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 15,
+                  ),
+
+                  const Text(
+
+                    'Mueve el mapa para ajustar '
+                        'el punto exacto donde te '
+                        'recogerá el conductor.',
+
+                    textAlign:
+                    TextAlign.center,
+
+                    style: TextStyle(
+
+                      fontSize: 13,
+
+                      color: Colors.black54,
+
+                      fontWeight:
+                      FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 20,
+                  ),
+
+                  Row(
+
+                    mainAxisAlignment:
+                    MainAxisAlignment
+                        .spaceAround,
+
+                    children: [
+
+                      /// 🔥 CONFIRMAR
+                      OutlinedButton(
+
+                        onPressed: () {
+
+                          _controller.actualizarPosicionManual();
+
+                          setState(() {
+
+                            isEditingFrom =
+                            false;
+
+                            isVisibleEditarOrigen =
+                            false;
+
+                            isVisiblePinBusquedaDestino =
+                            false;
+
+                            isVisibleBotonPinBusquedaDestino =
+                            true;
+
+                            isVisibleADondeVamos =
+                            true;
+
+                            bottomMaps =
+                            400;
+                          });
+                        },
+
+                        style:
+                        OutlinedButton
+                            .styleFrom(
+
+                          side:
+                          const BorderSide(
+
+                            color:
+                            Colors.green,
+
+                            width: 1.5,
+                          ),
+
+                          shape:
+                          RoundedRectangleBorder(
+
+                            borderRadius:
+                            BorderRadius.circular(
+                              10.r,
+                            ),
+                          ),
+
+                          padding:
+                          EdgeInsets.symmetric(
+
+                            horizontal:
+                            16.r,
+
+                            vertical:
+                            10.r,
+                          ),
+                        ),
+
+                        child: Row(
+
+                          mainAxisSize:
+                          MainAxisSize.min,
+
+                          children: [
+
+                            Icon(
+
+                              Icons
+                                  .check_circle_outline,
+
+                              size: 16.r,
+
+                              color:
+                              Colors.green,
+                            ),
+
+                            SizedBox(
+                              width: 6.r,
+                            ),
+
+                            Text(
+
+                              'Confirmar',
+
+                              style:
+                              TextStyle(
+
+                                color:
+                                Colors.black,
+
+                                fontWeight:
+                                FontWeight.w700,
+
+                                fontSize:
+                                12.r,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      /// 🔥 CANCELAR
+                      OutlinedButton(
+
+                        onPressed: () {
+
+                          _controller
+                              .centerPosition();
+
+                          setState(() {
+
+                            isEditingFrom =
+                            false;
+
+                            isVisibleEditarOrigen =
+                            false;
+
+                            isVisiblePinBusquedaDestino =
+                            false;
+
+                            isVisibleBotonPinBusquedaDestino =
+                            true;
+
+                            isVisibleADondeVamos =
+                            true;
+
+                            bottomMaps =
+                            400;
+                          });
+                        },
+
+                        style:
+                        OutlinedButton
+                            .styleFrom(
+
+                          side: BorderSide(
+
+                            color:
+                            Colors.red
+                                .shade400,
+
+                            width: 1.5,
+                          ),
+
+                          shape:
+                          RoundedRectangleBorder(
+
+                            borderRadius:
+                            BorderRadius.circular(
+                              10.r,
+                            ),
+                          ),
+
+                          padding:
+                          EdgeInsets.symmetric(
+
+                            horizontal:
+                            16.r,
+
+                            vertical:
+                            10.r,
+                          ),
+                        ),
+
+                        child: Row(
+
+                          mainAxisSize:
+                          MainAxisSize.min,
+
+                          children: [
+
+                            Icon(
+
+                              Icons
+                                  .cancel_outlined,
+
+                              size: 16.r,
+
+                              color:
+                              Colors.red
+                                  .shade400,
+                            ),
+
+                            SizedBox(
+                              width: 6.r,
+                            ),
+
+                            Text(
+
+                              'Cancelar',
+
+                              style:
+                              TextStyle(
+
+                                color:
+                                Colors.red
+                                    .shade400,
+
+                                fontWeight:
+                                FontWeight.w600,
+
+                                fontSize:
+                                12.r,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
   Widget _cajonCambiandoDirecciondeDestino() {
     final bottomSafe = MediaQuery.of(context).padding.bottom;
 
@@ -1365,9 +1947,26 @@ class _MapClientPageState
         tiltGesturesEnabled: false,
         markers: !isVisiblePinBusquedaDestino? Set<Marker>.of(_controller.markers.values): {},
         onCameraMove: (position) {
-          _controller.initialPosition = position;
+
+          _controller.initialPosition =
+              position;
+
+          if (!pinSaltando) {
+
+            setState(() {
+
+              pinSaltando = true;
+            });
+          }
         },
         onCameraIdle: () async {
+          if (pinSaltando) {
+
+            setState(() {
+
+              pinSaltando = false;
+            });
+          }
           if (_controller.currentLocation != null) {
             setState(() {
               _ubicacionActual = LatLng(
@@ -1378,10 +1977,29 @@ class _MapClientPageState
             });
           }
 
-          if (isVisiblePinBusquedaDestino) {
-            await _controller.setLocationdraggableInfo();
+          /// 🔥 EDITANDO ORIGEN
+          if (isEditingFrom) {
+
+            await _controller
+                .setLocationdraggableInfoOrigen(
+
+              useCameraPosition: true,
+            );
           }
-          await _controller.setLocationdraggableInfoOrigen();
+
+          /// 🔥 EDITANDO DESTINO
+          else if (isVisiblePinBusquedaDestino) {
+
+            await _controller
+                .setLocationdraggableInfo();
+          }
+
+          /// 🔥 NORMAL GPS
+          else {
+
+            await _controller
+                .setLocationdraggableInfoOrigen();
+          }
         },
       ),
     );
@@ -1661,11 +2279,11 @@ class _MapClientPageState
     return Stack(
       children: [
         Positioned(
-          top: (MediaQuery.of(context).size.height - bottomMaps) / 2 - 100,
+          top: (MediaQuery.of(context).size.height - bottomMaps) / 2 - 97,
           left: 0,
           right: 0,
           child: Visibility(
-            visible: isVisiblePinBusquedaDestino,
+            visible: isVisiblePinBusquedaDestino || isEditingFrom,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               child: GestureDetector(
@@ -1683,10 +2301,105 @@ class _MapClientPageState
                     });
                   });
                 },
-                child: Image.asset(
-                  'assets/icono_buscar_posicion.png',
-                  width: 50.r,
-                  height: 50.r,
+                child: Column(
+
+                  mainAxisSize: MainAxisSize.min,
+
+                  children: [
+
+                    /// 🔥 PIN ANIMADO
+                    AnimatedContainer(
+
+                      duration:
+                      const Duration(
+                        milliseconds: 180,
+                      ),
+
+                      transform:
+                      Matrix4.translationValues(
+
+                        0,
+
+                        pinSaltando
+                            ? -14
+                            : 0,
+
+                        0,
+                      ),
+
+                      decoration: BoxDecoration(
+
+                        shape: BoxShape.circle,
+
+                        boxShadow: [
+
+                          BoxShadow(
+
+                            color:
+                            Colors.black.withOpacity(
+                              0.25,
+                            ),
+
+                            blurRadius: 12,
+
+                            offset: Offset(
+
+                              0,
+
+                              pinSaltando
+                                  ? 12
+                                  : 6,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      child: const Icon(
+
+                        Icons.location_on,
+
+                        size: 32,
+
+                        color: Colors.black,
+                      ),
+                    ),
+
+                    /// 🔥 PUNTO EXACTO
+                    Container(
+
+                      width: 6,
+
+                      height: 6,
+
+                      decoration: const BoxDecoration(
+
+                        color: Colors.black,
+
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+
+                    const SizedBox(height: 2),
+
+                    /// 🔥 SOMBRA
+                    Container(
+
+                      width: 18,
+
+                      height: 4,
+
+                      decoration: BoxDecoration(
+
+                        color:
+                        Colors.black.withOpacity(
+                          0.18,
+                        ),
+
+                        borderRadius:
+                        BorderRadius.circular(20),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -1890,14 +2603,24 @@ class _MapClientPageState
                                             ],
                                           ),
                                           child: Text(
+
                                             _controller.from ?? '',
+
                                             style: TextStyle(
-                                              color: negroLetras,
-                                              fontSize: 13.r,
-                                              fontWeight: FontWeight.w600,
+
+                                              fontSize: 11,
+
+                                              color:
+                                              Colors.grey.shade700,
+
+                                              fontWeight:
+                                              FontWeight.w600,
                                             ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+
+                                            maxLines: 2,
+
+                                            overflow:
+                                            TextOverflow.ellipsis,
                                           ),
                                         ),
                                       ),
@@ -1953,6 +2676,7 @@ class _MapClientPageState
                                               ),
                                               onChanged: _onDestinoChanged,
                                             ),
+
                                           ),
 
                                           if (_loadingPreds)
@@ -2002,6 +2726,168 @@ class _MapClientPageState
                                               ),
                                             ),
                                         ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    GestureDetector(
+
+                                      onTap: () async {
+
+                                        final hasConnection =
+
+                                        await connectionService
+                                            .hasInternetConnection();
+
+                                        if (!hasConnection) {
+
+                                          alertSinInternet();
+
+                                          return;
+                                        }
+
+                                        if (!mounted) return;
+
+                                        Navigator.pop(context);
+
+                                        setState(() {
+
+                                          bottomMaps = 300;
+
+                                          isVisiblePinBusquedaDestino =
+                                          true;
+
+                                          isVisibleBotonPinBusquedaDestino =
+                                          false;
+
+                                          isVisibleCajoncambiandoDireccionDestino =
+                                          true;
+
+                                          isVisibleADondeVamos =
+                                          false;
+                                        });
+                                      },
+
+                                      child: Container(
+
+                                        padding: const EdgeInsets.symmetric(
+
+                                          horizontal: 14,
+                                          vertical: 12,
+                                        ),
+
+                                        decoration: BoxDecoration(
+
+                                          color: Colors.white,
+
+                                          borderRadius:
+                                          BorderRadius.circular(18),
+
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                          ),
+
+                                          boxShadow: [
+
+                                            BoxShadow(
+
+                                              color:
+                                              Colors.black.withOpacity(
+                                                0.04,
+                                              ),
+
+                                              blurRadius: 5,
+
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+
+                                        child: const Row(
+
+                                          children: [
+
+                                            Icon(
+
+                                              Icons.map_outlined,
+
+                                              color: negro,
+                                            ),
+
+                                            SizedBox(width: 10),
+
+                                            Expanded(
+
+                                              child: Column(
+
+                                                crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+
+                                                children: [
+
+                                                  Text(
+
+                                                    '¿No encuentras '
+                                                        'el lugar exacto?',
+
+                                                    style: TextStyle(
+
+                                                      fontSize: 12,
+
+                                                      color: Colors.grey,
+
+                                                      fontWeight:
+                                                      FontWeight.w600,
+                                                    ),
+                                                  ),
+
+                                                  SizedBox(height: 2),
+
+                                                  Row(
+
+                                                    children: [
+
+                                                      Icon(
+
+                                                        Icons.location_on,
+
+                                                        size: 18,
+
+                                                        color: Colors.black,
+                                                      ),
+
+                                                      SizedBox(width: 4),
+
+                                                      Text(
+
+                                                        'Buscar en el mapa',
+
+                                                        style: TextStyle(
+
+                                                          fontWeight:
+                                                          FontWeight.w900,
+
+                                                          color: negro,
+
+                                                          fontSize: 14,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            Icon(
+
+                                              Icons.arrow_forward_ios_rounded,
+
+                                              size: 16,
+
+                                              color: Colors.black45,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],

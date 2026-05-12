@@ -48,6 +48,7 @@ class ClientMapController {
   Client? client;
   String? from;
   LatLng? fromlatlng;
+  bool usandoUbicacionManual = false;
   String? to;
   LatLng? tolatlng;
   LatLng? currentLocation;
@@ -106,6 +107,8 @@ class ClientMapController {
     mostrarMensajeError();
   }
 
+
+
   void mostrarMensajeError() {
     Snackbar.showSnackbar(context, 'No se pudieron obtener los datos. Inténtalo de nuevo más tarde.');
   }
@@ -132,9 +135,25 @@ class ClientMapController {
   }
 
   void _initializePositionStream() {
-    _positionStream = Geolocator.getPositionStream().listen((Position position) {
-      _position = position; // ✅ IMPORTANTE
-    });
+
+    _positionStream =
+
+        Geolocator
+            .getPositionStream()
+
+            .listen((Position position) {
+
+          /// 🔥 SI EL USUARIO
+          /// ESTÁ USANDO
+          /// UBICACIÓN MANUAL
+          /// NO SOBREESCRIBIR
+
+          if (usandoUbicacionManual) {
+            return;
+          }
+
+          _position = position;
+        });
   }
 
 
@@ -162,21 +181,81 @@ class ClientMapController {
     }
   }
 
-  Future<Null> setLocationdraggableInfoOrigen() async {
-    if (_position != null) {
-      double lat = _position!.latitude;
-      double lng = _position!.longitude;
-      List<Placemark> address = await placemarkFromCoordinates(lat, lng);
+  Future<void> setLocationdraggableInfoOrigen({
 
-      if (address.isNotEmpty) {
-        String? direction = address[0].thoroughfare;
-        String? street = address[0].subThoroughfare;
-        String? city = address[0].locality;
-        String? department = address[0].administrativeArea;
-        from = '$direction #$street, $city, $department';
-        fromlatlng = LatLng(lat, lng);
-        refresh();
+    bool useCameraPosition = false,
+  }) async {
+
+    double lat;
+    double lng;
+
+    /// 🔥 USAR CENTRO DEL MAPA
+    if (useCameraPosition) {
+
+      lat =
+          initialPosition.target.latitude;
+
+      lng =
+          initialPosition.target.longitude;
+    }
+
+    /// 🔥 USAR GPS REAL
+    else {
+
+      /// 🔥 SI HAY UBICACIÓN MANUAL
+      if (usandoUbicacionManual &&
+          fromlatlng != null) {
+
+        lat = fromlatlng!.latitude;
+
+        lng = fromlatlng!.longitude;
       }
+
+      /// 🔥 GPS NORMAL
+      else {
+
+        if (_position == null) {
+          return;
+        }
+
+        lat = _position!.latitude;
+
+        lng = _position!.longitude;
+      }
+    }
+
+    List<Placemark> address =
+
+    await placemarkFromCoordinates(
+      lat,
+      lng,
+    );
+
+    if (address.isNotEmpty) {
+      String? placeName =
+          address[0].name;
+
+      String? direction =
+          address[0].thoroughfare;
+
+      String? street =
+          address[0].subThoroughfare;
+
+      String? city =
+          address[0].locality;
+
+      String? department =
+          address[0]
+              .administrativeArea;
+
+      from =
+      '$direction #$street, '
+          '$city, $department';
+
+      fromlatlng =
+          LatLng(lat, lng);
+
+      refresh();
     }
   }
 
@@ -354,6 +433,64 @@ class ClientMapController {
     if (_position != null) {
       animateCameraToPosition(_position!.latitude, _position!.longitude);
     }
+  }
+
+  void actualizarPosicionManual() {
+
+    if (fromlatlng == null) {
+      return;
+    }
+
+    _position = Position(
+
+      longitude:
+      fromlatlng!.longitude,
+
+      latitude:
+      fromlatlng!.latitude,
+
+      timestamp:
+      DateTime.now(),
+
+      accuracy: 1,
+
+      altitude: 0,
+
+      altitudeAccuracy: 1,
+
+      heading: 0,
+
+      headingAccuracy: 1,
+
+      speed: 0,
+
+      speedAccuracy: 1,
+    );
+
+    /// 🔥 ELIMINAR MARKER VIEJO
+    markers.remove(
+      const MarkerId('client'),
+    );
+
+    /// 🔥 CREAR NUEVO MARKER
+    addMarker(
+
+      'client',
+
+      fromlatlng!.latitude,
+
+      fromlatlng!.longitude,
+
+      'Tu posición',
+
+      '',
+
+      markerClient,
+    );
+
+    usandoUbicacionManual = true;
+
+    refresh();
   }
 
   void checkGPS() async{

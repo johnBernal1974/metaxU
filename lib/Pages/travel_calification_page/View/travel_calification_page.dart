@@ -207,12 +207,7 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
     final tarifa =
 
         _controller.travelHistory
-            ?.tarifaInicial
-
-            ??
-
-            _controller.travelHistory
-                ?.tarifa
+            ?.tarifa
 
             ??
 

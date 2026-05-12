@@ -447,7 +447,7 @@ class _DetailHistoryPageState extends State<DetailHistoryPage> {
 
               Text(
 
-                '\$ ${formatter.format(tarifaInicial)}',
+                '\$ ${formatter.format(tarifa)}',
 
                 style: const TextStyle(
 

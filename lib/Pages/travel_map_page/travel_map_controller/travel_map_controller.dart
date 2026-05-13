@@ -102,15 +102,14 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png');
     checkGPS();
     await checkConnectionAndShowSnackbar();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
-      checkConnectionAndShowSnackbar();
-      refresh();
-    });
-
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((_) async {
+
           await checkConnectionAndShowSnackbar();
-          if (context.mounted) refresh();
+
+          if (context.mounted) {
+            refresh();
+          }
         });
 
 

@@ -76,7 +76,23 @@ class _TravelMapPageState extends State<TravelMapPage> {
                 ],
               ),
             ),
-            _cajonInformativo(screenWidth),
+            Stack(
+
+              clipBehavior: Clip.none,
+
+              children: [
+
+                _cajonInformativo(screenWidth),
+
+                Positioned(
+
+                  top: -22,
+                  right: 24,
+
+                  child: _botonCancelarPremium(),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -356,38 +372,111 @@ class _TravelMapPageState extends State<TravelMapPage> {
           children: [
 
             /// 🔹 ESTADO DEL VIAJE
+            /// 🔹 ESTADO DEL VIAJE
             Container(
+
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+
               decoration: BoxDecoration(
+
                 color: primary.withOpacity(0.7),
+
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
                 ),
               ),
-              child: Row(
+
+              child: Stack(
+
                 children: [
 
-                  Icon(
-                    _iconoPorEstado(_controller.currentStatus),
-                    color: Colors.black,
-                    size: 26,
+                  /// 🔥 ESPACIO PARA EL BOTÓN
+                  const Padding(
+                    padding: EdgeInsets.only(right: 46),
                   ),
 
-                  const SizedBox(width: 10),
+                  /// 🔥 CÁPSULA ESTADO
+                  Container(
 
-                  Expanded(
-                    child: Text(
-                      _controller.currentStatus,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
+                    width: double.infinity,
+
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+
+                    decoration: BoxDecoration(
+
+                      color: Colors.white,
+
+                      borderRadius:
+                      BorderRadius.circular(14),
+
+                      border: Border.all(
+                        color: Colors.grey.shade300,
                       ),
+
+                      boxShadow: [
+
+                        BoxShadow(
+
+                          color: Colors.black
+                              .withOpacity(0.04),
+
+                          blurRadius: 6,
+
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+
+                    child: Row(
+
+                      children: [
+
+                        Icon(
+
+                          _iconoPorEstado(
+                              _controller.currentStatus),
+
+                          color: Colors.black,
+
+                          size: 24,
+                        ),
+
+                        const SizedBox(width: 10),
+
+                        Expanded(
+
+                          child: Text(
+
+                            _controller.currentStatus
+                                .toUpperCase(),
+
+                            textAlign: TextAlign.center,
+
+                            style: const TextStyle(
+
+                              fontSize: 16,
+
+                              fontWeight:
+                              FontWeight.w900,
+
+                              color: Colors.black,
+
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  _cancelarViaje(),
                 ],
               ),
             ),
@@ -623,6 +712,152 @@ class _TravelMapPageState extends State<TravelMapPage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _botonCancelarPremium() {
+
+    final s =
+        _controller.travelInfo?.status ?? '';
+
+    return Visibility(
+
+      visible:
+
+      s == 'accepted' ||
+
+          s == 'driver_on_the_way' ||
+
+          s == 'driver_is_waiting' ||
+
+          s == 'client_notificado',
+
+      child: GestureDetector(
+
+        onTap: () async {
+
+          await _controller.connectionService
+              .checkConnectionAndShowCard(
+
+            context,
+
+                () {
+
+              showDialog(
+
+                context: context,
+
+                builder: (BuildContext context) {
+
+                  return AlertDialog(
+
+                    title: Text(
+
+                      'Cancelar Viaje',
+
+                      style: TextStyle(
+
+                        fontSize: 16.r,
+
+                        fontWeight:
+                        FontWeight.bold,
+                      ),
+                    ),
+
+                    content: const Text(
+
+                      '¿En verdad deseas cancelar el viaje?',
+                    ),
+
+                    actions: [
+
+                      TextButton(
+
+                        onPressed: () {
+
+                          Navigator.of(context)
+                              .pop();
+                        },
+
+                        child: const Text('NO'),
+                      ),
+
+                      TextButton(
+
+                        onPressed: () {
+
+                          Navigator.of(context)
+                              .pop();
+
+                          _controller
+                              .cancelTravelByClient();
+                        },
+
+                        child: const Text('SI'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          );
+        },
+
+        child: Container(
+
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 8,
+          ),
+
+          decoration: BoxDecoration(
+
+            color: Colors.red,
+
+            borderRadius:
+            BorderRadius.circular(30),
+
+            boxShadow: [
+
+              BoxShadow(
+
+                color: Colors.red
+                    .withOpacity(0.25),
+
+                blurRadius: 10,
+
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+
+          child: Row(
+
+            mainAxisSize:
+            MainAxisSize.min,
+
+            children: [
+
+              Text(
+
+                'CANCELAR',
+
+                style: TextStyle(
+
+                  color: Colors.white,
+
+                  fontWeight:
+                  FontWeight.w900,
+
+                  fontSize: 10.sp,
+
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -12,7 +12,7 @@ class TravelInfoProvider {
   }
 
   Stream<DocumentSnapshot> getByIdStream(String id){
-    return _ref.doc(id).snapshots(includeMetadataChanges: true);
+    return _ref.doc(id).snapshots();
   }
 
   Future<void> create(TravelInfo travelInfo){

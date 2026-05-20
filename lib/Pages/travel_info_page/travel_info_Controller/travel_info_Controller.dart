@@ -61,6 +61,11 @@ class TravelInfoController{
   String? min;
   String? km;
   double? total;
+  //**para los recargos
+  double recargoNocturno = 0;
+  double recargoDominical = 0;
+  double recargoAeropuerto = 0;
+  double recargoYellowWoman = 0;
   int? totalInt;
   double? radioDeBusqueda;
   int distancia = 0;
@@ -110,6 +115,47 @@ class TravelInfoController{
   int tiempoEsperaPorteria = 10;
 
   bool buscandoConductor = false;
+
+  //** para calculo de recargos
+
+  bool esAeropuerto = false;
+  static const double aeropuertoLat = 4.1643818;
+  static const double aeropuertoLng = -73.620984;
+  /// 🔥 RADIO EN METROS
+  static const double radioAeropuerto = 500;
+
+
+  bool esYellowWoman = false;
+  bool esFestivo = false;
+
+  Future<bool> verificarFestivo() async {
+
+    try {
+
+      final ahora = DateTime.now();
+
+      final fecha =
+          "${ahora.year}-"
+          "${ahora.month.toString().padLeft(2, '0')}-"
+          "${ahora.day.toString().padLeft(2, '0')}";
+
+      final doc = await FirebaseFirestore.instance
+          .collection('Festivos')
+          .doc(fecha)
+          .get();
+
+      print("📅 Verificando festivo: $fecha");
+      print("📅 Existe festivo: ${doc.exists}");
+
+      return doc.exists;
+
+    } catch (e) {
+
+      print("❌ Error verificando festivo: $e");
+
+      return false;
+    }
+  }
 
 
   // ✅ listo solo si ya hay ruta y tarifa
@@ -693,6 +739,9 @@ class TravelInfoController{
 
 
   void calcularPrecio() async {
+    esAeropuerto = detectarAeropuerto();
+    esFestivo = await verificarFestivo();
+
     try {
       final Price price = await _pricesProvider.getAll();
 
@@ -721,6 +770,8 @@ class TravelInfoController{
       // ✅ Declara estas variables (antes no estaban y por eso fallaba)
       double valorKilometro = 0.0;
       double valorMinuto = 0.0;
+
+
 
       // --------- KM ---------
       if (km != null) {
@@ -756,7 +807,16 @@ class TravelInfoController{
       }
 
       // ✅ Total con dinámica
+      // ✅ Total base con dinámica
       total = (valorMinuto + valorKilometro) * price.theDinamica;
+
+      /// 🔥 RECARGOS
+      final recargos = calcularRecargos();
+
+      print("💰 RECARGOS: $recargos");
+
+      /// 🔥 SUMAR RECARGOS
+      total = total! + recargos;
 
       // ✅ Redondeo
       total = redondearACentena(total);
@@ -852,6 +912,80 @@ class TravelInfoController{
     if (valor == null) return null;
     return (valor / 100).ceil() * 100.toDouble();
   }
+
+  bool detectarAeropuerto() {
+
+    final distanciaOrigen = Geolocator.distanceBetween(
+
+      fromLatlng.latitude,
+      fromLatlng.longitude,
+
+      aeropuertoLat,
+      aeropuertoLng,
+    );
+
+    final distanciaDestino = Geolocator.distanceBetween(
+
+      toLatlng.latitude,
+      toLatlng.longitude,
+
+      aeropuertoLat,
+      aeropuertoLng,
+    );
+
+    print("✈️ Distancia origen aeropuerto: $distanciaOrigen");
+    print("✈️ Distancia destino aeropuerto: $distanciaDestino");
+    print("✈️ RADIO AEROPUERTO: $radioAeropuerto");
+    print("✈️ ES AEROPUERTO: ${distanciaOrigen <= radioAeropuerto || distanciaDestino <= radioAeropuerto}");
+
+    return
+      distanciaOrigen <= radioAeropuerto ||
+          distanciaDestino <= radioAeropuerto;
+  }
+
+  double calcularRecargos() {
+
+    /// 🔥 RESET
+    recargoNocturno = 0;
+    recargoDominical = 0;
+    recargoAeropuerto = 0;
+    recargoYellowWoman = 0;
+
+    final ahora = DateTime.now();
+
+    /// 🌙 NOCTURNO
+    final esNocturno =
+        ahora.hour >= 19 || ahora.hour < 6;
+
+    if (esNocturno) {
+      recargoNocturno = 1100;
+    }
+
+    /// 📅 DOMINGO / FESTIVO
+    final esDomingo =
+        ahora.weekday == DateTime.sunday;
+
+    if (esDomingo || esFestivo) {
+      recargoDominical = 1100;
+    }
+
+    /// ✈️ AEROPUERTO
+    if (esAeropuerto) {
+      recargoAeropuerto = 3000;
+    }
+
+    /// 💛 YELLOW WOMAN
+    if (esYellowWoman) {
+      recargoYellowWoman = 4000;
+    }
+
+    return
+      recargoNocturno +
+          recargoDominical +
+          recargoAeropuerto +
+          recargoYellowWoman;
+  }
+
 
   Future<void> animateCameraToPosition(double latitude, double longitude) async {
     await runAfterMapReady((c) async {
@@ -1611,6 +1745,11 @@ class TravelInfoController{
 
     required String caracteristicaVehiculo,
 
+    required double recargoNocturno,
+    required double recargoDominical,
+    required double recargoAeropuerto,
+    required double recargoYellowWoman,
+
     String? promocionId,
 
     int descuentoPromocion = 0,
@@ -1655,6 +1794,10 @@ class TravelInfoController{
       // 🔥 CLIENTE
       tipoServicio: tipoServicio,
       valorVipExtra: valorVipExtra,
+      recargoNocturno: recargoNocturno,
+      recargoDominical: recargoDominical,
+      recargoAeropuerto: recargoAeropuerto,
+      recargoYellowWoman: recargoYellowWoman,
       metodoPago: metodoPago,
       caracteristicaVehiculo: caracteristicaVehiculo,
       promocionId: promocionId ?? '',

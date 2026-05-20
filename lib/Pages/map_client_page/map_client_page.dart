@@ -798,22 +798,30 @@ class _MapClientPageState
   Widget _sliderPromociones() {
 
     return SizedBox(
-      height: 135.r,
 
-      child: ListView.separated(
+      height: 96.r,
 
-        scrollDirection: Axis.horizontal,
+      child: PageView.builder(
+
+        controller: PageController(
+          viewportFraction: 0.93,
+        ),
 
         itemCount: promocionesActivas.length,
 
-        separatorBuilder: (_, __) =>
-            SizedBox(width: 10.r),
-
         itemBuilder: (_, index) {
 
-          final promo = promocionesActivas[index];
+          final promo =
+          promocionesActivas[index];
 
-          return _cardPromocion(promo);
+          return Padding(
+
+            padding: EdgeInsets.symmetric(
+              horizontal: 4.r,
+            ),
+
+            child: _cardPromocion(promo),
+          );
         },
       ),
     );
@@ -829,191 +837,220 @@ class _MapClientPageState
         _mostrarDetallePromocion(promo);
       },
 
-      child: Stack(
+      child: AnimatedBuilder(
 
-        children: [
+        animation: _promoController,
 
-          /// ✨ SHIMMER BORDER
-          Positioned.fill(
+        builder: (_, __) {
 
-            child: IgnorePointer(
+          return Container(
 
-              child: ClipRRect(
+            width: double.infinity,
 
-                borderRadius:
-                BorderRadius.circular(22.r),
-
-                child: Shimmer.fromColors(
-
-                  period:
-                  const Duration(seconds: 3),
-
-                  baseColor:
-                  Colors.transparent,
-
-                  highlightColor:
-                  Colors.white.withOpacity(0.75),
-
-                  direction:
-                  ShimmerDirection.ltr,
-
-                  child: Container(
-
-                    decoration: BoxDecoration(
-
-                      borderRadius:
-                      BorderRadius.circular(22.r),
-
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12.r,
+              vertical: 10.r,
             ),
-          ),
 
-          /// 🔥 CARD
-          AnimatedBuilder(
+            decoration: BoxDecoration(
 
-            animation: _promoController,
+              gradient: LinearGradient(
 
-            builder: (_, __) {
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
 
-              return Container(
+                colors: [
 
-                width: 320.r,
+                  Colors.white,
 
-                padding: EdgeInsets.all(14.r),
+                  Colors.green.withOpacity(0.03),
+                ],
+              ),
 
-                decoration: BoxDecoration(
+              borderRadius:
+              BorderRadius.circular(20.r),
 
-                  color: Colors.white,
+              border: Border.all(
 
-                  borderRadius:
-                  BorderRadius.circular(22.r),
-
-                  border: Border.all(
-
-                    color: Colors.green.withOpacity(
-                      _borderGlow.value.clamp(0.0, 1.0),
-                    ),
-
-                    width: 2.5,
-                  ),
-
-                  boxShadow: [
-
-                    /// NORMAL
-                    BoxShadow(
-
-                      color: Colors.black.withOpacity(0.08),
-
-                      blurRadius: 10,
-
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                color: Colors.green.withOpacity(
+                  0.15 + (_borderGlow.value * 0.20),
                 ),
 
-                child: Row(
-                  children: [
+                width: 1.5,
+              ),
 
-                    /// 🎁 REGALO
-                    Container(
+              boxShadow: [
 
-                      height: 68.r,
-                      width: 68.r,
+                BoxShadow(
 
-                      padding: EdgeInsets.all(2.r),
+                  color: Colors.black.withOpacity(0.05),
 
-                      decoration: BoxDecoration(
+                  blurRadius: 8,
 
-                        color:
-                        primary.withOpacity(0.12),
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
 
-                        borderRadius:
-                        BorderRadius.circular(18.r),
-                      ),
+            child: Row(
 
-                      child: ScaleTransition(
+              children: [
 
-                        scale: _giftScale,
+                /// 🎁 ICONO
+                Container(
 
-                        child: Image.asset(
-                          'assets/${promo.imagen}',
-                          fit: BoxFit.contain,
+                  height: 50.r,
+                  width: 50.r,
+
+                  padding: EdgeInsets.all(7.r),
+
+                  decoration: BoxDecoration(
+
+                    color:
+                    primary.withOpacity(0.12),
+
+                    borderRadius:
+                    BorderRadius.circular(14.r),
+                  ),
+
+                  child: ScaleTransition(
+
+                    scale: _giftScale,
+
+                    child: Image.asset(
+                      'assets/${promo.imagen}',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
+
+                SizedBox(width: 10.r),
+
+                /// 🔥 INFO
+                Expanded(
+
+                  child: Column(
+
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+
+                    mainAxisSize:
+                    MainAxisSize.min,
+
+                    children: [
+
+                      /// TITULO
+                      Text(
+
+                        promo.titulo,
+
+                        maxLines: 1,
+
+                        overflow:
+                        TextOverflow.ellipsis,
+
+                        style: TextStyle(
+
+                          fontSize: 12.5.r,
+
+                          fontWeight:
+                          FontWeight.w900,
+
+                          color: negro,
                         ),
                       ),
-                    ),
 
-                    SizedBox(width: 12.r),
+                      SizedBox(height: 2.r),
 
-                    /// 📝 INFO
-                    Expanded(
+                      /// DESCRIPCIÓN
+                      Text(
 
-                      child: Column(
+                        promo.descripcion,
 
-                        crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        maxLines: 1,
 
-                        mainAxisAlignment:
-                        MainAxisAlignment.center,
+                        overflow:
+                        TextOverflow.ellipsis,
+
+                        style: TextStyle(
+
+                          fontSize: 10.r,
+
+                          color: Colors.black54,
+
+                          fontWeight:
+                          FontWeight.w600,
+                        ),
+                      ),
+
+                      SizedBox(height: 6.r),
+
+                      /// BONO
+                      Row(
 
                         children: [
 
-                          Text(
+                          Container(
 
-                            promo.titulo,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8.r,
+                              vertical: 3.r,
+                            ),
 
-                            style: TextStyle(
-                              fontSize: 14.r,
-                              fontWeight: FontWeight.w900,
-                              color: negro,
+                            decoration: BoxDecoration(
+
+                              color:
+                              Colors.green.withOpacity(0.10),
+
+                              borderRadius:
+                              BorderRadius.circular(30.r),
+                            ),
+
+                            child: Text(
+
+                              NumberFormat.currency(
+                                locale: 'es_CO',
+                                symbol: '\$',
+                                decimalDigits: 0,
+                              ).format(promo.bono),
+
+                              style: TextStyle(
+
+                                fontSize: 10.5.r,
+
+                                fontWeight:
+                                FontWeight.w900,
+
+                                color: Colors.green,
+                              ),
                             ),
                           ),
 
-                          SizedBox(height: 4.r),
+                          SizedBox(width: 6.r),
 
                           Text(
 
-                            promo.descripcion,
-
-                            maxLines: 2,
-
-                            overflow:
-                            TextOverflow.ellipsis,
+                            'Toca para ver',
 
                             style: TextStyle(
-                              fontSize: 12.r,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
 
-                          SizedBox(height: 6.r),
+                              fontSize: 9.5.r,
 
-                          Text(
+                              color: Colors.black45,
 
-                            '\$${NumberFormat('#,###', 'es_CO').format(promo.bono)}',
-
-                            style: TextStyle(
-                              fontSize: 14.r,
-                              color: Colors.black,
-                              fontWeight: FontWeight.w900,
+                              fontWeight:
+                              FontWeight.w700,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              );
-            },
-          ),
-        ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }

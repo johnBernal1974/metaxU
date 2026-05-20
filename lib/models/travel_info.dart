@@ -12,6 +12,10 @@ class TravelInfo {
   double toLat;
   double toLng;
   double tarifa;
+  double? recargoNocturno;
+  double? recargoDominical;
+  double? recargoAeropuerto;
+  double? recargoYellowWoman;
   double tarifaDescuento;
   double tarifaInicial;
   double distancia;
@@ -52,6 +56,10 @@ class TravelInfo {
     required this.toLat,
     required this.toLng,
     required this.tarifa,
+    this.recargoNocturno,
+    this.recargoDominical,
+    this.recargoAeropuerto,
+    this.recargoYellowWoman,
     required this.tarifaDescuento,
     required this.tarifaInicial,
     required this.distancia,
@@ -89,6 +97,17 @@ class TravelInfo {
     toLat: json["toLat"]?.toDouble() ?? 0.0,
     toLng: json["toLng"]?.toDouble() ?? 0.0,
     tarifa: json["tarifa"]?.toDouble() ?? 0.0,
+    recargoNocturno:
+    (json['recargoNocturno'] ?? 0).toDouble(),
+
+    recargoDominical:
+    (json['recargoDominical'] ?? 0).toDouble(),
+
+    recargoAeropuerto:
+    (json['recargoAeropuerto'] ?? 0).toDouble(),
+
+    recargoYellowWoman:
+    (json['recargoYellowWoman'] ?? 0).toDouble(),
     tarifaDescuento: json["tarifaDescuento"]?.toDouble() ?? 0.0,
     tarifaInicial: json["tarifaInicial"]?.toDouble() ?? 0.0,
     distancia: json["distancia"]?.toDouble() ?? 0.0,
@@ -132,6 +151,10 @@ class TravelInfo {
     "toLat": toLat,
     "toLng": toLng,
     "tarifa": tarifa,
+    "recargoNocturno": recargoNocturno,
+    "recargoDominical": recargoDominical,
+    "recargoAeropuerto": recargoAeropuerto,
+    "recargoYellowWoman": recargoYellowWoman,
     "tarifaDescuento": tarifaDescuento,
     "tarifaInicial": tarifaInicial,
     "distancia": distancia,

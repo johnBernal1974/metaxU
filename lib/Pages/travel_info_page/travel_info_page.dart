@@ -80,7 +80,6 @@ class _ClientTravelInfoPageState
 
   @override
   void initState() {
-
     super.initState();
 
     /// 🔥 WAVES
@@ -464,7 +463,12 @@ class _ClientTravelInfoPageState
 
                 Text(
 
-                  tarifaFinalConDescuento <= 0
+                  tarifa == null
+
+                      ? 'Calculando...'
+
+                      : tarifaFinalConDescuento <= 0 &&
+                      descuentoPromocion > 0
 
                       ? 'Gratis 🎉'
 
@@ -473,8 +477,16 @@ class _ClientTravelInfoPageState
                   style: TextStyle(
 
                     fontSize:
-                    tarifaFinalConDescuento <= 0
+
+                    tarifa == null
+
                         ? 16.r
+
+                        : tarifaFinalConDescuento <= 0 &&
+                        descuentoPromocion > 0
+
+                        ? 16.r
+
                         : 18.r,
 
                     fontWeight: FontWeight.w900,
@@ -687,6 +699,207 @@ class _ClientTravelInfoPageState
     }
   }
 
+  void _mostrarDetalleTarifa() {
+
+    if (tarifa == null) return;
+
+    final tarifaBase = tarifa!
+        - _controller.recargoNocturno.toInt()
+        - _controller.recargoDominical.toInt()
+        - _controller.recargoAeropuerto.toInt()
+        - _controller.recargoYellowWoman.toInt();
+
+    showModalBottomSheet(
+
+      context: context,
+
+      backgroundColor: Colors.transparent,
+
+      builder: (_) {
+
+        return Container(
+
+          padding: EdgeInsets.all(20.r),
+
+          decoration: BoxDecoration(
+
+            color: Colors.white,
+
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(28.r),
+              topRight: Radius.circular(28.r),
+            ),
+          ),
+
+          child: Column(
+
+            mainAxisSize: MainAxisSize.min,
+
+            children: [
+
+              Container(
+                width: 45.r,
+                height: 5.r,
+
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius:
+                  BorderRadius.circular(20.r),
+                ),
+              ),
+
+              SizedBox(height: 18.r),
+
+              Text(
+
+                'Detalle de la tarifa',
+
+                style: TextStyle(
+                  fontSize: 18.r,
+                  fontWeight: FontWeight.w900,
+                  color: negro,
+                ),
+              ),
+
+              SizedBox(height: 20.r),
+
+              _itemTarifa(
+                'Tarifa base',
+                tarifaBase,
+              ),
+
+              if (_controller.recargoNocturno > 0)
+
+                _itemTarifa(
+                  '🌙 Recargo nocturno',
+                  _controller.recargoNocturno.toInt(),
+                ),
+
+              if (_controller.recargoDominical > 0)
+
+                _itemTarifa(
+                  '📅 Dominical/Festivo',
+                  _controller.recargoDominical.toInt(),
+                ),
+
+              if (_controller.recargoAeropuerto > 0)
+
+                _itemTarifa(
+                  '✈️ Aeropuerto',
+                  _controller.recargoAeropuerto.toInt(),
+                ),
+
+              if (_controller.recargoYellowWoman > 0)
+
+                _itemTarifa(
+                  '💛 YellowWoman',
+                  _controller.recargoYellowWoman.toInt(),
+                ),
+
+              if (descuentoPromocion > 0)
+
+                _itemTarifa(
+                  '🎁 Bono MetaX',
+                  -descuentoPromocion,
+                  esDescuento: true,
+                ),
+
+              Divider(height: 28.r),
+
+              Row(
+
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
+
+                children: [
+
+                  Text(
+
+                    'TOTAL',
+
+                    style: TextStyle(
+                      fontSize: 16.r,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+
+                  Text(
+
+                    formattedTarifaFinal,
+
+                    style: TextStyle(
+                      fontSize: 18.r,
+                      fontWeight: FontWeight.w900,
+                      color: primary,
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(
+                height: MediaQuery.of(context)
+                    .padding
+                    .bottom,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
+  Widget _itemTarifa(
+      String titulo,
+      int valor, {
+        bool esDescuento = false,
+      }) {
+
+    return Padding(
+
+      padding: EdgeInsets.only(bottom: 12.r),
+
+      child: Row(
+
+        mainAxisAlignment:
+        MainAxisAlignment.spaceBetween,
+
+        children: [
+
+          Text(
+
+            titulo,
+
+            style: TextStyle(
+              fontSize: 14.r,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+
+          Text(
+
+            esDescuento
+                ? '- ${FormatUtils.formatCurrency(valor.abs())}'
+                : '+ ${FormatUtils.formatCurrency(valor)}',
+
+            style: TextStyle(
+
+              fontSize: 14.r,
+
+              fontWeight: FontWeight.w800,
+
+              color:
+              esDescuento
+                  ? Colors.green
+                  : Colors.black,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _googleMapsWidget() {
     return GoogleMap(
         mapType: MapType.normal,
@@ -849,13 +1062,13 @@ class _ClientTravelInfoPageState
                     children: [
                       headerText(
                         text: 'Distancia',
-                        fontSize: 9.r,
+                        fontSize: 8.r,
                         color: negro,
                         fontWeight: FontWeight.w500,
                       ),
                       headerText(
                         text: _controller.km ?? '',
-                        fontSize: 14.r,
+                        fontSize: 11.r,
                         color: negro,
                         fontWeight: FontWeight.w900,
                       ),
@@ -870,13 +1083,13 @@ class _ClientTravelInfoPageState
                     children: [
                       headerText(
                         text: 'Duración',
-                        fontSize: 9.r,
+                        fontSize: 8.r,
                         color: negro,
                         fontWeight: FontWeight.w500,
                       ),
                       headerText(
                         text: _controller.min ?? '',
-                        fontSize: 14.r,
+                        fontSize: 11.r,
                         color: negro,
                         fontWeight: FontWeight.w900,
                       ),
@@ -895,88 +1108,179 @@ class _ClientTravelInfoPageState
                       horizontal: 6.r,
                     ),
 
-                    child: Container(
+                    child: GestureDetector(
+                      onTap: () {
 
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.r,
-                        vertical: 8.r,
-                      ),
+                        final tieneDetalles =
 
-                      decoration: BoxDecoration(
+                            _controller.recargoNocturno > 0 ||
 
-                        color: Colors.white,
+                                _controller.recargoDominical > 0 ||
 
-                        borderRadius: BorderRadius.circular(20.r),
+                                _controller.recargoAeropuerto > 0 ||
 
-                        boxShadow: [
+                                _controller.recargoYellowWoman > 0 ||
 
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            offset: const Offset(0, 2),
-                            blurRadius: 5,
-                          ),
-                        ],
-                      ),
+                                descuentoPromocion > 0;
 
-                      child: Column(
-                        crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                        if (!tieneDetalles) return;
 
-                        mainAxisSize: MainAxisSize.min,
+                        _mostrarDetalleTarifa();
+                      },
+                      child: Container(
+                      
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12.r,
+                          vertical: 8.r,
+                        ),
+                      
+                        decoration: BoxDecoration(
+                      
+                          color: Colors.white,
+                      
+                          borderRadius: BorderRadius.circular(20.r),
+                      
+                          boxShadow: [
+                      
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              offset: const Offset(0, 2),
+                              blurRadius: 5,
+                            ),
+                          ],
+                        ),
+                      
+                        child: Column(
+                          crossAxisAlignment:
+                          CrossAxisAlignment.end,
+                      
+                          mainAxisSize: MainAxisSize.min,
+                      
+                          children: [
+                      
+                            Text(
+                      
+                              descuentoPromocion > 0
+                                  ? 'PROMO'
+                                  : 'Total',
+                      
+                              style: TextStyle(
+                      
+                                fontSize: 9.r,
+                      
+                                color: descuentoPromocion > 0
+                                    ? Colors.green
+                                    : Colors.black54,
+                      
+                                fontWeight: FontWeight.w900,
+                      
+                                letterSpacing:
+                                descuentoPromocion > 0
+                                    ? 0.5
+                                    : 0,
+                              ),
+                            ),
+                      
+                            SizedBox(height: 2.r),
+                      
+                            headerText(
 
-                        children: [
+                              text:
 
-                          Text(
+                              tarifa == null
 
-                            descuentoPromocion > 0
-                                ? 'PROMO'
-                                : 'Total',
+                                  ? 'Calculando...'
 
-                            style: TextStyle(
+                                  : tarifaFinalConDescuento <= 0 &&
+                                  descuentoPromocion > 0
 
-                              fontSize: 10.r,
+                                  ? 'Gratis 🎉'
 
+                                  : formattedTarifaFinal,
+
+                              fontSize:
+
+                              tarifa == null
+
+                                  ? 13.r
+
+                                  : tarifaFinalConDescuento <= 0 &&
+                                  descuentoPromocion > 0
+
+                                  ? 13.r
+
+                                  : 17.r,
+                      
                               color: descuentoPromocion > 0
                                   ? Colors.green
-                                  : Colors.black54,
-
+                                  : Colors.black,
+                      
                               fontWeight: FontWeight.w900,
-
-                              letterSpacing:
-                              descuentoPromocion > 0
-                                  ? 0.5
-                                  : 0,
                             ),
-                          ),
+                            SizedBox(height: 3.r),
 
-                          SizedBox(height: 2.r),
+                            if (
+                            _controller.recargoNocturno > 0 ||
+                                _controller.recargoDominical > 0 ||
+                                _controller.recargoAeropuerto > 0 ||
+                                _controller.recargoYellowWoman > 0 ||
+                                descuentoPromocion > 0
+                            )
 
-                          headerText(
+                              Column(
+                                children: [
 
-                            text:
+                                  SizedBox(height: 3.r),
 
-                            tarifa == null
+                                  Container(
 
-                                ? 'Calculando...'
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 6.r,
+                                      vertical: 2.r,
+                                    ),
 
-                                : tarifaFinalConDescuento <= 0
+                                    decoration: BoxDecoration(
 
-                                ? 'Gratis 🎉'
+                                      color: primary.withOpacity(0.10),
 
-                                : formattedTarifaFinal,
+                                      borderRadius:
+                                      BorderRadius.circular(8.r),
+                                    ),
 
-                            fontSize:
-                            tarifaFinalConDescuento <= 0
-                                ? 16.r
-                                : 20.r,
+                                    child: Row(
 
-                            color: descuentoPromocion > 0
-                                ? Colors.green
-                                : Colors.black,
+                                      mainAxisSize: MainAxisSize.min,
 
-                            fontWeight: FontWeight.w900,
-                          )
-                        ],
+                                      children: [
+
+                                        Icon(
+                                          Icons.receipt_long,
+                                          size: 10.r,
+                                          color: Colors.black,
+                                        ),
+
+                                        SizedBox(width: 3.r),
+
+                                        Text(
+
+                                          'Ver detalles',
+
+                                          style: TextStyle(
+
+                                            fontSize: 9.r,
+
+                                            fontWeight: FontWeight.w800,
+
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1013,9 +1317,6 @@ class _ClientTravelInfoPageState
             padding: EdgeInsets.symmetric(horizontal: 12.r),
             child: _textApuntes(),
           ),
-
-          if (descuentoPromocion > 0)
-            _resumenPromocion(),
 
           SizedBox(height: 12.r),
 
@@ -1228,9 +1529,10 @@ class _ClientTravelInfoPageState
 
                     ? 'Calculando...'
 
-                    : tarifaFinalConDescuento <= 0
+                    : tarifaFinalConDescuento <= 0 &&
+                    descuentoPromocion > 0
 
-                    ? 'Viaje gratis 🎉'
+                    ? 'Gratis 🎉'
 
                     : formattedTarifaFinal,
 
@@ -1652,6 +1954,19 @@ class _ClientTravelInfoPageState
       caracteristicaVehiculo:
       _caracteristicaSeleccionada,
 
+      /// 🔥 NUEVOS
+      recargoNocturno:
+      _controller.recargoNocturno,
+
+      recargoDominical:
+      _controller.recargoDominical,
+
+      recargoAeropuerto:
+      _controller.recargoAeropuerto,
+
+      recargoYellowWoman:
+      _controller.recargoYellowWoman,
+
       promocionId:
       promocionAplicada?.id,
 
@@ -2046,8 +2361,7 @@ class _ClientTravelInfoPageState
                         final base =
                             _controller.total?.toInt() ?? 0;
 
-                        await _controller
-                            .createTravelInfo(
+                        await _controller.createTravelInfo(
 
                           tipoServicio:
                           "standard",
@@ -2061,6 +2375,19 @@ class _ClientTravelInfoPageState
 
                           caracteristicaVehiculo:
                           _caracteristicaSeleccionada,
+
+                          /// 🔥 NUEVOS
+                          recargoNocturno:
+                          _controller.recargoNocturno,
+
+                          recargoDominical:
+                          _controller.recargoDominical,
+
+                          recargoAeropuerto:
+                          _controller.recargoAeropuerto,
+
+                          recargoYellowWoman:
+                          _controller.recargoYellowWoman,
                         );
 
                         /// 🔥 REINICIAR
@@ -2142,5 +2469,6 @@ class _ClientTravelInfoPageState
       },
     );
   }
+
 
 }

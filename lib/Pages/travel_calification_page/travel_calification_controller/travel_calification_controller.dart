@@ -16,6 +16,51 @@ class TravelCalificationController{
   String? idTravelHistory;
   double? calification;
 
+  List<String> aspectosPositivos = [];
+
+  List<String> aspectosNegativos = [];
+
+  TextEditingController comentarioController = TextEditingController();
+
+
+  final List<String>
+  opcionesPositivas = [
+
+    'Excelente atención',
+
+    'Muy amable',
+
+    'Vehículo limpio',
+
+    'Buen conductor',
+
+    'Muy puntual',
+
+    'Conducción segura',
+
+    'Recomendado',
+  ];
+
+  final List<String>
+  opcionesNegativas = [
+
+    'Mala presentación',
+
+    'Vehículo sucio',
+
+    'Mal olor',
+
+    'Conducción peligrosa',
+
+    'Grosero',
+
+    'Mal estado del vehículo',
+
+    'Música inapropiada',
+
+    'Cobro incorrecto',
+  ];
+
   late TravelHistoryProvider _travelHistoryProvider;
   TravelHistory? travelHistory;
   late MyAuthProvider _authProvider;
@@ -63,6 +108,13 @@ class TravelCalificationController{
     final ratingRef = driverRef.collection('ratings').doc(); // id automático
     final travelRef = FirebaseFirestore.instance.collection('TravelHistory').doc(idTravelHistory);
 
+    final driverDoc =
+    await driverRef.get();
+
+    final driverData =
+    driverDoc.data()
+    as Map<String, dynamic>;
+
     await FirebaseFirestore.instance.runTransaction((tx) async {
       // ✅ 1) PRIMERO la lectura
       final driverSnap = await tx.get(driverRef);
@@ -78,10 +130,42 @@ class TravelCalificationController{
       tx.update(travelRef, {'calificacionAlConductor': rating});
 
       tx.set(ratingRef, {
+
         'idCliente': clientId,
-        'idTravelHistory': idTravelHistory,
+
+        'idDriver': idConductor,
+
+        'idTravelHistory':
+        idTravelHistory,
+
+        'numeroViaje':
+        travelHistory?.numeroViaje,
+
+        'placa':
+        travelHistory?.placa,
+
+        'nombreConductor':
+
+        '${driverData['01_Nombres'] ?? ''} '
+            '${driverData['02_Apellidos'] ?? ''}'
+            .trim(),
+
         'calificacion': rating,
-        'fecha': FieldValue.serverTimestamp(),
+
+        'aspectosPositivos':
+        aspectosPositivos,
+
+        'aspectosNegativos':
+        aspectosNegativos,
+
+        'comentario':
+
+        comentarioController
+            .text
+            .trim(),
+
+        'fecha':
+        FieldValue.serverTimestamp(),
       });
 
       tx.set(driverRef, {

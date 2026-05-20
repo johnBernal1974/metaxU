@@ -86,7 +86,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
                 Positioned(
 
-                  top: -22,
+                  top: -5,
                   right: 24,
 
                   child: _botonCancelarPremium(),
@@ -371,8 +371,8 @@ class _TravelMapPageState extends State<TravelMapPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
 
-            /// 🔹 ESTADO DEL VIAJE
-            /// 🔹 ESTADO DEL VIAJE
+            const SizedBox(height: 35),
+                        /// 🔹 ESTADO DEL VIAJE
             Container(
 
               width: double.infinity,
@@ -399,6 +399,7 @@ class _TravelMapPageState extends State<TravelMapPage> {
                   const Padding(
                     padding: EdgeInsets.only(right: 46),
                   ),
+
 
                   /// 🔥 CÁPSULA ESTADO
                   Container(

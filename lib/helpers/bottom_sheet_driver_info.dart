@@ -59,6 +59,9 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     return 'Primer viaje';
   }
 
+  List<Map<String, dynamic>>
+  ultimasResenas = [];
+
 
   @override
   void initState() {
@@ -69,6 +72,7 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
     getDriverInfo();
     getClientInfo();
     getDriverRatingFromDoc();
+    getUltimasResenas();
   }
 
   @override
@@ -97,269 +101,507 @@ class _BottomSheetDriverInfoState extends State<BottomSheetDriverInfo> {
       width: MediaQuery.of(context).size.width,
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-
-                    /// FOTO
-                    Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(100),
-                          image: DecorationImage(
-                            image: widget.imageUrl.isNotEmpty
-                                ? NetworkImage(widget.imageUrl)
-                                : const AssetImage(
-                                'assets/images/default_image.png')
-                            as ImageProvider,
-                            fit: BoxFit.cover,
-                          ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+          
+                  Row(
+                    crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                    children: [
+          
+                      /// FOTO
+                      Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
                           color: Colors.white,
                         ),
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(100),
+                            image: DecorationImage(
+                              image: widget.imageUrl.isNotEmpty
+                                  ? NetworkImage(widget.imageUrl)
+                                  : const AssetImage(
+                                  'assets/images/default_image.png')
+                              as ImageProvider,
+                              fit: BoxFit.cover,
+                            ),
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+          
+                      /// INFO
+                      Column(
+                        children: [
+          
+                          /// BOTONES
+                          Container(
+                            margin: const EdgeInsets.only(
+                                left: 20, right: 20, bottom: 10),
+                            child: Row(
+                              children: [
+          
+                                _iconBox(
+                                  child: IconButton(
+                                    onPressed: () {
+                                      makePhoneCall(widget.celular);
+                                    },
+                                    icon: const Icon(Icons.phone),
+                                    iconSize: 24,
+                                  ),
+                                ),
+          
+                                const SizedBox(width: 25),
+          
+                                _iconBox(
+                                  child: IconButton(
+                                    onPressed: () {
+                                      _openWhatsApp(context);
+                                    },
+                                    icon: Image.asset(
+                                      'assets/icono_whatsapp.png',
+                                      width: 24,
+                                      height: 24,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+          
+                          /// NOMBRE
+                          Column(
+                            children: [
+                              Text(
+                                widget.name,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: negro,
+                                ),
+                              ),
+                              Text(
+                                widget.apellido,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+          
+                          const SizedBox(height: 10),
+          
+                          /// VIAJES Y RATING
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+          
+                              Column(
+                                children: [
+                                  const Icon(
+                                    Icons.directions_car,
+                                    color: negro,
+                                    size: 16,
+                                  ),
+                                  Text(
+                                    widget.numeroViajes.toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+          
+                              const SizedBox(width: 30),
+          
+                              Column(
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.orange,
+                                    size: 16,
+                                  ),
+                                  Text(
+
+                                    ratingCount > 0
+
+                                        ? ratingText
+
+                                        : 'Nuevo',
+
+                                    style: const TextStyle(
+
+                                      fontWeight:
+                                      FontWeight.bold,
+
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+                        ],
+                      )
+                    ],
+                  ),
+          
+                  const SizedBox(height: 10),
+          
+                  Container(
+                    margin: const EdgeInsets.only(top: 10, bottom: 10),
+                    child: const Divider(height: 2, color: negroLetras),
+                  ),
+          
+                  /// INFO VEHÍCULO
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+          
+                      /// PLACA
+                      Column(
+                        children: [
+          
+                          const Text(
+                            'Placa',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                              fontSize: 12,
+                            ),
+                          ),
+          
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/placa_blanca.png",
+                                  width: 100,
+                                  height: 50,
+                                  fit: BoxFit.contain,
+                                ),
+                                Text(
+                                  placaFormateada,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+          
+                      /// DETALLES
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+          
+                          Row(
+                            children: [
+                              const Text('Marca: ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900)),
+                              Text(widget.marca,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 11)),
+                            ],
+                          ),
+          
+                          Row(
+                            children: [
+                              const Text('Color: ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900)),
+                              Text(widget.color,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 11)),
+                            ],
+                          ),
+          
+                          Row(
+                            children: [
+                              const Text('Servicio: ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900)),
+                              Text(widget.servicio,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 11)),
+                            ],
+                          ),
+          
+                          Row(
+                            children: [
+                              const Text('Clase: ',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900)),
+                              Text(widget.clase,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w400,
+                                      fontSize: 11)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (ultimasResenas.isEmpty)
+
+                    Container(
+
+                      width: double.infinity,
+
+                      padding:
+                      const EdgeInsets.all(14),
+
+                      decoration: BoxDecoration(
+
+                        color:
+                        Colors.grey.shade100,
+
+                        borderRadius:
+                        BorderRadius.circular(14),
+                      ),
+
+                      child: const Row(
+
+                        children: [
+
+                          Icon(
+
+                            Icons.verified_user,
+
+                            color: Colors.green,
+                          ),
+
+                          SizedBox(width: 10),
+
+                          Expanded(
+
+                            child: Text(
+
+                              'Conductor nuevo en MetaX',
+
+                              style: TextStyle(
+
+                                fontSize: 12,
+
+                                fontWeight:
+                                FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
-                    /// INFO
-                    Column(
-                      children: [
+                  if (ultimasResenas.isNotEmpty)
 
-                        /// BOTONES
-                        Container(
-                          margin: const EdgeInsets.only(
-                              left: 20, right: 20, bottom: 10),
-                          child: Row(
-                            children: [
+                    Container(
 
-                              _iconBox(
-                                child: IconButton(
-                                  onPressed: () {
-                                    makePhoneCall(widget.celular);
-                                  },
-                                  icon: const Icon(Icons.phone),
-                                  iconSize: 24,
-                                ),
-                              ),
+                      width: double.infinity,
 
-                              const SizedBox(width: 25),
+                      margin: const EdgeInsets.only(
+                        top: 10,
+                      ),
 
-                              _iconBox(
-                                child: IconButton(
-                                  onPressed: () {
-                                    _openWhatsApp(context);
-                                  },
-                                  icon: Image.asset(
-                                    'assets/icono_whatsapp.png',
-                                    width: 24,
-                                    height: 24,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      child: Column(
+
+                        crossAxisAlignment:
+                        CrossAxisAlignment.start,
+
+                        children: [
+
+                          const Text(
+
+                            'Últimas reseñas del conductor',
+
+                            style: TextStyle(
+
+                              fontSize: 14,
+
+                              fontWeight:
+                              FontWeight.w900,
+                            ),
                           ),
-                        ),
 
-                        /// NOMBRE
-                        Column(
-                          children: [
-                            Text(
-                              widget.name,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: negro,
+                          const SizedBox(height: 10),
+
+                          ...ultimasResenas.map((resena) {
+
+                            final comentario =
+
+                            (resena['comentario']
+                                ?? '')
+                                .toString()
+                                .trim();
+
+                            final calificacion =
+
+                            (resena['calificacion'] ?? 0)
+                                .toDouble();
+
+                            /// 🚫 NO mostrar malas reseñas
+                            if (calificacion < 4) {
+                              return const SizedBox();
+                            }
+
+                            if (comentario.isEmpty) {
+                              return const SizedBox();
+                            }
+
+                            return Container(
+
+                              width: double.infinity,
+
+                              margin: const EdgeInsets.only(
+                                bottom: 8,
                               ),
-                            ),
-                            Text(
-                              widget.apellido,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w400,
+
+                              padding:
+                              const EdgeInsets.all(12),
+
+                              decoration: BoxDecoration(
+
+                                color:
+                                Colors.grey.shade100,
+
+                                borderRadius:
+                                BorderRadius.circular(14),
                               ),
-                            ),
-                          ],
-                        ),
 
-                        const SizedBox(height: 10),
+                              child: Row(
 
-                        /// VIAJES Y RATING
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
 
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.directions_car,
-                                  color: negro,
-                                  size: 16,
-                                ),
-                                Text(
-                                  widget.numeroViajes.toString(),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                children: [
+
+                                  Column(
+
+                                    children: [
+
+                                      const Icon(
+
+                                        Icons.star,
+
+                                        color: Colors.orange,
+
+                                        size: 16,
+                                      ),
+
+                                      Text(
+
+                                        calificacion
+                                            .toStringAsFixed(1),
+
+                                        style: const TextStyle(
+
+                                          fontSize: 10,
+
+                                          fontWeight:
+                                          FontWeight.w900,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
 
-                            const SizedBox(width: 30),
+                                  const SizedBox(width: 8),
 
-                            Column(
-                              children: [
-                                const Icon(
-                                  Icons.star,
-                                  color: Colors.orange,
-                                  size: 16,
-                                ),
-                                Text(
-                                  ratingText,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                  Expanded(
+
+                                    child: Text(
+
+                                      comentario,
+
+                                      style: const TextStyle(
+
+                                        fontSize: 12,
+
+                                        fontWeight:
+                                        FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    )
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                Container(
-                  margin: const EdgeInsets.only(top: 10, bottom: 10),
-                  child: const Divider(height: 2, color: negroLetras),
-                ),
-
-                /// INFO VEHÍCULO
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-
-                    /// PLACA
-                    Column(
-                      children: [
-
-                        const Text(
-                          'Placa',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                            fontSize: 12,
-                          ),
-                        ),
-
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Image.asset(
-                                "assets/placa_blanca.png",
-                                width: 100,
-                                height: 50,
-                                fit: BoxFit.contain,
+                                ],
                               ),
-                              Text(
-                                placaFormateada,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 14,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            );
+                          }).toList(),
+                        ],
+                      ),
                     ),
-
-                    /// DETALLES
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-
-                        Row(
-                          children: [
-                            const Text('Marca: ',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900)),
-                            Text(widget.marca,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 11)),
-                          ],
-                        ),
-
-                        Row(
-                          children: [
-                            const Text('Color: ',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900)),
-                            Text(widget.color,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 11)),
-                          ],
-                        ),
-
-                        Row(
-                          children: [
-                            const Text('Servicio: ',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900)),
-                            Text(widget.servicio,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 11)),
-                          ],
-                        ),
-
-                        Row(
-                          children: [
-                            const Text('Clase: ',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900)),
-                            Text(widget.clase,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 11)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void>
+  getUltimasResenas() async {
+
+    final snapshot =
+
+    await FirebaseFirestore.instance
+
+        .collection('Drivers')
+
+        .doc(widget.idDriver)
+
+        .collection('ratings')
+
+        .orderBy(
+      'fecha',
+      descending: true,
+    )
+
+        .limit(3)
+
+        .get();
+
+    final data =
+
+    snapshot.docs
+        .map((e) => e.data())
+        .toList();
+
+    if (!mounted) return;
+
+    setState(() {
+
+      ultimasResenas =
+
+      List<Map<String, dynamic>>
+          .from(data);
+    });
   }
 
   void getClientInfo() async {

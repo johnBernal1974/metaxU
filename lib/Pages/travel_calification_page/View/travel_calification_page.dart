@@ -54,7 +54,12 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
                     SizedBox(height: 30.r),
                     _subtituloCuantasEstrellas(),
                     SizedBox(height: 10.r),
-                    _ratingBar ()
+                    _ratingBar (),
+                    if ((_controller.calification ?? 0) >
+                        0)
+
+                      _feedbackDinamico(),
+
                   ],
                 ),
               ),
@@ -67,15 +72,117 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
   }
 
   Widget _subtituloCuantasEstrellas() {
-    return Container(
-      alignment: Alignment.center,
-      child: const Text('¿Cuántas estrellas le das al conductor?', style: TextStyle(
-          color: Colors.black,
-          fontSize: 16,
-          fontWeight: FontWeight.w900
-      ),
-        textAlign: TextAlign.center,
-      ),
+
+    final rating =
+        _controller.calification ?? 0;
+
+    final positiva =
+        rating >= 4;
+
+    final negativa =
+        rating > 0 && rating < 4;
+
+    return Column(
+
+      children: [
+
+        if (rating > 0) ...[
+
+          AnimatedContainer(
+
+            duration:
+            const Duration(
+              milliseconds: 250,
+            ),
+
+            padding:
+            const EdgeInsets.all(18),
+
+            decoration: BoxDecoration(
+
+              shape: BoxShape.circle,
+
+              color:
+
+              positiva
+
+                  ? Colors.green
+                  .withOpacity(0.15)
+
+                  : Colors.red
+                  .withOpacity(0.15),
+            ),
+
+            child: Icon(
+
+              positiva
+
+                  ? Icons.sentiment_very_satisfied
+
+                  : Icons.sentiment_very_dissatisfied,
+
+              color:
+
+              positiva
+
+                  ? Colors.green
+
+                  : Colors.red,
+
+              size: 55,
+            ),
+          ),
+
+          const SizedBox(height: 14),
+        ],
+
+        Text(
+
+          negativa
+
+              ? '¿Qué debe mejorar el conductor?'
+
+              : '¿Cuántas estrellas le das al conductor?',
+
+          style: TextStyle(
+
+            color:
+
+            negativa
+                ? Colors.red
+
+                : Colors.black,
+
+            fontSize: 16,
+
+            fontWeight:
+            FontWeight.w900,
+          ),
+
+          textAlign:
+          TextAlign.center,
+        ),
+
+        if (positiva) ...[
+
+          const SizedBox(height: 8),
+
+          const Text(
+
+            '¡Gracias por confiar en MetaX!',
+
+            style: TextStyle(
+
+              fontSize: 13,
+
+              fontWeight:
+              FontWeight.w600,
+
+              color: Colors.green,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -181,23 +288,272 @@ class _TravelCalificationPageState extends State<TravelCalificationPage> {
     super.dispose();
   }
 
+  Widget _feedbackDinamico() {
+
+    final esPositiva =
+
+        (_controller.calification ?? 0)
+            >= 4;
+
+    final opciones = esPositiva
+
+        ? _controller.opcionesPositivas
+
+        : _controller.opcionesNegativas;
+
+    final seleccionadas = esPositiva
+
+        ? _controller.aspectosPositivos
+
+        : _controller.aspectosNegativos;
+
+    return Container(
+
+      margin: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 25,
+      ),
+
+      padding: const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius:
+        BorderRadius.circular(20),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color:
+            Colors.black.withOpacity(0.05),
+
+            blurRadius: 10,
+
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+
+      child: Column(
+
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
+
+        children: [
+
+          Text(
+
+            esPositiva
+
+                ? '¿Qué fue lo que más te gustó?'
+
+                : '¿Qué ocurrió durante el servicio?',
+
+            style: const TextStyle(
+
+              fontSize: 16,
+
+              fontWeight:
+              FontWeight.w900,
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          Wrap(
+
+            spacing: 10,
+
+            runSpacing: 10,
+
+            children:
+
+            opciones.map((opcion) {
+
+              final selected =
+
+              seleccionadas.contains(
+                opcion,
+              );
+
+              return GestureDetector(
+
+                onTap: () {
+
+                  setState(() {
+
+                    if (selected) {
+
+                      seleccionadas.remove(
+                        opcion,
+                      );
+
+                    } else {
+
+                      seleccionadas.add(
+                        opcion,
+                      );
+                    }
+                  });
+                },
+
+                child: AnimatedContainer(
+
+                  duration:
+                  const Duration(
+                    milliseconds: 180,
+                  ),
+
+                  padding:
+                  const EdgeInsets.symmetric(
+
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+
+                  decoration: BoxDecoration(
+
+                    color:
+
+                    selected
+
+                        ? primary.withOpacity(
+                      0.18,
+                    )
+
+                        : Colors.grey.shade100,
+
+                    borderRadius:
+                    BorderRadius.circular(30),
+
+                    border: Border.all(
+
+                      color:
+
+                      selected
+
+                          ? primary
+
+                          : Colors.grey.shade300,
+                    ),
+                  ),
+
+                  child: Text(
+
+                    opcion,
+
+                    style: TextStyle(
+
+                      fontWeight:
+                      FontWeight.w700,
+
+                      color:
+
+                      selected
+
+                          ? Colors.black
+
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 20),
+
+          TextField(
+
+            controller:
+            _controller
+                .comentarioController,
+
+            maxLines: 4,
+
+            decoration: InputDecoration(
+
+              hintText:
+
+              esPositiva
+
+                  ? '¿Qué fue lo mejor del servicio?'
+
+                  : '¿En qué debe mejorar el conductor?',
+
+              filled: true,
+
+              fillColor:
+              Colors.grey.shade100,
+
+              border: OutlineInputBorder(
+
+                borderRadius:
+                BorderRadius.circular(16),
+
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _ratingBar () {
     return Center(
         child: RatingBar.builder(
-            itemBuilder: (context, _) => Icon(
-              Icons.star,
-              color: Colors.orange.shade300,
-            ),
-            itemCount: 5,
-            initialRating: 0,
-            direction: Axis.horizontal,
-            itemSize: 35,
-            itemPadding: const EdgeInsets.symmetric(horizontal: 4),
-            allowHalfRating: true,
-            unratedColor: grisMedio,
-            onRatingUpdate: (ratingBar) {
-              _controller.calification = ratingBar;
-            }
+
+          itemBuilder: (context, _) => Icon(
+
+            Icons.star,
+
+            color: Colors.orange.shade300,
+          ),
+
+          itemCount: 5,
+
+          initialRating:
+          (_controller.calification ?? 0)
+              .toDouble(),
+
+          direction: Axis.horizontal,
+
+          itemSize: 35,
+
+          itemPadding:
+          const EdgeInsets.symmetric(
+            horizontal: 4,
+          ),
+
+          allowHalfRating: true,
+
+          unratedColor: grisMedio,
+
+          onRatingUpdate: (ratingBar) {
+
+            setState(() {
+
+              _controller.calification =
+                  ratingBar;
+
+              if (ratingBar >= 4) {
+
+                _controller
+                    .aspectosNegativos
+                    .clear();
+
+              } else {
+
+                _controller
+                    .aspectosPositivos
+                    .clear();
+              }
+            });
+          },
         )
     );
   }

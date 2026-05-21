@@ -121,78 +121,6 @@ class _TravelMapPageState extends State<TravelMapPage> {
     }
   }
 
-
-
-
-  Widget _cancelarViaje() {
-    final s = _controller.travelInfo?.status ?? '';
-
-    return Visibility(
-      visible: s == 'accepted' ||
-          s == 'driver_on_the_way' ||
-          s == 'driver_is_waiting' ||
-          s == 'client_notificado',
-      child: GestureDetector(
-        onTap: () async {
-          await _controller.connectionService.checkConnectionAndShowCard(
-            context,
-                () {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text(
-                      'Cancelar Viaje',
-                      style: TextStyle(
-                        fontSize: 16.r,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    content: const Text(
-                      '¿En verdad deseas cancelar el viaje?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('NO'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _controller.cancelTravelByClient();
-                        },
-                        child: const Text('SI'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.redAccent,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(8),
-          child: Icon(
-            Icons.cancel,
-            color: Colors.white,
-            size: 20.r,
-          ),
-        ),
-      ),
-    );
-  }
-
   Future alertSinInternet (){
     return showDialog(
       context: context,
@@ -456,21 +384,21 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
                           child: Text(
 
-                            _controller.currentStatus
-                                .toUpperCase(),
+                            _controller.currentStatus,
 
                             textAlign: TextAlign.center,
 
                             style: const TextStyle(
 
-                              fontSize: 16,
+                              fontSize: 14,
 
                               fontWeight:
                               FontWeight.w900,
+                              height: 1.1,
 
                               color: Colors.black,
 
-                              letterSpacing: 0.6,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),

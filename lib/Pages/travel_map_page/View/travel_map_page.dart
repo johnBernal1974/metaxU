@@ -546,25 +546,63 @@ class _TravelMapPageState extends State<TravelMapPage> {
 
                         builder: (_) {
 
+                          final travel =
+                              _controller.travelInfo;
+
+                          /// 🔥 AÚN CARGANDO
+                          if (travel == null) {
+
+                            return Column(
+
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+
+                              children: [
+
+                                Container(
+
+                                  width: 90,
+
+                                  height: 12,
+
+                                  decoration: BoxDecoration(
+
+                                    color: Colors.grey
+                                        .withOpacity(0.15),
+
+                                    borderRadius:
+                                    BorderRadius.circular(20),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+
+                                Container(
+
+                                  width: 120,
+
+                                  height: 22,
+
+                                  decoration: BoxDecoration(
+
+                                    color: Colors.grey
+                                        .withOpacity(0.18),
+
+                                    borderRadius:
+                                    BorderRadius.circular(20),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+
                           final total =
 
-                              _controller
-                                  .travelInfo
-                                  ?.totalClientePaga
-
-                                  ??
-
-                                  0;
+                              travel.totalClientePaga ?? 0;
 
                           final descuento =
 
-                              _controller
-                                  .travelInfo
-                                  ?.tarifaDescuento
-
-                                  ??
-
-                                  0;
+                              travel.tarifaDescuento ?? 0;
 
                           final esGratis =
                               total <= 0;

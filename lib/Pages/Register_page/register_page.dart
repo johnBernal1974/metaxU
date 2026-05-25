@@ -57,6 +57,11 @@ class _RegisterPageState extends State<RegisterPage> {
   String? selectedQuestion;
   String? answer;
 
+  bool _isValidName(String value) {
+    final regex = RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$");
+    return regex.hasMatch(value.trim());
+  }
+
   // Errores
   String? nameError;
   String? apellidosError;
@@ -754,6 +759,11 @@ class _RegisterPageState extends State<RegisterPage> {
         setState(() => nameError = "Por favor ingresa tu nombre.");
         return;
       }
+
+      if (!_isValidName(name!)) {
+        setState(() => nameError = "Solo se permiten letras.");
+        return;
+      }
       _goToPage(3);
       _handleFocusForPage(3);
       return;
@@ -763,6 +773,11 @@ class _RegisterPageState extends State<RegisterPage> {
     if (_currentPage == 3) {
       if ((apellidos ?? "").trim().isEmpty) {
         setState(() => apellidosError = "Por favor ingresa tus apellidos.");
+        return;
+      }
+
+      if (!_isValidName(apellidos!)) {
+        setState(() => apellidosError = "Solo se permiten letras.");
         return;
       }
       _goToPage(4);

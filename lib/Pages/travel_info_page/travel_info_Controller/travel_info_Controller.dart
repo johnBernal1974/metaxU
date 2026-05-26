@@ -22,6 +22,7 @@ import '../../../providers/travel_info_provider.dart';
 import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+import '../../../src/colors/colors.dart';
 import '../../travel_map_page/View/travel_map_page.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -1733,7 +1734,7 @@ class TravelInfoController{
   }
 
 
-  Future<void> createTravelInfo({
+  Future<bool> createTravelInfo({
 
     required String tipoServicio,
 
@@ -1758,8 +1759,96 @@ class TravelInfoController{
   }) async {
 
     tipoServicioSolicitado = tipoServicio;
+
     final user = _authProvider.getUser();
-    if (user == null) return;
+
+    if (user == null) {
+      return false;
+    }
+
+    final clienteDoc = await FirebaseFirestore.instance
+        .collection('Clients')
+        .doc(user.uid)
+        .get();
+
+    final clienteData = clienteDoc.data();
+
+    final statusCliente = clienteData?['status'] ?? '';
+
+    final viajesRealizados =
+        clienteData?['19_Viajes'] ?? 0;
+
+    if (
+    statusCliente == 'activacion_parcial' &&
+        viajesRealizados >= 1
+    ) {
+
+      if (context.mounted) {
+
+        showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+
+              title: const Row(
+                children: [
+
+                  Icon(
+                    Icons.verified_user,
+                    color: Colors.orange,
+                  ),
+
+                  SizedBox(width: 10),
+
+                  Expanded(
+                    child: Text(
+                      'Validación pendiente',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              content: const Text(
+                'Tu cuenta está pendiente de validación final.\n\n'
+                    'Uno de nuestros operadores revisará tu información para continuar utilizando Meta X.',
+                style: TextStyle(
+                  height: 1.4,
+                ),
+              ),
+
+              actions: [
+
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text(
+                    'Entendido',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+
+              ],
+            );
+          },
+        );
+      }
+
+      return false;
+    }
 
     final travelInfo = TravelInfo(
       id: user.uid,
@@ -1812,11 +1901,18 @@ class TravelInfoController{
     );
 
     await _travelInfoProvider.create(travelInfo);
+
     _checkDriverResponse();
+
+    return true;
   }
+
+
 
   Future<void> getDriverInfo(String idDriver) async {
   }
+
+
 
   Future<bool> sendNotification(String token) async {
     final user = _authProvider.getUser();

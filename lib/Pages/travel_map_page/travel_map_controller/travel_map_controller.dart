@@ -289,12 +289,26 @@ class TravelMapController{
     }
   }
 
-  void actualizarContadorDeViajes () async {
-    int? numeroDeViajes = client?.viajes;
-    int nuevoContador = numeroDeViajes! + 1;
-    Map<String, dynamic> data = {
-      '19_Viajes': nuevoContador};
-    await _clientProvider.update(data, _authProvider.getUser()!.uid);
+  void actualizarContadorDeViajes() async {
+
+    try {
+
+      await FirebaseFirestore.instance
+          .collection('Clients')
+          .doc(_authProvider.getUser()!.uid)
+          .update({
+
+        '19_Viajes': FieldValue.increment(1),
+
+      });
+
+      print('✅ Viaje incrementado');
+
+    } catch (e) {
+
+      print('❌ Error incrementando viajes: $e');
+    }
+
     refresh();
   }
 

@@ -1937,7 +1937,8 @@ class _ClientTravelInfoPageState
         _tipoServicioSeleccionado == 'vip';
 
     /// 🔥 3. CREAR VIAJE
-    _controller.createTravelInfo(
+    bool viajeCreado =
+    await _controller.createTravelInfo(
 
       tipoServicio:
       _tipoServicioSeleccionado,
@@ -1976,6 +1977,22 @@ class _ClientTravelInfoPageState
       tarifaOriginal:
       tarifa!,
     );
+
+    if (!viajeCreado) {
+
+      if (mounted) {
+
+        setState(() {
+
+          isVisibleTarjetaSolicitandoConductor =
+          false;
+
+          _isSearching = false;
+        });
+      }
+
+      return;
+    }
 
     /// 🔥 4. INICIAR BÚSQUEDA
     _controller.getNearbyDrivers();

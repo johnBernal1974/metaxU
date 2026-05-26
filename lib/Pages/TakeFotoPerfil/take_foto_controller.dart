@@ -11,6 +11,10 @@ import '../../../../providers/client_provider.dart';
 import '../../../../providers/storage_provider.dart';
 import 'package:apptaxis/models/client.dart';
 
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
+import '../../src/colors/colors.dart';
+
 class TakeFotoController {
 
   late BuildContext context;
@@ -43,6 +47,76 @@ class TakeFotoController {
     try {
       final uid = _authProvider.getUser()!.uid;
 
+      bool rostroValido = await validarRostro(
+        File(pickedFile!.path),
+      ); if (!rostroValido) {
+        if(context.mounted){
+            closeSimpleProgressDialog(context);
+            showDialog(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+
+                  title: const Row(
+                    children: [
+
+                      Icon(
+                        Icons.face_retouching_off,
+                        color: Colors.red,
+                        size: 28,
+                      ),
+
+                      SizedBox(width: 10),
+
+                      Expanded(
+                        child: Text(
+                          'Foto no válida',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  content: const Text(
+                    'No detectamos claramente un rostro humano en la foto.\n\n'
+                        'Por favor toma una selfie donde se observe completamente tu rostro y parte de los hombros.',
+                    style: TextStyle(
+                      height: 1.4,
+                    ),
+                  ),
+
+                  actions: [
+
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primary,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Entendido',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+
+                  ],
+                );
+              },
+            );
+        }
+
+        return;
+      }
       // ✅ Comprimir imagen
       File compressedImage = await compressImage(File(pickedFile!.path));
 
@@ -76,7 +150,7 @@ class TakeFotoController {
         'foto_perfil_estado': nuevoEstado,
 
         // 🔒 flujo admin
-        'status': 'procesando',
+        'status': 'activacion_parcial',
       };
 
       await _clientProvider.update(data, uid);
@@ -86,7 +160,7 @@ class TakeFotoController {
 
         Navigator.pushNamedAndRemoveUntil(
           context,
-          'verificacion_pendiente',
+          'map_client',
               (route) => false,
         );
       }
@@ -96,6 +170,41 @@ class TakeFotoController {
       }
     }
   }
+
+
+  Future<bool> validarRostro(File imageFile) async {
+
+    try {
+
+      final options = FaceDetectorOptions(
+        enableContours: false,
+        enableLandmarks: false,
+        performanceMode: FaceDetectorMode.fast,
+      );
+
+      final faceDetector = FaceDetector(
+        options: options,
+      );
+
+      final inputImage = InputImage.fromFile(imageFile);
+
+      final faces = await faceDetector.processImage(inputImage);
+
+      await faceDetector.close();
+
+      print('🔥 Rostros detectados: ${faces.length}');
+
+      return faces.isNotEmpty;
+
+    } catch (e) {
+
+      print('❌ Error detectando rostro: $e');
+
+      return false;
+    }
+  }
+
+
 
   void showSimpleProgressDialog(BuildContext context, String message) {
     showDialog(
@@ -115,6 +224,8 @@ class TakeFotoController {
       },
     );
   }
+
+
 
   // Función para comprimir la imagen
   Future<File> compressImage(File imageFile) async {

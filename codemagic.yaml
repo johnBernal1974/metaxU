@@ -1,0 +1,23 @@
+workflows:
+  flutter-ios-android:
+    name: MetaX Build
+
+    environment:
+      flutter: 3.16.0
+
+    scripts:
+      - name: Flutter pub get
+        script: |
+          flutter pub get
+
+      - name: Build Android
+        script: |
+          flutter build apk --release
+
+      - name: Build iOS
+        script: |
+          flutter build ios --release --no-codesign
+
+    artifacts:
+      - build/**/outputs/**/*.apk
+      - build/ios/iphoneos/*.app

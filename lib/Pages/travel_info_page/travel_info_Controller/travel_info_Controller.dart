@@ -111,7 +111,7 @@ class TravelInfoController{
   bool yaIntentoTodosLosVIP = false;
 
   double _radioActual = 0.0;
-  double _radioMaximo = 1.0;
+  double _radioMaximo = 3.0;
   Timer? _timerExpansion;
   int tiempoEsperaPorteria = 10;
 
@@ -1101,7 +1101,7 @@ class TravelInfoController{
         return;
       }
 
-      List<String> driversFiltrados = [];
+      List<Map<String, dynamic>> driversFiltrados = [];
       /// 🔥 LIMPIAR SOLO TAXIS
       markers.removeWhere(
 
@@ -1114,10 +1114,10 @@ class TravelInfoController{
           Map<String, dynamic> data = d.data() as Map<String, dynamic>;
 
           /// 🔥 NUEVO FILTRO (USANDO TU updatedAt)
-          if (!estaActivoRecientementeDesdeLocation(data)) {
-            print("⛔ Driver ${d.id} sin ubicación reciente, saltando...");
-            continue;
-          }
+          // if (!estaActivoRecientementeDesdeLocation(data)) {
+          //   print("⛔ Driver ${d.id} sin ubicación reciente, saltando...");
+          //   continue;
+          // }
 
           Map<String, dynamic> positionData = d.get('position');
 
@@ -1133,11 +1133,21 @@ class TravelInfoController{
 
             double distanceInKm = distanceInMeters / 1000;
 
+            print(
+                "📍 Driver ${d.id} | "
+                    "Distancia: ${distanceInKm.toStringAsFixed(2)} km | "
+                    "Radio actual: ${_radioActual.toStringAsFixed(2)} km"
+            );
+
             print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
 
             if (distanceInKm <= _radioActual) {
+              print("✅ Driver ${d.id} DENTRO DEL RADIO");
 
-              driversFiltrados.add(d.id);
+              driversFiltrados.add({
+                'id': d.id,
+                'distance': distanceInKm,
+              });
 
               double rotation = 0;
 
@@ -1183,13 +1193,21 @@ class TravelInfoController{
         }
       }
 
+      driversFiltrados.sort((a, b) {
+        return a['distance'].compareTo(b['distance']);
+      });
+
+      List<String> driversOrdenados = driversFiltrados
+          .map((e) => e['id'] as String)
+          .toList();
+
       /// 🔥 SOLO nuevos
-      List<String> nuevosDrivers = driversFiltrados
+      List<String> nuevosDrivers = driversOrdenados
           .where((id) => !notifiedDrivers.contains(id))
           .toList();
 
       // 🔥 REEMPLAZAR lista completa por solo los activos actuales
-      nearbyDrivers = driversFiltrados;
+      nearbyDrivers = driversOrdenados;
 
       if (nuevosDrivers.isEmpty) {
 
@@ -1208,7 +1226,7 @@ class TravelInfoController{
 
       print("🆕 Conductores encontrados: ${nuevosDrivers.length}");
       conductoresEncontradosCallback?.call(
-        driversFiltrados.length,
+        driversOrdenados.length,
       );
 
       /// 🔥 precargar vehículos
@@ -1511,7 +1529,7 @@ class TravelInfoController{
     // 🔥 ARMAR BATCH DE 2
     List<String> batch = [];
 
-    for (int i = index; i < index + 2 && i < driverIds.length; i++) {
+    for (int i = index; i < index + 4 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
         notifiedDrivers.add(driverIds[i]);
@@ -1519,7 +1537,7 @@ class TravelInfoController{
     }
 
     if (batch.isEmpty) {
-      return await _attemptToSendNotification(driverIds, index + 2);
+      return await _attemptToSendNotification(driverIds, index + 4);
     }
 
     print("🚀 Batch seleccionado: $batch");
@@ -2196,7 +2214,7 @@ class TravelInfoController{
       final minutos = now.difference(updatedAt).inMinutes;
 
       // 🔥 AQUÍ defines la regla
-      return minutos <= 2;
+      return minutos <= 720;
 
     } catch (e) {
       print("⚠️ Error validando activity location: $e");
@@ -2218,11 +2236,9 @@ class TravelInfoController{
 
       if (updatedAt == null) return false;
 
-      final segundos = now.difference(updatedAt).inSeconds;
-      print("🕒 Driver actualizado hace $segundos segundos");
+      final minutos = now.difference(updatedAt).inMinutes;
 
-      /// 🔥 PORTERÍAS = MÁS ESTRICTO
-      return segundos <= 90;
+      return minutos <= 720;
 
     } catch (e) {
 

@@ -324,11 +324,11 @@ class ClientMapController {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
 
-            /// 🔥 NUEVO FILTRO
-            if (!estaActivoRecientemente(data)) {
-              print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
-              continue;
-            }
+            // /// 🔥 NUEVO FILTRO
+            // if (!estaActivoRecientemente(data)) {
+            //   print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
+            //   continue;
+            // }
 
             Map<String, dynamic> positionData = d.get('position');
 
@@ -357,6 +357,10 @@ class ClientMapController {
               } catch (_) {}
 
               if (distanceInKm <= radio) {
+                print(
+                    "✅ Driver ${d.id} DENTRO DEL RADIO | "
+                        "${distanceInKm.toStringAsFixed(2)} km"
+                );
                 addMarkerDriver(
 
                   d.id,
@@ -380,6 +384,7 @@ class ClientMapController {
             print("⚠️ Error leyendo driver ${d.id}: $e");
           }
         }
+        print("🚕 Conductores mostrados en mapa: ${markers.length - 1}");
 
         // 🔥 Refrescar mapa
         refresh();
@@ -826,20 +831,25 @@ class ClientMapController {
 
   bool estaActivoRecientemente(Map<String, dynamic> data) {
     try {
+
       final now = DateTime.now();
 
       final position = data['position'];
+
       if (position == null) return false;
 
       final updatedAt = position['updatedAt']?.toDate();
+
       if (updatedAt == null) return false;
 
       final minutos = now.difference(updatedAt).inMinutes;
 
-      return minutos <= 2; // 🔥 regla
+      return minutos <= 720;
 
     } catch (e) {
+
       print("⚠️ Error validando actividad: $e");
+
       return false;
     }
   }

@@ -11,8 +11,6 @@ import '../../../../providers/client_provider.dart';
 import '../../../../providers/storage_provider.dart';
 import 'package:apptaxis/models/client.dart';
 
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-
 import '../../src/colors/colors.dart';
 
 class TakeFotoController {
@@ -47,80 +45,14 @@ class TakeFotoController {
     try {
       final uid = _authProvider.getUser()!.uid;
 
-      bool rostroValido = await validarRostro(
-        File(pickedFile!.path),
-      ); if (!rostroValido) {
-        if(context.mounted){
-            closeSimpleProgressDialog(context);
-            showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-
-                  title: const Row(
-                    children: [
-
-                      Icon(
-                        Icons.face_retouching_off,
-                        color: Colors.red,
-                        size: 28,
-                      ),
-
-                      SizedBox(width: 10),
-
-                      Expanded(
-                        child: Text(
-                          'Foto no válida',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  content: const Text(
-                    'No detectamos claramente un rostro humano en la foto.\n\n'
-                        'Por favor toma una selfie donde se observe completamente tu rostro y parte de los hombros.',
-                    style: TextStyle(
-                      height: 1.4,
-                    ),
-                  ),
-
-                  actions: [
-
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'Entendido',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-
-                  ],
-                );
-              },
-            );
-        }
-
-        return;
-      }
       // ✅ Comprimir imagen
-      File compressedImage = await compressImage(File(pickedFile!.path));
+      File compressedImage = await compressImage(
+        File(pickedFile!.path),
+      );
 
-      PickedFile compressedPickedFile = PickedFile(compressedImage.path);
+      PickedFile compressedPickedFile = PickedFile(
+        compressedImage.path,
+      );
 
       // ✅ Subir a Storage
       TaskSnapshot snapshot = await _storageProvider.uploadProfilePhoto(
@@ -148,8 +80,6 @@ class TakeFotoController {
       final Map<String, dynamic> data = {
         'foto_perfil_url': imageUrl,
         'foto_perfil_estado': nuevoEstado,
-
-        // 🔒 flujo admin
         'status': 'activacion_parcial',
       };
 
@@ -168,42 +98,10 @@ class TakeFotoController {
       if (context.mounted) {
         closeSimpleProgressDialog(context);
       }
+
+      print('Error guardando foto de perfil: $e');
     }
   }
-
-
-  Future<bool> validarRostro(File imageFile) async {
-
-    try {
-
-      final options = FaceDetectorOptions(
-        enableContours: false,
-        enableLandmarks: false,
-        performanceMode: FaceDetectorMode.fast,
-      );
-
-      final faceDetector = FaceDetector(
-        options: options,
-      );
-
-      final inputImage = InputImage.fromFile(imageFile);
-
-      final faces = await faceDetector.processImage(inputImage);
-
-      await faceDetector.close();
-
-      print('🔥 Rostros detectados: ${faces.length}');
-
-      return faces.isNotEmpty;
-
-    } catch (e) {
-
-      print('❌ Error detectando rostro: $e');
-
-      return false;
-    }
-  }
-
 
 
   void showSimpleProgressDialog(BuildContext context, String message) {

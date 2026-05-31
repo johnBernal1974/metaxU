@@ -1065,7 +1065,10 @@ class TravelInfoController{
     _timerExpansion?.cancel();
 
     /// 🔥 iniciar radio base (el mismo del mapa)
-    _radioActual = radioDeBusqueda ?? 0.5;
+    //////temporal****************//////
+    // _radioActual = radioDeBusqueda ?? 0.5;
+    _radioActual = 0.05; // 200 metros
+    //////temporal****************//////
 
     _buscarConductores();
   }
@@ -1209,20 +1212,30 @@ class TravelInfoController{
       // 🔥 REEMPLAZAR lista completa por solo los activos actuales
       nearbyDrivers = driversOrdenados;
 
+      //temporal *********/////
+      // if (nuevosDrivers.isEmpty) {
+      //
+      //   print("⏳ No hay conductores, ampliando radio...");
+      //
+      //   /// 🔥 aumentar 100 metros
+      //   _radioActual += 0.1;
+      //
+      //   _timerExpansion?.cancel();
+      //   _timerExpansion = Timer(const Duration(seconds: 2), () {
+      //     _buscarConductores();
+      //   });
+      //
+      //   return;
+      // }
+
       if (nuevosDrivers.isEmpty) {
 
-        print("⏳ No hay conductores, ampliando radio...");
-
-        /// 🔥 aumentar 100 metros
-        _radioActual += 0.1;
-
-        _timerExpansion?.cancel();
-        _timerExpansion = Timer(const Duration(seconds: 2), () {
-          _buscarConductores();
-        });
+        print("🚫 No hay conductores dentro de 200 metros");
 
         return;
       }
+
+      //temporal *********/////
 
       print("🆕 Conductores encontrados: ${nuevosDrivers.length}");
       conductoresEncontradosCallback?.call(
@@ -1529,7 +1542,8 @@ class TravelInfoController{
     // 🔥 ARMAR BATCH DE 2
     List<String> batch = [];
 
-    for (int i = index; i < index + 4 && i < driverIds.length; i++) {
+    ///////temporal ojo ****************////// pasar nuevamente a 4
+    for (int i = index; i < index + 1 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
         notifiedDrivers.add(driverIds[i]);
@@ -1537,7 +1551,7 @@ class TravelInfoController{
     }
 
     if (batch.isEmpty) {
-      return await _attemptToSendNotification(driverIds, index + 4);
+      return await _attemptToSendNotification(driverIds, index + 1);
     }
 
     print("🚀 Batch seleccionado: $batch");
@@ -1629,7 +1643,8 @@ class TravelInfoController{
     print("➡️ Batch finalizado, pasando al siguiente...");
 
     // 🔥 SIGUIENTE BATCH
-    return await _attemptToSendNotification(driverIds, index + 2);
+    //temporal ************* ojo cambiar nuevmente a 2
+    return await _attemptToSendNotification(driverIds, index + 1);
   }
 
   void permitirStandardManual() async {

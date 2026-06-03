@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../helpers/conectivity_service.dart';
+
 import '../../src/colors/colors.dart';
+
 
 class TakeFotoPerfil extends StatefulWidget {
   const TakeFotoPerfil({super.key});

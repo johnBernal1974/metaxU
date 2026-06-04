@@ -1327,7 +1327,7 @@ class _ClientTravelInfoPageState
             margin: EdgeInsets.only(
               left: 25.r,
               right: 25.r,
-              bottom: MediaQuery.of(context).padding.bottom ,
+              bottom: MediaQuery.of(context).padding.bottom + 20,
             ),
             child: ElevatedButton(
               onPressed: (_controller.isCalculatingTrip || !_controller.canConfirmTrip)

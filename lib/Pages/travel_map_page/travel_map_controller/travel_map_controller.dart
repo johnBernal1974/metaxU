@@ -137,24 +137,48 @@ class TravelMapController{
   void checkTravelStatus() async {
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
     _streamTravelController = stream.listen((DocumentSnapshot document) async {
-      if (document.data() == null) return;
+
+      print("🔥 Travel listener disparado************************");
+
+      if (document.data() == null) {
+        print("🔥 Travel document NULL******************");
+        return;
+      }
       travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
+
+      print("🔥 Status recibido*******************: ${travelInfo?.status}");
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
+
+          currentStatus = 'Viaje aceptado';
+
+          addMarker(
+            'from',
+            travelInfo!.fromLat,
+            travelInfo!.fromLng,
+            'Recoger aquí',
+            '',
+            fromMarker,
+          );
+
+          refresh();
+
           if (!soundIsaceptado) {
             soundIsaceptado = true;
-            await SoundManager().playServicioAceptado();
+            SoundManager().playServicioAceptado(); // sin await
           }
-          addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
-          currentStatus = 'Viaje aceptado';
+
           pickupTravel();
+
           break;
         case 'driver_on_the_way':
+          print("✅ driver_on_the_way");
           currentStatus = 'Conductor en camino';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
+          print("✅ driver_is_waiting");
           cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
@@ -183,35 +207,51 @@ class TravelMapController{
 
           break;
         case 'started':
+          print("✅ started");
           currentStatus = 'El Viaje ha iniciado';
           startTravel();
           break;
         case 'cancelByDriverAfterAccepted':
-          if (!_cancelSoundPlayed) {
-            _cancelSoundPlayed = true;
-            await SoundManager().playCancelacionConductor();
-          }
+
           if(context.mounted){
             Navigator.pushReplacementNamed(context, 'map_client');
           }
+
           _actualizarIsTravelingFalse();
+
           if(context.mounted){
-            Snackbar.showSnackbar(context, 'El conductor canceló el servicio');
+            Snackbar.showSnackbar(
+              context,
+              'El conductor canceló el servicio',
+            );
+          }
+
+          if (!_cancelSoundPlayed) {
+            _cancelSoundPlayed = true;
+            SoundManager().playCancelacionConductor();
           }
 
           break;
         case 'cancelTimeIsOver':
-          if (!_cancelSoundPlayed) {
-            _cancelSoundPlayed = true;
-            await SoundManager().playCancelacionConductor();
-          }
+
           if(context.mounted){
             Navigator.pushReplacementNamed(context, 'map_client');
           }
+
           _actualizarIsTravelingFalse();
+
           if(context.mounted){
-            Snackbar.showSnackbar(context,  'El conductor canceló el servicio por tiempo de espera cumplido');
+            Snackbar.showSnackbar(
+              context,
+              'El conductor canceló el servicio por tiempo de espera cumplido',
+            );
           }
+
+          if (!_cancelSoundPlayed) {
+            _cancelSoundPlayed = true;
+            SoundManager().playCancelacionConductor();
+          }
+
           break;
         case 'finished':
           currentStatus = 'Viaje finalizado';
@@ -223,9 +263,6 @@ class TravelMapController{
       refresh();
     });
   }
-
-
-
 
   void cambiarestadoNotificado(){
     Map<String, dynamic> data = {'status': 'client_notificado'};
@@ -249,15 +286,21 @@ class TravelMapController{
 
 
   void _getTravelInfo() async {
-    // Obtener la información del viaje del proveedor de información de viaje
-    travelInfo = await _travelInfoProvider.getById(_authProvider.getUser()!.uid);
-    // Configurar la posición inicial en la ubicación de destino (to)
-    animateCameraToPosition(travelInfo!.fromLat, travelInfo!.fromLng);
-    // Obtener información del conductor y ubicación del conductor
+    travelInfo = await _travelInfoProvider.getById(
+        _authProvider.getUser()!.uid);
+
+    animateCameraToPosition(
+      travelInfo!.fromLat,
+      travelInfo!.fromLng,
+    );
+
     getDriverInfo(travelInfo!.idDriver);
     getClientInfo();
-    getDriverLocation(travelInfo!.idDriver);
 
+    // 🔥 NUEVO
+    checkTravelStatus();
+
+    getDriverLocation(travelInfo!.idDriver);
   }
 
   void cancelTravelByClient() {
@@ -366,8 +409,9 @@ class TravelMapController{
       refresh();
 
       if (!isRouteready) {
+        print("📍 Primera ubicación recibida");
+
         isRouteready = true;
-        checkTravelStatus();
       }
     });
   }
@@ -426,7 +470,9 @@ class TravelMapController{
   }
 
   void getDriverInfo(String id) async {
+    print("🚕 Consultando conductor");
     driver = await _driverProvider.getById(id);
+    print("🚕 Conductor cargado: ${driver?.the01Nombres}");
     refresh();
   }
 

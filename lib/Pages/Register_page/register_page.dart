@@ -915,7 +915,29 @@ class _RegisterPageState extends State<RegisterPage> {
 
       // 5) Si ya existe doc por UID => entrar
       final existingByUid = await _clientProvider.getById(uid);
-      String? token = await FirebaseMessaging.instance.getToken();
+
+      String? token;
+
+      try {
+
+        final apnsToken =
+            await FirebaseMessaging.instance.getAPNSToken();
+
+        print("🍏 APNS TOKEN: $apnsToken");
+
+        token =
+            await FirebaseMessaging.instance.getToken();
+
+        print("🔥 FCM TOKEN: $token");
+
+      } catch (e) {
+
+        print("⚠️ Error obteniendo token FCM: $e");
+
+        token = "";
+
+      }
+      
       if (existingByUid != null) {
         await _stopLoading();
         Snackbar.showSnackbar(key.currentContext!, 'Ya tienes cuenta. Ingresando...');

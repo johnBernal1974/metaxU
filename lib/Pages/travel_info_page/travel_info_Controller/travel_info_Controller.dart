@@ -1094,7 +1094,11 @@ class TravelInfoController{
 
       /// 🔥 STOP GLOBAL
       if (_tiempoAgotado() || serviceAccepted) {
+
         print("⛔ STOP listener NORMAL");
+        print("⏰ tiempoAgotado: ${_tiempoAgotado()}");
+        print("✅ serviceAccepted: $serviceAccepted");
+
         return;
       }
 
@@ -1276,6 +1280,9 @@ class TravelInfoController{
       _isSendingNotifications = true;
 
       try {
+        print("🔥🔥🔥 VOY A LLAMAR _attemptToSendNotification");
+        print("🔥 nearbyDrivers: ${nearbyDrivers.length}");
+        print("🔥 notifiedDrivers: ${notifiedDrivers.length}");
         await _attemptToSendNotification(
           nearbyDrivers,
           notifiedDrivers.length,

@@ -49,11 +49,15 @@ Future<void> main() async {
   );
 
   // ✅ App Check: Debug en DEBUG, Play Integrity en RELEASE
-  await FirebaseAppCheck.instance.activate(
+
+  /*if(!Platform.isIOS){
+    await FirebaseAppCheck.instance.activate(
     androidProvider: kDebugMode
         ? AndroidProvider.debug
         : AndroidProvider.playIntegrity,
   );
+  }*/
+  
 
   // Correr la aplicación
   runApp(const MyApp());

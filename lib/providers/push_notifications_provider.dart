@@ -20,15 +20,24 @@ class PushNotificationsProvider {
   }
 
   void _initializeNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const InitializationSettings initializationSettings =
-    InitializationSettings(android: initializationSettingsAndroid);
+  const AndroidInitializationSettings android =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-  }
+  const DarwinInitializationSettings ios =
+      DarwinInitializationSettings();
+
+  const InitializationSettings settings =
+      InitializationSettings(
+        android: android,
+        iOS: ios,
+      );
+
+  flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  await flutterLocalNotificationsPlugin.initialize(settings);
+}
 
   void initPushNotifications() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -83,6 +92,8 @@ class PushNotificationsProvider {
 
 
   Future<void> sendMessage(String to, Map<String, dynamic> data) async {
+    print("🔥🔥🔥 ENVIANDO A CLOUD FUNCTION");
+    print("🔥 TOKEN: $to");
     final response = await http.post(
       Uri.parse('https://us-central1-apptaxi-e641d.cloudfunctions.net/sendPushToDriver'),
       headers: <String, String>{
@@ -100,6 +111,9 @@ class PushNotificationsProvider {
         "ttlSeconds": 25,
       }),
     );
+
+    print("🔥 STATUS: ${response.statusCode}");
+    print("🔥 BODY: ${response.body}");
 
     if (response.statusCode == 200) {
       if (kDebugMode) print('✅ Mensaje enviado: ${response.body}');

@@ -410,29 +410,35 @@ class ClientMapController {
   }
 
   void updateLocation() async {
-    try {
-      await _determinePosition();
-      _position = (await Geolocator.getLastKnownPosition())!;
-      if (_position != null) {
-        currentLocation = LatLng(_position!.latitude, _position!.longitude);
-        centerPosition();
+  try {
 
-        addMarker(
-            'client',
-            _position!.latitude,
-            _position!.longitude,
-            "Tu posición", "",
-            markerClient
-        );
+    _position = await _determinePosition();
 
-        getNearbyDrivers();
-      }
-    } catch (error) {
-      if (kDebugMode) {
-        print('Error en la localizacion: $error');
-      }
+    if (_position != null) {
+
+      currentLocation = LatLng(
+        _position!.latitude,
+        _position!.longitude,
+      );
+
+      centerPosition();
+
+      addMarker(
+        'client',
+        _position!.latitude,
+        _position!.longitude,
+        "Tu posición",
+        "",
+        markerClient,
+      );
+
+      getNearbyDrivers();
     }
+
+  } catch (error) {
+    print('Error en la localizacion: $error');
   }
+}
 
   void centerPosition() {
     if (_position != null) {
@@ -735,6 +741,7 @@ class ClientMapController {
       return Future.error(
           'Location permissions are permanently denied, we cannot request permissions.');
     }
+    print("📍 Solicitando ubicación...");
 
     return await Geolocator.getCurrentPosition();
   }

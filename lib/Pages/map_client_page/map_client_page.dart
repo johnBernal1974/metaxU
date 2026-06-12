@@ -25,6 +25,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 
+// Controlador y variables exclusivas para el Autocomplete del Origen ✅
+final _textFromController = TextEditingController();
+Timer? _debounceFrom;
+List<Map<String, String>> _predictionsFrom = [];
+bool _loadingPredsFrom = false;
+bool _pickingPlaceFrom = false;
+
 
 
 
@@ -320,6 +327,9 @@ class _MapClientPageState
   void dispose() {
     SessionManager.stopHeartbeat();
     _debounce?.cancel();
+    _debounceFrom?.cancel();
+    _textController.dispose();
+    _textFromController.dispose();
     _controller.dispose();
     _promoController.dispose();
     super.dispose();
@@ -537,54 +547,76 @@ class _MapClientPageState
 
                         const SizedBox(width: 10),
 
-                        /// 🔥 TEXTOS
+
                         Expanded(
-
-                          child: Column(
-
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
-
+                          child: Row(
                             children: [
-
-                              const Text(
-
-                                'Lugar de recogida',
-
-                                style: TextStyle(
-
-                                  fontSize: 11,
-
-                                  fontWeight:
-                                  FontWeight.w600,
-
-                                  color: Colors.black54,
+                              // Contenedor del texto del Origen
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    connectionService.hasInternetConnection().then((hasConnection) {
+                                      if (hasConnection) {
+                                        _mostrarCajonDeBusquedaOrigen(context);
+                                      } else {
+                                        alertSinInternet();
+                                      }
+                                    });
+                                  },
+                                  child: Container(
+                                    color: Colors.transparent,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Lugar de recogida',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _controller.from ?? 'Selecciona origen...',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w900,
+                                            color: negro,
+                                            height: 1.1,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
 
-                              const SizedBox(height: 2),
+                              // 🔥 NUEVO ICONO: Solo se muestra si el usuario está usando ubicación manual
 
-                              Text(
+                              if (_controller.usandoUbicacionManual)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.gps_fixed, color: Colors.green, size: 22),
+                                    tooltip: 'Usar mi ubicación real',
+                                    onPressed: () {
+                                      // 1. Apagamos la bandera manual de inmediato
+                                      _controller.usandoUbicacionManual = false;
 
-                                _controller.from ?? '',
+                                      // 2. Ejecutamos el actualizador nativo de tu controlador.
+                                      // Este método ya busca el GPS real, centra la cámara, actualiza el marcador 'client' y pide los taxis cercanos de nuevo.
+                                      _controller.updateLocation();
 
-                                style: const TextStyle(
-
-                                  fontSize: 14,
-
-                                  fontWeight:
-                                  FontWeight.w900,
-
-                                  color: negro,
-
-                                  height: 1.1,
+                                      // 3. Forzamos a recalcular el texto de la dirección postal real en base al GPS actual
+                                      _controller.setLocationdraggableInfoOrigen(useCameraPosition: false).then((_) {
+                                        setState(() {});
+                                      });
+                                    },
+                                  ),
                                 ),
-
-                                maxLines: 2,
-
-                                overflow:
-                                TextOverflow.ellipsis,
-                              ),
                             ],
                           ),
                         ),
@@ -793,6 +825,228 @@ class _MapClientPageState
         ),
       ),
     );
+  }
+
+  /// 🔥 NUEVO SHEET EXCLUSIVO PARA AUTOCOMPLETAR EL ORIGEN ("from")
+  Future<void> _mostrarCajonDeBusquedaOrigen(BuildContext context) async {
+    _debounceFrom?.cancel();
+    _textFromController.clear();
+    setState(() {
+      _predictionsFrom = [];
+      _loadingPredsFrom = false;
+    });
+
+    await showModalBottomSheet(
+      isScrollControlled: true,
+      context: context,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            _sheetSetState = setModalState;
+            _isSheetOpen = true;
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 150),
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.75,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: Stack(
+                  children: [
+                    SingleChildScrollView(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.r),
+                        child: Column(
+                          children: [
+                            SizedBox(height: 15.r),
+                            Text(
+                              '¿Dónde te recogemos?',
+                              style: TextStyle(fontSize: 18.r, fontWeight: FontWeight.w900, color: negroLetras),
+                            ),
+                            SizedBox(height: 20.r),
+                            Container(
+                              height: 54.r,
+                              decoration: BoxDecoration(
+                                color: grisClaro,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: primary, width: 1.5),
+                              ),
+                              alignment: Alignment.center,
+                              child: TextField(
+                                autofocus: true,
+                                controller: _textFromController,
+                                textCapitalization: TextCapitalization.sentences,
+                                cursorColor: Colors.black,
+                                decoration: InputDecoration(
+                                  hintText: 'Escribe tu lugar de recogida…',
+                                  hintStyle: TextStyle(fontSize: 13.r),
+                                  prefixIcon: const Icon(Icons.my_location, color: Colors.green),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 15.r),
+                                ),
+                                onChanged: _onOrigenChanged,
+                              ),
+                            ),
+                            if (_loadingPredsFrom)
+                              Padding(
+                                padding: EdgeInsets.only(top: 15.r),
+                                child: const CircularProgressIndicator(),
+                              ),
+                            if (_predictionsFrom.isNotEmpty)
+                              Container(
+                                margin: EdgeInsets.only(top: 15.r),
+                                height: 300.r,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: grisMedio),
+                                ),
+                                child: ListView.separated(
+                                  itemCount: _predictionsFrom.length,
+                                  separatorBuilder: (_, __) => const Divider(height: 1),
+                                  itemBuilder: (_, i) {
+                                    final p = _predictionsFrom[i];
+                                    return ListTile(
+                                      leading: const Icon(Icons.location_on, color: Colors.grey),
+                                      title: Text(p['description']!, style: TextStyle(fontSize: 13.r), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                      enabled: !_pickingPlaceFrom,
+                                      onTap: _pickingPlaceFrom ? null : () => _selectPredictionFrom(placeId: p['placeId']!, description: p['description']!),
+                                    );
+                                  },
+                                ),
+                              ),
+                            SizedBox(height: 20.r),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton.icon(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: const Icon(Icons.cancel, color: negro),
+                                  label: const Text('Cancelar', style: TextStyle(color: negro, fontWeight: FontWeight.bold)),
+                                )
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_pickingPlaceFrom)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.white.withOpacity(0.7),
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                      )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      _debounceFrom?.cancel();
+      _sheetSetState = null;
+      _isSheetOpen = false;
+    });
+  }
+
+  /// 🔥 LÓGICA DE ESCUCHA DE TEXTO PARA EL AUTOCOMPLETADO DE RECOGIDA
+  Future<void> _onOrigenChanged(String value) async {
+    _debounceFrom?.cancel();
+    final q = value.trim();
+
+    if (q.length < 3) {
+      _predictionsFrom = [];
+      _loadingPredsFrom = false;
+      _safeSheetRepaint();
+      return;
+    }
+
+    _loadingPredsFrom = true;
+    _safeSheetRepaint();
+
+    _debounceFrom = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final lat = _controller.currentLocation?.latitude;
+        final lng = _controller.currentLocation?.longitude;
+
+        final res = await _functions.httpsCallable('placesAutocomplete').call({
+          'input': q,
+          'country': 'co',
+          'lat': lat,
+          'lng': lng,
+          'radiusMeters': 30000,
+        });
+
+        final data = Map<String, dynamic>.from(res.data);
+        final list = (data['predictions'] as List? ?? []);
+
+        final preds = list.map((e) {
+          final m = Map<String, dynamic>.from(e as Map);
+          return {
+            'placeId': (m['placeId'] ?? '').toString(),
+            'description': (m['description'] ?? '').toString(),
+          };
+        }).where((p) => p['placeId']!.isNotEmpty && p['description']!.isNotEmpty).toList();
+
+        _predictionsFrom = preds;
+      } catch (_) {
+        _predictionsFrom = [];
+      } finally {
+        _loadingPredsFrom = false;
+        _safeSheetRepaint();
+      }
+    });
+  }
+
+  /// 🔥 PROCESAR SELECCIÓN DE LUGAR DE ORIGEN
+  Future<void> _selectPredictionFrom({required String placeId, required String description}) async {
+    setState(() => _pickingPlaceFrom = true);
+    _safeSheetRepaint();
+
+    try {
+      final res = await _functions.httpsCallable('placeDetails').call({'placeId': placeId});
+      final data = Map<String, dynamic>.from(res.data);
+
+      // Dentro de tu _selectPredictionFrom (en map_client_page.dart)
+      if (data['ok'] == true) {
+        final lat = (data['lat'] as num).toDouble();
+        final lng = (data['lng'] as num).toDouble();
+        final targetLatLng = LatLng(lat, lng);
+
+        // 🔥 Si la Cloud Function nos da el nombre comercial ("Hospital..."), lo usamos.
+        // Si viene vacío (porque es una calle ordinaria), dejamos la dirección por defecto.
+        String nombreLugar = description;
+        if (data.containsKey('name') && data['name'] != null && data['name'].toString().isNotEmpty) {
+          nombreLugar = data['name'].toString();
+        }
+
+        _controller.from = nombreLugar; // 👈 Guardamos el nombre comercial
+        _controller.fromlatlng = targetLatLng;
+        _controller.initialPosition = CameraPosition(target: targetLatLng, zoom: 16);
+
+        _controller.actualizarPosicionManual();
+        setState(() {});
+
+        _controller.mapController.then((googleMap) {
+          googleMap.animateCamera(CameraUpdate.newLatLng(targetLatLng));
+        });
+
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (kDebugMode) print('selectPredictionFrom error: $e');
+    } finally {
+      setState(() => _pickingPlaceFrom = false);
+      _safeSheetRepaint();
+    }
   }
 
   Widget _sliderPromociones() {
@@ -3026,6 +3280,13 @@ class _MapClientPageState
       final lng = (data['lng'] as num).toDouble();
       final latLng = LatLng(lat, lng);
 
+      // 🔥 NUEVO: Extraemos el nombre comercial si viene en la respuesta.
+      // Si por alguna razón viene vacío, usamos la descripción larga por defecto.
+      String nombreDestino = description;
+      if (data.containsKey('name') && data['name'] != null && data['name'].toString().isNotEmpty) {
+        nombreDestino = data['name'].toString();
+      }
+
       final split = _splitNameAndAddress(description);
       final title = split['title']!;
       final subtitle = split['subtitle']!;
@@ -3041,10 +3302,10 @@ class _MapClientPageState
         lng: latLng.longitude,
       );
 
-      // ✅ Actualiza UI + controller con lo que el usuario vio
+      // ✅ Actualiza UI + controller con el nombre comercial procesado
       setState(() {
-        _textController.text = description;
-        _controller.to = description;
+        _textController.text = nombreDestino; // 👈 Muestra el nombre limpio en el input
+        _controller.to = nombreDestino;       // 👈 Guarda el nombre limpio en el controlador para el viaje
         _controller.tolatlng = latLng;
         _predictions = [];
         _loadingPreds = false;

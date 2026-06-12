@@ -24,6 +24,7 @@ class ClientMapController {
   late Function refresh;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
+  Future<GoogleMapController> get mapController => _mapController.future;
 
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.8470616, -74.0743461),
@@ -184,6 +185,11 @@ class ClientMapController {
 
 
   Future<Null> setLocationdraggableInfo() async {
+    // 🔥 SI EL USUARIO YA SELECCIONÓ UN DESTINO CON PLACES, NO PERMITIR QUE EL ONCAMERAIDLE LO PISE
+    if (tolatlng != null && to != null && to!.isNotEmpty && !usandoUbicacionManual) {
+      return;
+    }
+
     double lat = initialPosition.target.latitude;
     double lng = initialPosition.target.longitude;
     List<Placemark> address = await placemarkFromCoordinates(lat, lng);
@@ -208,79 +214,49 @@ class ClientMapController {
   }
 
   Future<void> setLocationdraggableInfoOrigen({
-
     bool useCameraPosition = false,
   }) async {
+    // 🔥 SI YA SE USÓ AUTOCOMPLETE DE PLACES PARA EL ORIGEN Y NO SE ESTÁ EDITANDO MANUALMENTE EN EL MAPA, RESPETAR EL NOMBRE
+    if (fromlatlng != null && from != null && from!.isNotEmpty && usandoUbicacionManual && !useCameraPosition) {
+      return;
+    }
 
     double lat;
     double lng;
 
     /// 🔥 USAR CENTRO DEL MAPA
     if (useCameraPosition) {
-
-      lat =
-          initialPosition.target.latitude;
-
-      lng =
-          initialPosition.target.longitude;
+      lat = initialPosition.target.latitude;
+      lng = initialPosition.target.longitude;
     }
-
     /// 🔥 USAR GPS REAL
     else {
-
       /// 🔥 SI HAY UBICACIÓN MANUAL
-      if (usandoUbicacionManual &&
-          fromlatlng != null) {
-
+      if (usandoUbicacionManual && fromlatlng != null) {
         lat = fromlatlng!.latitude;
-
         lng = fromlatlng!.longitude;
       }
-
       /// 🔥 GPS NORMAL
       else {
-
         if (_position == null) {
           return;
         }
-
         lat = _position!.latitude;
-
         lng = _position!.longitude;
       }
     }
 
-    List<Placemark> address =
-
-    await placemarkFromCoordinates(
-      lat,
-      lng,
-    );
+    List<Placemark> address = await placemarkFromCoordinates(lat, lng);
 
     if (address.isNotEmpty) {
-      String? placeName =
-          address[0].name;
+      String? placeName = address[0].name;
+      String? direction = address[0].thoroughfare;
+      String? street = address[0].subThoroughfare;
+      String? city = address[0].locality;
+      String? department = address[0].administrativeArea;
 
-      String? direction =
-          address[0].thoroughfare;
-
-      String? street =
-          address[0].subThoroughfare;
-
-      String? city =
-          address[0].locality;
-
-      String? department =
-          address[0]
-              .administrativeArea;
-
-      from =
-      '$direction #$street, '
-          '$city, $department';
-
-      fromlatlng =
-          LatLng(lat, lng);
-
+      from = '$direction #$street, $city, $department';
+      fromlatlng = LatLng(lat, lng);
       refresh();
     }
   }

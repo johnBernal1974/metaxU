@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide ModalBottomSheetRoute;
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as location;
@@ -15,6 +16,8 @@ import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/price_provider.dart';
 import '../../service/connection_service_singleton.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 class ClientMapController {
   late BuildContext context;
@@ -73,15 +76,38 @@ class ClientMapController {
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
 
+    // =========================================================================
+    // 🔥 AJUSTE DINÁMICO DE MARCADORES PARA ESTA PANTALLA
+    // =========================================================================
+    double pixelRatio = MediaQuery.of(context).devicePixelRatio;
+
+    // Valores base finos y pequeños
+    double baseDriver = 11.0;  // Tamaño para los taxis en el radar
+    double baseClient = 13.0;  // Tamaño para tu pin de ubicación
+
+    if (Platform.isIOS) {
+      baseDriver = 11.0;
+      baseClient = 13.0;
+    } else if (Platform.isAndroid) {
+      baseDriver = 11.0;
+      baseClient = 13.0;
+    }
+
+    int finalWidthDriver = (baseDriver * pixelRatio).round();
+    int finalWidthClient = (baseClient * pixelRatio).round();
+
+    // Asignar las imágenes con el tamaño en píxeles reales calculados
+    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
+    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
+    // =========================================================================
+
     final config = await _clientProvider.getConfigCedula();
     _pedirCedula = config['cedula'] == true;
     _cedulaDespuesDeViajes = (config['cedula_despues_de_viajes'] as int?) ?? 1;
 
-
     _pushNotificationsProvider = PushNotificationsProvider();
 
-    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
+    // Se eliminaron las dos líneas repetidas de abajo que sobreescribían el tamaño
 
     checkGPS();
     await obtenerDatos();
@@ -318,17 +344,9 @@ class ClientMapController {
           markerClient,
         );
 
-
-
         for (DocumentSnapshot d in documentList) {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-
-            // /// 🔥 NUEVO FILTRO
-            // if (!estaActivoRecientemente(data)) {
-            //   print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
-            //   continue;
-            // }
 
             Map<String, dynamic> positionData = d.get('position');
 
@@ -347,35 +365,27 @@ class ClientMapController {
               double rotation = 0;
 
               try {
-
                 rotation =
                     double.tryParse(
-                      data['heading']
-                          ?.toString() ?? '0',
+                      data['heading']?.toString() ?? '0',
                     ) ?? 0;
-
               } catch (_) {}
 
               if (distanceInKm <= radio) {
                 print(
-                    "✅ Driver ${d.id} DENTRO DEL RADIO | "
-                        "${distanceInKm.toStringAsFixed(2)} km"
+                    "✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km"
                 );
+
+                // 🔥 CORREGIDO: Usamos markerDriver (que ya se calibró dinámicamente en el init)
+                // y cambiamos 'rotation:' por 'heading:' para que coincida con tu función addMarkerDriver
                 addMarkerDriver(
-
                   d.id,
-
                   geoPoint.latitude,
-
                   geoPoint.longitude,
-
                   'Conductor disponible',
-
                   "",
-
-                  markerDriver,
-
-                  rotation: rotation,
+                  markerDriver, // El marcador con tamaño inteligente
+                  rotation: rotation, // Nombre de parámetro corregido
                 );
               }
             }
@@ -750,11 +760,21 @@ class ClientMapController {
     ));
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
-    ImageConfiguration configuration = const ImageConfiguration();
-    BitmapDescriptor bitmapDescriptor=
-    await BitmapDescriptor.fromAssetImage(configuration, path);
-    return bitmapDescriptor;
+  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
+    // 1. Cargar el archivo desde los assets a la memoria del teléfono
+    ByteData data = await rootBundle.load(path);
+
+    // 2. Decodificar la imagen usando el alias 'ui.' para evitar conflictos
+    ui.Codec codec = await ui.instantiateImageCodec(
+      data.buffer.asUint8List(),
+      targetWidth: width,
+    );
+    ui.FrameInfo fi = await codec.getNextFrame();
+
+    // 3. Convertir la imagen procesada de nuevo a formato PNG usable por Google Maps
+    ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
   }
 
 

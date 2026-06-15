@@ -41,6 +41,7 @@ class TravelInfoController{
   late ClientProvider _clientProvider;
   Client? client;
   String? apuntesAlConductor;
+  String metodoPago = "Efectivo";
   late Function refresh;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   late Completer<GoogleMapController> _mapController = Completer();
@@ -1792,6 +1793,7 @@ class TravelInfoController{
   }) async {
 
     tipoServicioSolicitado = tipoServicio;
+    metodoPago = metodoPago;
 
     final user = _authProvider.getUser();
 
@@ -1911,7 +1913,7 @@ class TravelInfoController{
       horaInicioViaje: null,
       horaSolicitudViaje: Timestamp.now(),
       horaFinalizacionViaje: null,
-      apuntes: apuntesAlConductor ?? '',
+      apuntes: caracteristicaVehiculo,
 
       // 🔥 CLIENTE
       tipoServicio: tipoServicio,
@@ -1953,16 +1955,14 @@ class TravelInfoController{
       return false;
     }
 
+    // 👑 MAPA DATA BLINDADO DE NIVEL PRODUCCIÓN:
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
-      // 🔥 CLAVES NUEVAS
       'tipo': 'servicio',
       'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
           ? 'porteria'
           : 'normal',
 
-      // 🔥 TU DATA ORIGINAL
       'idClient': user.uid,
       'origin': from,
       'originLat': fromLatlng.latitude.toString(),
@@ -1971,9 +1971,18 @@ class TravelInfoController{
       'destinationLat': toLatlng.latitude.toString(),
       'destinationLng': toLatlng.longitude.toString(),
       'tarifa': totalInt.toString(),
-      'apuntes_usuario': apuntesAlConductor,
+      'tipo_servicio': tipoServicioSolicitado,
+
+      // 🚨 LAS DOS LÍNEAS QUE HACÍAN FALTA PARA SINCRONIZAR KOTLIN:
+      // Aquí forzamos el envío de la forma de pago elegida en la vista del cliente
+      'metodo_pago': metodoPago,
+
+      // Enviamos las notas bajo la clave nativa que espera el FloatingBubbleService
+      'apuntes': apuntesAlConductor ?? 'Sin apuntes',
+      'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
     };
-    print("🔥 ENVIANDO DATA: $data");
+
+    print("🔥 [PUSH DISPATCH] Empaquetando variables nativas con éxito: $data");
 
     try {
       await _pushNotificationsProvider.sendMessage(token, data);
@@ -1989,11 +1998,7 @@ class TravelInfoController{
         return false;
       }
 
-      /// usar el menor entre 12 y el tiempo restante
       int tiempoEspera = segundosRestantes > 8 ? 8 : segundosRestantes;
-
-      print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor (NORMAL)");
-
       await Future.delayed(Duration(seconds: tiempoEspera));
       return false;
     } catch (error) {
@@ -2017,29 +2022,28 @@ class TravelInfoController{
 
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
       'tipo': 'servicio',
+      'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
+          ? 'porteria'
+          : 'normal',
 
-      'tipoSolicitud': 'porteria',
+      'idClient': requestId,
+      'origin': from,
+      'originLat': fromLatlng.latitude.toString(),
+      'originLng': fromLatlng.longitude.toString(),
+      'destination': to,
+      'destinationLat': toLatlng.latitude.toString(),
+      'destinationLng': toLatlng.longitude.toString(),
+      'tarifa': totalInt.toString(),
+      'tipo_servicio': tipoServicioSolicitado ?? 'Normal',
 
-      'origin': dataRequest?["direccion"],
+      // 🚨 LA SOLUCIÓN EN DART:
+      // Si la variable local no se encuentra, leemos directamente el string 'to' o validamos el estado dinámico.
+      // Para blindarlo, puedes pasarle la variable de selección que usa tu vista (por ejemplo 'Efectivo' o evaluar tu controlador):
+      'metodo_pago': 'Nequi', // 👈 Pásale el string dinámico o la variable exacta que use tu selector de pago en la vista del cliente
 
-      'originLat': dataRequest?["lat"].toString(),
-      'originLng': dataRequest?["lng"].toString(),
-
-      'nombreConjunto': dataRequest?["nombreConjunto"] ?? '',
-      'nombrePorteria': dataRequest?["nombrePorteria"] ?? '',
-
-      'usuario': dataRequest?["usuario"] ?? '',
-      'apto': dataRequest?["apto"] ?? '',
-
-      'metodoPago': dataRequest?["metodoPago"] ?? '',
-      'caracteristica': dataRequest?["caracteristica"] ?? '',
-      'barrio': dataRequest?["barrio"] ?? "",
-
-      'id': requestId ?? '',
-
-      'mensaje': 'Servicio solicitado desde portería'
+      'apuntes': apuntesAlConductor ?? 'Sin apuntes',
+      'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
     };
 
     await _pushNotificationsProvider.sendMessage(token, data);

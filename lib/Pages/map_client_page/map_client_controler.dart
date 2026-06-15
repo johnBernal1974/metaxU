@@ -323,7 +323,6 @@ class ClientMapController {
         for (DocumentSnapshot d in documentList) {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-
             Map<String, dynamic> positionData = d.get('position');
 
             if (positionData.containsKey('geopoint')) {
@@ -337,43 +336,41 @@ class ClientMapController {
               );
 
               double distanceInKm = distanceInMeters / 1000;
-
               double rotation = 0;
 
               try {
-                rotation =
-                    double.tryParse(
-                      data['heading']?.toString() ?? '0',
-                    ) ?? 0;
+                rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
               } catch (_) {}
 
               if (distanceInKm <= radio) {
-                print(
-                    "✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km"
-                );
+                print("✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km");
 
-                // 🔥 CORREGIDO: Usamos markerDriver (que ya se calibró dinámicamente en el init)
-                // y cambiamos 'rotation:' por 'heading:' para que coincida con tu función addMarkerDriver
                 addMarkerDriver(
                   d.id,
                   geoPoint.latitude,
                   geoPoint.longitude,
                   'Conductor disponible',
                   "",
-                  markerDriver, // El marcador con tamaño inteligente
-                  rotation: rotation, // Nombre de parámetro corregido
+                  markerDriver,
+                  rotation: rotation,
                 );
               }
             }
-
           } catch (e) {
             print("⚠️ Error leyendo driver ${d.id}: $e");
           }
         }
         print("🚕 Conductores mostrados en mapa: ${markers.length - 1}");
 
-        // 🔥 Refrescar mapa
-        refresh();
+        // =========================================================================
+        // 🔒 PROTECCIÓN CRÍTICA ANTI-CRASH:
+        // =========================================================================
+        // Solo invocamos el redibujado si la pantalla del cliente sigue activa en el teléfono.
+        // Si el viaje ya fue aceptado o el usuario salió, context.mounted será 'false'
+        // y el flujo asíncrono morirá en silencio sin reventar la app.
+        if (context.mounted) {
+          refresh();
+        }
       });
 
     } catch (e) {

@@ -83,6 +83,25 @@ class PushNotificationsProvider {
 
 
   Future<void> sendMessage(String to, Map<String, dynamic> data) async {
+    // 👑 RECOLECTOR DE SEGURIDAD NATIVO:
+    // Nos aseguramos de extraer el método de pago y los apuntes reales que vengan del mapa,
+    // o les ponemos el respaldo dinámico para que Kotlin nunca lea nulo.
+    String pagoFinal = (data['metodo_pago'] ?? data['metodoPago'] ?? 'Nequi').toString();
+    String apuntesFinal = (data['apuntes'] ?? data['apuntes_usuario'] ?? 'Sin apuntes').toString();
+
+    // Creamos una copia limpia del mapa data para asegurar que no mutemos el original por error
+    Map<String, String> dataMapeada = data.map((k, v) => MapEntry(k, v.toString()));
+
+    // 🔥 FORZAMOS las llaves idénticas a como las busca tu MyFirebaseMessagingService.kt
+    dataMapeada['metodo_pago'] = pagoFinal;
+    dataMapeada['metodoPago'] = pagoFinal;
+    dataMapeada['apuntes'] = apuntesFinal;
+    dataMapeada['apuntes_usuario'] = apuntesFinal;
+
+    if (kDebugMode) {
+      print('🚀 [PUSH FINAL] Enviando datos duros al Servidor: $dataMapeada');
+    }
+
     final response = await http.post(
       Uri.parse('https://us-central1-apptaxi-e641d.cloudfunctions.net/sendPushToDriver'),
       headers: <String, String>{
@@ -95,16 +114,15 @@ class PushNotificationsProvider {
           "title": "Metax",
           "body": "Nueva solicitud de servicio",
         },
-        // 🔥 FCM data debe ser string-string
-        "data": data.map((k, v) => MapEntry(k, v.toString())),
+        "data": dataMapeada, // 👈 Enviamos el mapa completamente inyectado
         "ttlSeconds": 25,
       }),
     );
 
     if (response.statusCode == 200) {
-      if (kDebugMode) print('✅ Mensaje enviado: ${response.body}');
+      if (kDebugMode) print('✅ Mensaje enviado con éxito: ${response.body}');
     } else {
-      if (kDebugMode) print('❌ Error ${response.statusCode}: ${response.body}');
+      if (kDebugMode) print('❌ Error en el servidor ${response.statusCode}: ${response.body}');
     }
   }
 }

@@ -1544,7 +1544,7 @@ class TravelInfoController{
     List<String> batch = [];
 
     ///////temporal ojo ****************////// pasar nuevamente a 4
-    for (int i = index; i < index + 1 && i < driverIds.length; i++) {
+    for (int i = index; i < index + 2 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
         notifiedDrivers.add(driverIds[i]);
@@ -1552,7 +1552,7 @@ class TravelInfoController{
     }
 
     if (batch.isEmpty) {
-      return await _attemptToSendNotification(driverIds, index + 1);
+      return await _attemptToSendNotification(driverIds, index + 2);
     }
 
     print("🚀 Batch seleccionado: $batch");

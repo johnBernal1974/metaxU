@@ -5,6 +5,7 @@ import 'package:apptaxis/helpers/conectivity_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -1082,11 +1083,8 @@ class TravelInfoController{
     _streamSubscription?.cancel();
     _timerExpansion?.cancel();
 
-    /// 🔥 iniciar radio base (el mismo del mapa)
-    //////temporal****************//////
-    // _radioActual = radioDeBusqueda ?? 0.5;
-    _radioActual = 0.05; // 200 metros
-    //////temporal****************//////
+    /// 🔥 RADIO DE PRODUCCIÓN: Inicia con el radio dinámico configurado en Firestore
+    _radioActual = radioDeBusqueda ?? 1.0;
 
     _buscarConductores();
   }
@@ -1234,21 +1232,20 @@ class TravelInfoController{
       // 🔥 REEMPLAZAR lista completa por solo los activos actuales
       nearbyDrivers = driversOrdenados;
 
-      //temporal *********/////
-      // if (nuevosDrivers.isEmpty) {
-      //
-      //   print("⏳ No hay conductores, ampliando radio...");
-      //
-      //   /// 🔥 aumentar 100 metros
-      //   _radioActual += 0.1;
-      //
-      //   _timerExpansion?.cancel();
-      //   _timerExpansion = Timer(const Duration(seconds: 2), () {
-      //     _buscarConductores();
-      //   });
-      //
-      //   return;
-      // }
+      // ✅ ALGORITMO DE PRODUCCIÓN: Si el radio actual está vacío, expande hacia afuera dinámicamente
+      if (nuevosDrivers.isEmpty) {
+        print("⏳ No se encontraron nuevos conductores en ${_radioActual.toStringAsFixed(2)} km, expandiendo radar...");
+
+        // Aumenta el radio de búsqueda en pasos de 300 metros
+        _radioActual += 0.3;
+
+        _timerExpansion?.cancel();
+        _timerExpansion = Timer(const Duration(seconds: 3), () {
+          _buscarConductores();
+        });
+
+        return;
+      }
 
       if (nuevosDrivers.isEmpty) {
 
@@ -1567,8 +1564,8 @@ class TravelInfoController{
     // 🔥 ARMAR BATCH DE 2
     List<String> batch = [];
 
-    ///////temporal ojo ****************////// pasar nuevamente a 4
-    for (int i = index; i < index + 2 && i < driverIds.length; i++) {
+    // 🚀 BATCH DE PRODUCCIÓN: Notificar en bloques masivos de 4 conductores en simultáneo
+    for (int i = index; i < index + 4 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
         notifiedDrivers.add(driverIds[i]);
@@ -1576,7 +1573,7 @@ class TravelInfoController{
     }
 
     if (batch.isEmpty) {
-      return await _attemptToSendNotification(driverIds, index + 2);
+      return await _attemptToSendNotification(driverIds, index + 4);
     }
 
     print("🚀 Batch seleccionado: $batch");

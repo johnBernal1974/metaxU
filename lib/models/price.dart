@@ -17,6 +17,7 @@ class Price {
   int theDistanciaTarifaMinima;
   int theNumeroCancelacionesUsuario;
   double theRadioDeBusqueda;
+  double? theRadioMaximo;
   int theTarifaAeropuerto;
   int theTarifaMinimaRegular;
   //nuevas
@@ -50,6 +51,7 @@ class Price {
     required this.theDistanciaTarifaMinima,
     required this.theNumeroCancelacionesUsuario,
     required this.theRadioDeBusqueda,
+    this.theRadioMaximo,
     required this.theTarifaAeropuerto,
     required this.theTarifaMinimaRegular,
     required this.theTarifaMinimaHotel,
@@ -79,6 +81,8 @@ class Price {
     theDistanciaTarifaMinima: json["distancia_tarifa_minima"]  ?? '',
     theNumeroCancelacionesUsuario: json["numero_cancelaciones_usuario"]  ?? '',
     theRadioDeBusqueda: json["radio_de_busqueda"]?.toDouble() ?? 0.0,
+
+    theRadioMaximo: (json["radio_maximo_busqueda"] ?? 2.0).toDouble(),
     theTarifaAeropuerto: json["tarifa_aeropuerto"]  ?? '',
     theTarifaMinimaRegular: json["tarifa_minima_regular"]?? '',
     theTarifaMinimaHotel: json["tarifa_minima_hotel"]?? '',
@@ -111,6 +115,7 @@ class Price {
     "distancia_tarifa_minima": theDistanciaTarifaMinima,
     "numero_cancelaciones_usuario": theNumeroCancelacionesUsuario,
     "radio_de_busqueda": theRadioDeBusqueda,
+    "radio_maximo_busqueda": theRadioMaximo,
     "tarifa_aeropuerto": theTarifaAeropuerto,
     "tarifa_minima_regular": theTarifaMinimaRegular,
     "tarifa_minima_hotel": theTarifaMinimaHotel,

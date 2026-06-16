@@ -112,7 +112,7 @@ class TravelInfoController{
   bool yaIntentoTodosLosVIP = false;
 
   double _radioActual = 0.0;
-  double _radioMaximo = 3.0;
+  double _radioMaximo = 2.0;
   Timer? _timerExpansion;
   int tiempoEsperaPorteria = 10;
 
@@ -881,6 +881,8 @@ class TravelInfoController{
       Price price = await _pricesProvider.getAll();
 
       radioDeBusqueda = price.theRadioDeBusqueda;
+      _radioMaximo = price.theRadioMaximo ?? 2.0;
+      print("📢 [TEST GPS] El radio máximo cargado desde Firestore es: $_radioMaximo km");
 
       /// 🔥 NUEVO
       tiempoEsperaPorteria =

@@ -3,7 +3,7 @@ workflows:
     name: MetaX Build
 
     environment:
-      flutter: 3.16.0
+      flutter: 3.44.0
 
     scripts:
       - name: Flutter pub get

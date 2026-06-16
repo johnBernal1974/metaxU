@@ -5,9 +5,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -16,6 +18,7 @@ migrate_working_dir/
 *.iws
 .idea/
 /values/google_maps_api_key.xml
+ios/Runner/GoogleService-Info.plist
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
@@ -35,6 +38,7 @@ migrate_working_dir/
 
 # Symbolication related
 app.*.symbols
+ios/Runner/GoogleService-Info.plist
 
 # Obfuscation related
 app.*.map.json

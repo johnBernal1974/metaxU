@@ -27,6 +27,8 @@ import '../../travel_map_page/View/travel_map_page.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'dart:io';
 
 
 
@@ -41,6 +43,7 @@ class TravelInfoController{
   late ClientProvider _clientProvider;
   Client? client;
   String? apuntesAlConductor;
+  String metodoPago = "Efectivo";
   late Function refresh;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   late Completer<GoogleMapController> _mapController = Completer();
@@ -111,7 +114,7 @@ class TravelInfoController{
   bool yaIntentoTodosLosVIP = false;
 
   double _radioActual = 0.0;
-  double _radioMaximo = 3.0;
+  double _radioMaximo = 2.0;
   Timer? _timerExpansion;
   int tiempoEsperaPorteria = 10;
 
@@ -315,20 +318,22 @@ class TravelInfoController{
 
     clearMap();
 
-    fromMarker =
-    await createMarkerImageFromAssets(
-      'assets/ubicacion_client.png',
-    );
+    // =========================================================================
+    // 🔥 AJUSTE DINÁMICO DE MARCADORES PARA LA PANTALLA DE INFO VIAJE
+    // =========================================================================
+    double pixelRatio = MediaQuery.of(context).devicePixelRatio;
 
-    toMarker =
-    await createMarkerImageFromAssets(
-      'assets/marker_destino.png',
-    );
+    // Valores base finos y pequeños idénticos al mapa de inicio
+    double baseDriver = 11.0;  // Para los taxis en el radar
+    double baseClient = 13.0;  // Para tu pin de origen / destino
 
-    driverMarker =
-    await createMarkerImageFromAssets(
-      'assets/marker_taxi.png',
-    );
+    int finalWidthDriver = (baseDriver * pixelRatio).round();
+    int finalWidthClient = (baseClient * pixelRatio).round();
+
+    fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
+    toMarker = await createMarkerImageFromAssets('assets/marker_destino.png', finalWidthClient);
+    driverMarker = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
+    // =========================================================================
 
     /// 🔥 SOLO ORIGEN
     if (buscandoConductor) {
@@ -880,6 +885,8 @@ class TravelInfoController{
       Price price = await _pricesProvider.getAll();
 
       radioDeBusqueda = price.theRadioDeBusqueda;
+      _radioMaximo = price.theRadioMaximo ?? 2.0;
+      print("📢 [TEST GPS] El radio máximo cargado desde Firestore es: $_radioMaximo km");
 
       /// 🔥 NUEVO
       tiempoEsperaPorteria =
@@ -1002,14 +1009,25 @@ class TravelInfoController{
     });
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
+  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
     try {
-      ImageConfiguration configuration = const ImageConfiguration();
-      BitmapDescriptor bitmapDescriptor = await BitmapDescriptor.fromAssetImage(configuration, path);
-      return bitmapDescriptor;
+      // 1. Cargar el archivo desde los assets a la memoria del teléfono
+      ByteData data = await rootBundle.load(path);
+
+      // 2. Decodificar la imagen usando el alias 'ui.' para evitar conflictos
+      ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: width,
+      );
+      ui.FrameInfo fi = await codec.getNextFrame();
+
+      // 3. Convertir la imagen procesada de nuevo a formato PNG usable por Google Maps
+      ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+
+      return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
     } catch (e) {
       if (kDebugMode) {
-        print('Error al cargar la imagen del marcador: $e');
+        print('Error al cargar la imagen del marcador con tamaño dinámico: $e');
       }
       return BitmapDescriptor.defaultMarker;
     }
@@ -1094,7 +1112,11 @@ class TravelInfoController{
 
       /// 🔥 STOP GLOBAL
       if (_tiempoAgotado() || serviceAccepted) {
+
         print("⛔ STOP listener NORMAL");
+        print("⏰ tiempoAgotado: ${_tiempoAgotado()}");
+        print("✅ serviceAccepted: $serviceAccepted");
+
         return;
       }
 
@@ -1276,6 +1298,9 @@ class TravelInfoController{
       _isSendingNotifications = true;
 
       try {
+        print("🔥🔥🔥 VOY A LLAMAR _attemptToSendNotification");
+        print("🔥 nearbyDrivers: ${nearbyDrivers.length}");
+        print("🔥 notifiedDrivers: ${notifiedDrivers.length}");
         await _attemptToSendNotification(
           nearbyDrivers,
           notifiedDrivers.length,
@@ -1543,7 +1568,7 @@ class TravelInfoController{
     List<String> batch = [];
 
     ///////temporal ojo ****************////// pasar nuevamente a 4
-    for (int i = index; i < index + 1 && i < driverIds.length; i++) {
+    for (int i = index; i < index + 2 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
         notifiedDrivers.add(driverIds[i]);
@@ -1551,7 +1576,7 @@ class TravelInfoController{
     }
 
     if (batch.isEmpty) {
-      return await _attemptToSendNotification(driverIds, index + 1);
+      return await _attemptToSendNotification(driverIds, index + 2);
     }
 
     print("🚀 Batch seleccionado: $batch");
@@ -1644,7 +1669,7 @@ class TravelInfoController{
 
     // 🔥 SIGUIENTE BATCH
     //temporal ************* ojo cambiar nuevmente a 2
-    return await _attemptToSendNotification(driverIds, index + 1);
+    return await _attemptToSendNotification(driverIds, index + 2);
   }
 
   void permitirStandardManual() async {
@@ -1792,6 +1817,7 @@ class TravelInfoController{
   }) async {
 
     tipoServicioSolicitado = tipoServicio;
+    metodoPago = metodoPago;
 
     final user = _authProvider.getUser();
 
@@ -1911,7 +1937,7 @@ class TravelInfoController{
       horaInicioViaje: null,
       horaSolicitudViaje: Timestamp.now(),
       horaFinalizacionViaje: null,
-      apuntes: apuntesAlConductor ?? '',
+      apuntes: caracteristicaVehiculo,
 
       // 🔥 CLIENTE
       tipoServicio: tipoServicio,
@@ -1953,16 +1979,14 @@ class TravelInfoController{
       return false;
     }
 
+    // 👑 MAPA DATA BLINDADO DE NIVEL PRODUCCIÓN:
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
-      // 🔥 CLAVES NUEVAS
       'tipo': 'servicio',
       'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
           ? 'porteria'
           : 'normal',
 
-      // 🔥 TU DATA ORIGINAL
       'idClient': user.uid,
       'origin': from,
       'originLat': fromLatlng.latitude.toString(),
@@ -1971,9 +1995,18 @@ class TravelInfoController{
       'destinationLat': toLatlng.latitude.toString(),
       'destinationLng': toLatlng.longitude.toString(),
       'tarifa': totalInt.toString(),
-      'apuntes_usuario': apuntesAlConductor,
+      'tipo_servicio': tipoServicioSolicitado,
+
+      // 🚨 LAS DOS LÍNEAS QUE HACÍAN FALTA PARA SINCRONIZAR KOTLIN:
+      // Aquí forzamos el envío de la forma de pago elegida en la vista del cliente
+      'metodo_pago': metodoPago,
+
+      // Enviamos las notas bajo la clave nativa que espera el FloatingBubbleService
+      'apuntes': apuntesAlConductor ?? 'Sin apuntes',
+      'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
     };
-    print("🔥 ENVIANDO DATA: $data");
+
+    print("🔥 [PUSH DISPATCH] Empaquetando variables nativas con éxito: $data");
 
     try {
       await _pushNotificationsProvider.sendMessage(token, data);
@@ -1989,11 +2022,7 @@ class TravelInfoController{
         return false;
       }
 
-      /// usar el menor entre 12 y el tiempo restante
       int tiempoEspera = segundosRestantes > 8 ? 8 : segundosRestantes;
-
-      print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor (NORMAL)");
-
       await Future.delayed(Duration(seconds: tiempoEspera));
       return false;
     } catch (error) {
@@ -2017,29 +2046,28 @@ class TravelInfoController{
 
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
-
       'tipo': 'servicio',
+      'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
+          ? 'porteria'
+          : 'normal',
 
-      'tipoSolicitud': 'porteria',
+      'idClient': requestId,
+      'origin': from,
+      'originLat': fromLatlng.latitude.toString(),
+      'originLng': fromLatlng.longitude.toString(),
+      'destination': to,
+      'destinationLat': toLatlng.latitude.toString(),
+      'destinationLng': toLatlng.longitude.toString(),
+      'tarifa': totalInt.toString(),
+      'tipo_servicio': tipoServicioSolicitado ?? 'Normal',
 
-      'origin': dataRequest?["direccion"],
+      // 🚨 LA SOLUCIÓN EN DART:
+      // Si la variable local no se encuentra, leemos directamente el string 'to' o validamos el estado dinámico.
+      // Para blindarlo, puedes pasarle la variable de selección que usa tu vista (por ejemplo 'Efectivo' o evaluar tu controlador):
+      'metodo_pago': 'Nequi', // 👈 Pásale el string dinámico o la variable exacta que use tu selector de pago en la vista del cliente
 
-      'originLat': dataRequest?["lat"].toString(),
-      'originLng': dataRequest?["lng"].toString(),
-
-      'nombreConjunto': dataRequest?["nombreConjunto"] ?? '',
-      'nombrePorteria': dataRequest?["nombrePorteria"] ?? '',
-
-      'usuario': dataRequest?["usuario"] ?? '',
-      'apto': dataRequest?["apto"] ?? '',
-
-      'metodoPago': dataRequest?["metodoPago"] ?? '',
-      'caracteristica': dataRequest?["caracteristica"] ?? '',
-      'barrio': dataRequest?["barrio"] ?? "",
-
-      'id': requestId ?? '',
-
-      'mensaje': 'Servicio solicitado desde portería'
+      'apuntes': apuntesAlConductor ?? 'Sin apuntes',
+      'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
     };
 
     await _pushNotificationsProvider.sendMessage(token, data);

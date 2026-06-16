@@ -32,6 +32,7 @@ import 'Pages/verificacion_pendiente/verificacion_pendiente.dart';
 import 'firebase_options.dart';
 import 'src/colors/colors.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'dart:io';
 
 Future<void> main() async {
   // Asegura que Flutter esté inicializado antes de cargar otros recursos
@@ -49,11 +50,15 @@ Future<void> main() async {
   );
 
   // ✅ App Check: Debug en DEBUG, Play Integrity en RELEASE
-  await FirebaseAppCheck.instance.activate(
+
+  /*if(!Platform.isIOS){
+    await FirebaseAppCheck.instance.activate(
     androidProvider: kDebugMode
         ? AndroidProvider.debug
         : AndroidProvider.playIntegrity,
   );
+  }*/
+  
 
   // Correr la aplicación
   runApp(const MyApp());

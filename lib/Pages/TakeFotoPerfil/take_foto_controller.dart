@@ -11,6 +11,8 @@ import '../../../../providers/client_provider.dart';
 import '../../../../providers/storage_provider.dart';
 import 'package:apptaxis/models/client.dart';
 
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
 import '../../src/colors/colors.dart';
 
 class TakeFotoController {
@@ -44,6 +46,50 @@ class TakeFotoController {
 
     try {
       final uid = _authProvider.getUser()!.uid;
+
+      bool rostroValido = await validarRostro(
+        File(pickedFile!.path),
+      );
+
+      if (!rostroValido) {
+
+        if (context.mounted) {
+
+          closeSimpleProgressDialog(context);
+
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                icon: const Icon(
+                  Icons.face_retouching_off,
+                  color: Colors.red,
+                  size: 60,
+                ),
+                title: const Text(
+                  'No pudimos verificar tu selfie',
+                  textAlign: TextAlign.center,
+                ),
+                content: const Text(
+                  'Parece que la imagen capturada no muestra claramente tu rostro.\n\n'
+                      'Toma una selfie donde tu cara sea visible completamente, evitando gafas oscuras, objetos que cubran el rostro o fotografías de otras personas.',
+                  textAlign: TextAlign.center,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Tomar otra foto'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        return;
+      }
 
       // ✅ Comprimir imagen
       File compressedImage = await compressImage(
@@ -100,6 +146,38 @@ class TakeFotoController {
       }
 
       print('Error guardando foto de perfil: $e');
+    }
+  }
+
+  Future<bool> validarRostro(File imageFile) async {
+
+    try {
+
+      final options = FaceDetectorOptions(
+        enableContours: false,
+        enableLandmarks: false,
+        performanceMode: FaceDetectorMode.fast,
+      );
+
+      final faceDetector = FaceDetector(
+        options: options,
+      );
+
+      final inputImage = InputImage.fromFile(imageFile);
+
+      final faces = await faceDetector.processImage(inputImage);
+
+      await faceDetector.close();
+
+      print('🔥 Rostros detectados: ${faces.length}');
+
+      return faces.isNotEmpty;
+
+    } catch (e) {
+
+      print('❌ Error detectando rostro: $e');
+
+      return false;
     }
   }
 

@@ -10,7 +10,6 @@ class PushNotificationsProvider {
   late FirebaseMessaging _firebaseMessaging;
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
-
   final StreamController<Map<String, dynamic>> _streamController = StreamController.broadcast();
   Stream get message => _streamController.stream;
 
@@ -20,24 +19,15 @@ class PushNotificationsProvider {
   }
 
   void _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  const AndroidInitializationSettings android =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+    InitializationSettings(android: initializationSettingsAndroid);
 
-  const DarwinInitializationSettings ios =
-      DarwinInitializationSettings();
-
-  const InitializationSettings settings =
-      InitializationSettings(
-        android: android,
-        iOS: ios,
-      );
-
-  flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  await flutterLocalNotificationsPlugin.initialize(settings);
-}
+    flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
 
   void initPushNotifications() {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -78,7 +68,6 @@ class PushNotificationsProvider {
       '$body\n\nData 1: $data1\nData 2: $data2\nData 3: $data3', // Cuerpo de la notificación
       platformChannelSpecifics,
     );
-
   }
 
   void saveToken(String? idUser) async {
@@ -90,12 +79,7 @@ class PushNotificationsProvider {
     clientProvider.update(data, idUser!);
   }
 
-
   Future<void> sendMessage(String to, Map<String, dynamic> data) async {
-<<<<<<< HEAD
-    print("🔥🔥🔥 ENVIANDO A CLOUD FUNCTION");
-    print("🔥 TOKEN: $to");
-=======
     // 👑 RECOLECTOR DE SEGURIDAD NATIVO:
     // Nos aseguramos de extraer el método de pago y los apuntes reales que vengan del mapa,
     // o les ponemos el respaldo dinámico para que Kotlin nunca lea nulo.
@@ -115,7 +99,6 @@ class PushNotificationsProvider {
       print('🚀 [PUSH FINAL] Enviando datos duros al Servidor: $dataMapeada');
     }
 
->>>>>>> f615d6603cd69744350ba7d56b8bbb6abe027289
     final response = await http.post(
       Uri.parse('https://us-central1-apptaxi-e641d.cloudfunctions.net/sendPushToDriver'),
       headers: <String, String>{
@@ -132,9 +115,6 @@ class PushNotificationsProvider {
         "ttlSeconds": 25,
       }),
     );
-
-    print("🔥 STATUS: ${response.statusCode}");
-    print("🔥 BODY: ${response.body}");
 
     if (response.statusCode == 200) {
       if (kDebugMode) print('✅ Mensaje enviado con éxito: ${response.body}');

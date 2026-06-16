@@ -32,6 +32,7 @@ import 'Pages/verificacion_pendiente/verificacion_pendiente.dart';
 import 'firebase_options.dart';
 import 'src/colors/colors.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'dart:io';
 
 Future<void> main() async {
   // Asegura que Flutter esté inicializado antes de cargar otros recursos

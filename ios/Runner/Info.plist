@@ -8,10 +8,6 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Apptaxis</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict/>
-	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -26,28 +22,20 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-
-
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>MetaX necesita acceder a tu ubicación para encontrar conductores cercanos.</string>
-
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
-
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
-
 	<key>NSCameraUsageDescription</key>
 	<string>MetaX necesita acceder a la cámara para tomar fotografías.</string>
-
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>MetaX necesita acceder a tus fotos para seleccionar imágenes.</string>
-
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>MetaX necesita guardar imágenes en tu galería.</string>			
-
-		  
+	<string>MetaX necesita guardar imágenes en tu galería.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MetaX necesita acceder al micrófono para permitir la comunicación por voz entre conductores y clientes.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

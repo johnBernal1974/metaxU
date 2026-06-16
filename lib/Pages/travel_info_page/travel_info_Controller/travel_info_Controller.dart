@@ -1647,7 +1647,7 @@ class TravelInfoController{
 
     // 🔥 SIGUIENTE BATCH
     //temporal ************* ojo cambiar nuevmente a 2
-    return await _attemptToSendNotification(driverIds, index + 1);
+    return await _attemptToSendNotification(driverIds, index + 2);
   }
 
   void permitirStandardManual() async {

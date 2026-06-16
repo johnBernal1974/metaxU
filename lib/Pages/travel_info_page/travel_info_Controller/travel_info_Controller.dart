@@ -27,6 +27,8 @@ import '../../travel_map_page/View/travel_map_page.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
+import 'dart:io';
 
 
 
@@ -316,20 +318,22 @@ class TravelInfoController{
 
     clearMap();
 
-    fromMarker =
-    await createMarkerImageFromAssets(
-      'assets/ubicacion_client.png',
-    );
+    // =========================================================================
+    // 🔥 AJUSTE DINÁMICO DE MARCADORES PARA LA PANTALLA DE INFO VIAJE
+    // =========================================================================
+    double pixelRatio = MediaQuery.of(context).devicePixelRatio;
 
-    toMarker =
-    await createMarkerImageFromAssets(
-      'assets/marker_destino.png',
-    );
+    // Valores base finos y pequeños idénticos al mapa de inicio
+    double baseDriver = 11.0;  // Para los taxis en el radar
+    double baseClient = 13.0;  // Para tu pin de origen / destino
 
-    driverMarker =
-    await createMarkerImageFromAssets(
-      'assets/marker_taxi.png',
-    );
+    int finalWidthDriver = (baseDriver * pixelRatio).round();
+    int finalWidthClient = (baseClient * pixelRatio).round();
+
+    fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
+    toMarker = await createMarkerImageFromAssets('assets/marker_destino.png', finalWidthClient);
+    driverMarker = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
+    // =========================================================================
 
     /// 🔥 SOLO ORIGEN
     if (buscandoConductor) {
@@ -1005,14 +1009,25 @@ class TravelInfoController{
     });
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
+  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
     try {
-      ImageConfiguration configuration = const ImageConfiguration();
-      BitmapDescriptor bitmapDescriptor = await BitmapDescriptor.fromAssetImage(configuration, path);
-      return bitmapDescriptor;
+      // 1. Cargar el archivo desde los assets a la memoria del teléfono
+      ByteData data = await rootBundle.load(path);
+
+      // 2. Decodificar la imagen usando el alias 'ui.' para evitar conflictos
+      ui.Codec codec = await ui.instantiateImageCodec(
+        data.buffer.asUint8List(),
+        targetWidth: width,
+      );
+      ui.FrameInfo fi = await codec.getNextFrame();
+
+      // 3. Convertir la imagen procesada de nuevo a formato PNG usable por Google Maps
+      ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
+
+      return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
     } catch (e) {
       if (kDebugMode) {
-        print('Error al cargar la imagen del marcador: $e');
+        print('Error al cargar la imagen del marcador con tamaño dinámico: $e');
       }
       return BitmapDescriptor.defaultMarker;
     }

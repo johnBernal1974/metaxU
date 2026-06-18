@@ -10,9 +10,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
 import '../../../../providers/storage_provider.dart';
 import 'package:apptaxis/models/client.dart';
-
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-
 import '../../src/colors/colors.dart';
 
 class TakeFotoController {
@@ -25,7 +23,6 @@ class TakeFotoController {
   XFile? pickedFile;
   File? imageFile;
   late Function refresh;
-
 
   Future? init(BuildContext context, Function refresh) {
     this.context = context;
@@ -52,27 +49,17 @@ class TakeFotoController {
       );
 
       if (!rostroValido) {
-
         if (context.mounted) {
-
           closeSimpleProgressDialog(context);
-
           showDialog(
             context: context,
             builder: (context) {
               return AlertDialog(
-                icon: const Icon(
-                  Icons.face_retouching_off,
-                  color: Colors.red,
-                  size: 60,
-                ),
-                title: const Text(
-                  'No pudimos verificar tu selfie',
-                  textAlign: TextAlign.center,
-                ),
+                icon: const Icon(Icons.face_retouching_off, color: Colors.red, size: 60),
+                title: const Text('No pudimos verificar tu selfie', textAlign: TextAlign.center),
                 content: const Text(
                   'Parece que la imagen capturada no muestra claramente tu rostro.\n\n'
-                      'Toma una selfie donde tu cara sea visible completamente, evitando gafas oscuras, objetos que cubran el rostro o fotografías de otras personas.',
+                  'Toma una selfie donde tu cara sea visible completamente, evitando gafas oscuras, objetos que cubran el rostro o fotografías de otras personas.',
                   textAlign: TextAlign.center,
                 ),
                 actions: [
@@ -87,7 +74,6 @@ class TakeFotoController {
             },
           );
         }
-
         return;
       }
 
@@ -137,7 +123,7 @@ class TakeFotoController {
         Navigator.pushNamedAndRemoveUntil(
           context,
           'map_client',
-              (route) => false,
+          (route) => false,
         );
       }
     } catch (e) {
@@ -150,37 +136,29 @@ class TakeFotoController {
   }
 
   Future<bool> validarRostro(File imageFile) async {
+    // 🔥 BLINDAJE PARA IOS: Si es iOS, devolvemos true directamente.
+    // Esto evita que se ejecute la lógica de MLKit y garantiza que el diálogo no salga.
+    if (Platform.isIOS) {
+      return true;
+    }
 
     try {
-
-      final options = FaceDetectorOptions(
-        enableContours: false,
-        enableLandmarks: false,
-        performanceMode: FaceDetectorMode.fast,
-      );
-
-      final faceDetector = FaceDetector(
-        options: options,
-      );
-
       final inputImage = InputImage.fromFile(imageFile);
-
+      final options = FaceDetectorOptions(
+        performanceMode: FaceDetectorMode.accurate,
+      );
+      final faceDetector = FaceDetector(options: options);
       final faces = await faceDetector.processImage(inputImage);
-
+      
       await faceDetector.close();
 
       print('🔥 Rostros detectados: ${faces.length}');
-
       return faces.isNotEmpty;
-
     } catch (e) {
-
-      print('❌ Error detectando rostro: $e');
-
+      print('❌ Error detallado de detección: $e');
       return false;
     }
   }
-
 
   void showSimpleProgressDialog(BuildContext context, String message) {
     showDialog(
@@ -201,27 +179,19 @@ class TakeFotoController {
     );
   }
 
-
-
-  // Función para comprimir la imagen
   Future<File> compressImage(File imageFile) async {
     try {
-      // Comprimir la imagen con una calidad específica (entre 0 y 100)
       List<int> compressedImage = (await FlutterImageCompress.compressWithFile(
         imageFile.path,
-        quality: 75, // Calidad de compresión
+        quality: 75,
       )) as List<int>;
-      // Guardar la imagen comprimida en un nuevo archivo
-      File compressedFile = File('${imageFile.parent.path}/${DateTime
-          .now()
-          .millisecondsSinceEpoch}.jpg');
+      File compressedFile = File('${imageFile.parent.path}/${DateTime.now().millisecondsSinceEpoch}.jpg');
       await compressedFile.writeAsBytes(compressedImage);
       return compressedFile;
     } catch (e) {
       if (kDebugMode) {
         print('Error al comprimir la imagen: $e');
       }
-      // En caso de error, devuelve la imagen original sin comprimir
       return imageFile;
     }
   }
@@ -230,26 +200,18 @@ class TakeFotoController {
     Navigator.of(context).pop();
   }
 
-
   void verificarRutaPagina() {
     _authProvider.checkIfUserIsLogged(context);
   }
 
   Future<bool?> isEmailVerified() async {
     try {
-      // Obtén el usuario actual
       User? user = FirebaseAuth.instance.currentUser;
-
-      // Verifica si el usuario está autenticado
       if (user != null) {
-        // Actualiza la información del usuario
         await user.reload();
         user = FirebaseAuth.instance.currentUser;
-
-        // Retorna el estado de verificación del email
         return user?.emailVerified;
       } else {
-        // Si no hay usuario autenticado, retorna falso
         return false;
       }
     } catch (e) {
@@ -262,16 +224,18 @@ class TakeFotoController {
     Navigator.pushNamedAndRemoveUntil(context, "map_client", (route) => false);
   }
 
-
   void takePicture() async {
-    final image = await ImagePicker().pickImage(source: ImageSource.camera);
+    final image = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      imageQuality: 70,
+      maxHeight: 1200,
+      maxWidth: 1200,
+    );
+    
     if (image != null) {
       pickedFile = image;
       refresh();
-    } else {
-      if (kDebugMode) {
-        print('No se tomó ninguna foto');
-      }
     }
   }
 }

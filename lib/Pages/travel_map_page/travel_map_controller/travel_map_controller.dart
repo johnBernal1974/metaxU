@@ -157,15 +157,10 @@ class TravelMapController{
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
     _streamTravelController = stream.listen((DocumentSnapshot document) async {
 
-      print("🔥 Travel listener disparado************************");
-
       if (document.data() == null) {
-        print("🔥 Travel document NULL******************");
         return;
       }
       travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
-
-      print("🔥 Status recibido*******************: ${travelInfo?.status}");
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
@@ -345,8 +340,23 @@ class TravelMapController{
       refresh();
 
       if (!isRouteready) {
+
         print("📍 Primera ubicación recibida");
+
         isRouteready = true;
+
+        if (travelInfo?.status == 'started') {
+
+          print("🔥 Reintentando startTravel");
+
+          startTravel();
+        }
+
+        if (travelInfo?.status == 'accepted' ||
+            travelInfo?.status == 'driver_on_the_way') {
+          print("🔥 Reintentando pickupTravel");
+          pickupTravel();
+        }
       }
     });
   }
@@ -364,42 +374,101 @@ class TravelMapController{
     }
   }
 
-  void pickupTravel () {
-    if(!isPickUpTravel){
-      isPickUpTravel = true;
-      LatLng from = LatLng(_driverLatlng!.latitude, _driverLatlng!.longitude);
-      LatLng to = LatLng(travelInfo!.fromLat, travelInfo!.fromLng);
-      setPolylines(from, to);
+  void pickupTravel() {
+    if (_driverLatlng == null) {
+      return;
     }
+
+    if (travelInfo == null) {
+      return;
+    }
+
+    if (isPickUpTravel) {
+      return;
+    }
+
+    LatLng from = LatLng(
+      _driverLatlng!.latitude,
+      _driverLatlng!.longitude,
+    );
+
+    LatLng to = LatLng(
+      travelInfo!.fromLat,
+      travelInfo!.fromLng,
+    );
+
+    isPickUpTravel = true;
+
+    setPolylines(from, to);
   }
 
   void startTravel() {
-    if(!isStartTravel){
-      isStartTravel= true;
-      polylines = {};
-      points = List.from([]);
-      markers.removeWhere((key, marker) => marker.markerId.value == 'from');
-      addMarker('to', travelInfo!.toLat, travelInfo!.toLng, 'Destino', '', toMarker);
-      _from = LatLng(_driverLatlng!.latitude, _driverLatlng!.longitude);
-      _to = LatLng(travelInfo!.toLat, travelInfo!.toLng);
-      setPolylines(_from!, _to!);
-      refresh();
+    if (_driverLatlng == null) {
+      return;
     }
+
+    if (isStartTravel) {
+      return;
+    }
+
+    polylines.clear();
+    points.clear();
+
+    markers.removeWhere(
+          (key, marker) => marker.markerId.value == 'from',
+    );
+
+    addMarker(
+      'to',
+      travelInfo!.toLat,
+      travelInfo!.toLng,
+      'Destino',
+      '',
+      toMarker,
+    );
+
+    _from = LatLng(
+      _driverLatlng!.latitude,
+      _driverLatlng!.longitude,
+    );
+
+    _to = LatLng(
+      travelInfo!.toLat,
+      travelInfo!.toLng,
+    );
+
+    isStartTravel = true;
+
+    setPolylines(_from!, _to!);
+
+    refresh();
   }
 
   void finishTravel(){
+
     if(!isFinishtTravel){
+
       isFinishtTravel = true;
-      _actualizarIsTravelingFalse ();
+
+      polylines.clear();
+      points.clear();
+      markers.clear();
+
+      _actualizarIsTravelingFalse();
+
       actualizarContadorDeViajes();
-      Navigator.pushNamedAndRemoveUntil(context, 'travel_calification_page', (route) => false, arguments: travelInfo!.idTravelHistory);
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        'travel_calification_page',
+            (route) => false,
+        arguments: travelInfo!.idTravelHistory,
+      );
     }
   }
 
   void getDriverInfo(String id) async {
-    print("🚕 Consultando conductor");
     driver = await _driverProvider.getById(id);
-    print("🚕 Conductor cargado: ${driver?.the01Nombres}");
     refresh();
   }
 
@@ -441,14 +510,17 @@ class TravelMapController{
       });
 
       final data = Map<String, dynamic>.from(res.data);
-      if (data['ok'] != true) return;
+      if (data['ok'] != true) {
+        print('❌ FIREBASE DEVOLVIO ERROR');
+        print(data);
+        return;
+      }
 
       final encoded = (data['polyline'] ?? '').toString();
       if (encoded.isEmpty) return;
 
       final decoded = PolylinePoints().decodePolyline(encoded);
       points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
-
       polylines = {
         Polyline(
           polylineId: const PolylineId('poly'),

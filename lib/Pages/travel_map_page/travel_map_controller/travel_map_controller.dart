@@ -83,6 +83,9 @@ class TravelMapController{
 
   bool _soundTaxiLlegadaPlayed = false;
 
+  // Agrega esta variable para controlar la distancia mínima
+  LatLng? _lastPolylineLocation;
+
   // =========================================================================
   // CORREGIDO: Un solo método init limpio y sin funciones duplicadas por dentro
   // =========================================================================
@@ -195,6 +198,7 @@ class TravelMapController{
           break;
         case 'started':
           print("✅ started");
+          print("🔥 POLYLINES ACTUALES: ${polylines.length}");
           currentStatus = 'El Viaje ha iniciado';
           startTravel();
           break;
@@ -403,6 +407,8 @@ class TravelMapController{
   }
 
   void startTravel() {
+    print("🔥 START TRAVEL");
+    print("🔥 isStartTravel = $isStartTravel");
     if (_driverLatlng == null) {
       return;
     }
@@ -489,6 +495,18 @@ class TravelMapController{
   }
 
   Future<void> setPolylines(LatLng from, LatLng to) async {
+
+    // 🔥 LÓGICA DE FILTRO: Solo consultar si la distancia es mayor a 50 metros
+    if (_lastPolylineLocation != null) {
+      double dist = Geolocator.distanceBetween(
+          _lastPolylineLocation!.latitude, _lastPolylineLocation!.longitude,
+          from.latitude, from.longitude
+      );
+      if (dist < 50) return; // Si se movió menos de 50m, no hacemos nada
+    }
+    _lastPolylineLocation = from; // Actualizamos el ancla con la nueva posición
+    // ========================================================
+
     final ok = await connectionService.hasInternetConnection();
     if (!ok) {
       if(context.mounted){
@@ -510,9 +528,9 @@ class TravelMapController{
       });
 
       final data = Map<String, dynamic>.from(res.data);
+
       if (data['ok'] != true) {
         print('❌ FIREBASE DEVOLVIO ERROR');
-        print(data);
         return;
       }
 

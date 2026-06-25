@@ -1576,8 +1576,6 @@ class TravelInfoController{
       return await _attemptToSendNotification(driverIds, index + 4);
     }
 
-    print("🚀 Batch seleccionado: $batch");
-
     try {
 
       await Future.wait(
@@ -1588,12 +1586,16 @@ class TravelInfoController{
 
           try {
 
-            print("📡 Enviando notificación a driver: $driverId");
+            if (kDebugMode) {
+              print("📡 Enviando notificación a driver: $driverId");
+            }
 
             Driver? driver = await _driverProvider.getById(driverId);
 
             if (driver == null) {
-              print("⚠️ Driver $driverId no encontrado");
+              if (kDebugMode) {
+                print("⚠️ Driver $driverId no encontrado");
+              }
               return;
             }
 
@@ -1603,35 +1605,42 @@ class TravelInfoController{
               final vehiculoData = vehiculosCache[driverId];
 
               if (vehiculoData == null) {
-                print("❌ Vehículo no cargado en cache ($driverId)");
+                if (kDebugMode) {
+                  print("❌ Vehículo no cargado en cache ($driverId)");
+                }
                 return;
               }
 
               final soportaVIP = vehiculoData['soportaVIP'] ?? false;
 
               if (!_permitirStandard && !soportaVIP) {
-                print("⛔ Conductor $driverId no es VIP");
+                if (kDebugMode) {
+                  print("⛔ Conductor $driverId no es VIP");
+                }
                 return;
               }
 
               if (_permitirStandard) {
-                print("⚠️ Fallback activo → permitiendo estándar ($driverId)");
+                if (kDebugMode) {
+                  print("⚠️ Fallback activo → permitiendo estándar ($driverId)");
+                }
               }
             }
 
             // 🔥 VALIDAR TOKEN
             if (driver.token == null || driver.token.isEmpty) {
-              print("⚠️ Driver $driverId sin token");
+              if (kDebugMode) {
+                print("⚠️ Driver $driverId sin token");
+              }
               return;
             }
-
-            print("📤 Enviando push a token: ${driver.token.substring(0, 10)}...");
-
             bool accepted = await sendNotification(driver.token);
 
             if (accepted) {
 
-              print("✅ Driver $driverId ACEPTÓ el servicio");
+              if (kDebugMode) {
+                print("✅ Driver $driverId ACEPTÓ el servicio");
+              }
 
               serviceAccepted = true;
 
@@ -1642,11 +1651,15 @@ class TravelInfoController{
 
               return;
             } else {
-              print("⏱ Driver $driverId no respondió");
+              if (kDebugMode) {
+                print("⏱ Driver $driverId no respondió");
+              }
             }
 
           } catch (e) {
-            print("❌ Error driver $driverId: $e");
+            if (kDebugMode) {
+              print("❌ Error driver $driverId: $e");
+            }
           }
 
         }),

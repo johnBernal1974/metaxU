@@ -1090,9 +1090,8 @@ class TravelInfoController{
   }
 
   void _buscarConductores() {
-
     if (_radioActual > _radioMaximo) {
-      print("🚫 Se alcanzó el radio máximo");
+      print("🚫 Se alcanzó el radio máximo de búsqueda");
       return;
     }
 
@@ -1110,39 +1109,36 @@ class TravelInfoController{
 
       /// 🔥 STOP GLOBAL
       if (_tiempoAgotado() || serviceAccepted) {
-
-        print("⛔ STOP listener NORMAL");
-        print("⏰ tiempoAgotado: ${_tiempoAgotado()}");
-        print("✅ serviceAccepted: $serviceAccepted");
-
         return;
       }
 
       /// 🔥 EVITAR múltiples ejecuciones
-      if (_isSendingNotifications) {
-        print("⛔ Envío en progreso (NORMAL)");
-        return;
-      }
+      if (_isSendingNotifications) return;
 
       List<Map<String, dynamic>> driversFiltrados = [];
-      /// 🔥 LIMPIAR SOLO TAXIS
-      markers.removeWhere(
 
-            (key, value) =>
-            key.value.startsWith('driver_'),
-      );
+      /// 🔥 LIMPIAR SOLO TAXIS (mantener marcador de cliente)
+      markers.removeWhere((key, value) => key.value.startsWith('driver_'));
+
+      // Definimos el límite de tiempo (10 minutos)
+      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 10));
 
       for (DocumentSnapshot d in documentList) {
         try {
           Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-
-          /// 🔥 NUEVO FILTRO (USANDO TU updatedAt)
-          // if (!estaActivoRecientementeDesdeLocation(data)) {
-          //   print("⛔ Driver ${d.id} sin ubicación reciente, saltando...");
-          //   continue;
-          // }
-
           Map<String, dynamic> positionData = d.get('position');
+
+          // 1. 🔥 FILTRO DE ESTADO: Solo disponibles
+          final status = data['status']?.toString();
+          if (status != 'driver_available') {
+            continue; // Si está ocupado o en otro estado, lo ignoramos
+          }
+
+          // 2. 🔥 FILTRO DE TIEMPO (Anti-Zombies): Ignorar si no reporta hace > 10 min
+          final Timestamp? updatedAt = positionData['updatedAt'] as Timestamp?;
+          if (updatedAt == null || updatedAt.toDate().isBefore(limiteTiempo)) {
+            continue;
+          }
 
           if (positionData.containsKey('geopoint')) {
             GeoPoint geoPoint = positionData['geopoint'];
@@ -1156,159 +1152,72 @@ class TravelInfoController{
 
             double distanceInKm = distanceInMeters / 1000;
 
-            print(
-                "📍 Driver ${d.id} | "
-                    "Distancia: ${distanceInKm.toStringAsFixed(2)} km | "
-                    "Radio actual: ${_radioActual.toStringAsFixed(2)} km"
-            );
-
-            print("🚗 Driver ${d.id} a ${distanceInKm.toStringAsFixed(2)} km");
-
             if (distanceInKm <= _radioActual) {
-              print("✅ Driver ${d.id} DENTRO DEL RADIO");
+              driversFiltrados.add({'id': d.id, 'distance': distanceInKm});
 
-              driversFiltrados.add({
-                'id': d.id,
-                'distance': distanceInKm,
-              });
-
-              double rotation = 0;
-
-              try {
-
-                rotation =
-                    double.tryParse(
-                      data['heading']
-                          ?.toString() ?? '0',
-                    ) ?? 0;
-
-              } catch (_) {}
+              double rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
 
               /// 🔥 MARKER TAXI
-              final markerId =
-              MarkerId('driver_${d.id}');
-
-
+              final markerId = MarkerId('driver_${d.id}');
               markers[markerId] = Marker(
-
                 markerId: markerId,
-
-                position: LatLng(
-                  geoPoint.latitude,
-                  geoPoint.longitude,
-                ),
-
+                position: LatLng(geoPoint.latitude, geoPoint.longitude),
                 icon: driverMarker,
-
                 anchor: const Offset(0.5, 0.5),
-
                 rotation: rotation,
-
                 flat: true,
-
                 zIndex: 2,
               );
             }
           }
-
         } catch (e) {
-          print("⚠️ Error driver ${d.id}: $e");
+          print("⚠️ Error procesando driver ${d.id}: $e");
         }
       }
 
-      driversFiltrados.sort((a, b) {
-        return a['distance'].compareTo(b['distance']);
-      });
+      // Ordenar por distancia
+      driversFiltrados.sort((a, b) => a['distance'].compareTo(b['distance']));
+      List<String> driversOrdenados = driversFiltrados.map((e) => e['id'] as String).toList();
+      List<String> nuevosDrivers = driversOrdenados.where((id) => !notifiedDrivers.contains(id)).toList();
 
-      List<String> driversOrdenados = driversFiltrados
-          .map((e) => e['id'] as String)
-          .toList();
-
-      /// 🔥 SOLO nuevos
-      List<String> nuevosDrivers = driversOrdenados
-          .where((id) => !notifiedDrivers.contains(id))
-          .toList();
-
-      // 🔥 REEMPLAZAR lista completa por solo los activos actuales
       nearbyDrivers = driversOrdenados;
 
-      // ✅ ALGORITMO DE PRODUCCIÓN: Si el radio actual está vacío, expande hacia afuera dinámicamente
+      // Si no hay nadie, expandir radio
       if (nuevosDrivers.isEmpty) {
-        print("⏳ No se encontraron nuevos conductores en ${_radioActual.toStringAsFixed(2)} km, expandiendo radar...");
-
-        // Aumenta el radio de búsqueda en pasos de 300 metros
         _radioActual += 0.3;
-
         _timerExpansion?.cancel();
-        _timerExpansion = Timer(const Duration(seconds: 3), () {
-          _buscarConductores();
-        });
-
+        _timerExpansion = Timer(const Duration(seconds: 3), () => _buscarConductores());
         return;
       }
 
-      if (nuevosDrivers.isEmpty) {
+      conductoresEncontradosCallback?.call(driversOrdenados.length);
 
-        print("🚫 No hay conductores dentro de 200 metros");
-
-        return;
-      }
-
-      //temporal *********/////
-
-      print("🆕 Conductores encontrados: ${nuevosDrivers.length}");
-      conductoresEncontradosCallback?.call(
-        driversOrdenados.length,
-      );
-
-      /// 🔥 precargar vehículos
+      // Precargar vehículos
       for (String driverId in nuevosDrivers) {
         try {
           Driver? driver = await _driverProvider.getById(driverId);
-
           if (driver == null || driver.vehiculoActivoId.isEmpty) continue;
 
           if (!vehiculosCache.containsKey(driverId)) {
             final doc = await FirebaseFirestore.instance
-                .collection('Drivers')
-                .doc(driverId)
-                .collection('vehiculos')
-                .doc(driver.vehiculoActivoId)
-                .get();
-
-            if (doc.exists) {
-              vehiculosCache[driverId] = doc.data()!;
-            }
+                .collection('Drivers').doc(driverId).collection('vehiculos').doc(driver.vehiculoActivoId).get();
+            if (doc.exists) vehiculosCache[driverId] = doc.data()!;
           }
         } catch (e) {
           print("Error precargando vehículo: $e");
         }
       }
 
-      // 🔥 eliminar conductores que ya no están activos
-      nearbyDrivers = nearbyDrivers.where((driverId) {
-        return nuevosDrivers.contains(driverId);
-      }).toList();
-
-      //nearbyDrivers.addAll(nuevosDrivers);
+      nearbyDrivers = nearbyDrivers.where((id) => nuevosDrivers.contains(id) || notifiedDrivers.contains(id)).toList();
 
       _isSendingNotifications = true;
-
       try {
-        print("🔥🔥🔥 VOY A LLAMAR _attemptToSendNotification");
-        print("🔥 nearbyDrivers: ${nearbyDrivers.length}");
-        print("🔥 notifiedDrivers: ${notifiedDrivers.length}");
-        await _attemptToSendNotification(
-          nearbyDrivers,
-          notifiedDrivers.length,
-        );
+        await _attemptToSendNotification(nearbyDrivers, notifiedDrivers.length);
       } catch (e) {
-        print("Error en envío NORMAL: $e");
+        print("Error en envío: $e");
       }
-
       _isSendingNotifications = false;
       refresh();
-
     });
   }
 

@@ -277,39 +277,37 @@ class ClientMapController {
     if (_position == null) return;
 
     try {
-      // 🔥 Obtener radio dinámico desde Firestore
       double radio = 1;
-
       try {
         final price = await PricesProvider().getAll();
         radio = price.theRadioDeBusqueda;
       } catch (e) {
-        if (kDebugMode) {
-          print("⚠️ Error obteniendo radio dinámico, usando 1km por defecto: $e");
-        }
+        if (kDebugMode) print("⚠️ Error radio dinámico, usando 1km: $e");
       }
 
-      if (kDebugMode) {
-        print("📡 Buscando conductores en un radio de: $radio km");
-      }
-
-      // 🔥 Cancelar suscripción anterior (IMPORTANTE)
       _driversSubscription?.cancel();
 
-      Stream<List<DocumentSnapshot>> stream =
-      _geofireProvider.getNearbyDrivers(
+      // Calculamos el tiempo límite (hace 10 minutos)
+      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 10));
+
+      Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
         _position!.latitude,
         _position!.longitude,
         radio,
       );
 
       _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
+<<<<<<< HEAD
       print("🚨 DRIVER STREAM ACTIVO");
       print("🚨 CONTEXT MOUNTED: ${context.mounted}");
         // 🔥 Limpiar SOLO markers de conductores
+=======
+
+        // 1. Limpiar marcadores antiguos
+>>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
         markers.removeWhere((key, marker) => key.value != 'client');
 
-        // 🔥 Mantener marcador del cliente
+        // 2. Mantener marcador del cliente
         addMarker(
           'client',
           _position!.latitude,
@@ -333,14 +331,22 @@ class ClientMapController {
 
             Map<String, dynamic> positionData = d.get('position');
 
+            // 🔥 OPTIMIZACIÓN: Validación de actividad (Filtro Anti-Zombies)
+            Timestamp? updatedAt = positionData['updatedAt'] as Timestamp?;
+            if (updatedAt == null || updatedAt.toDate().isBefore(limiteTiempo)) {
+              // Si el driver está desactualizado, lo ignoramos y no le creamos marcador
+              continue;
+            }
+
             if (positionData.containsKey('geopoint')) {
               GeoPoint geoPoint = positionData['geopoint'];
 
-              double distanceInMeters = Geolocator.distanceBetween(
+              double distanceInKm = Geolocator.distanceBetween(
                 _position!.latitude,
                 _position!.longitude,
                 geoPoint.latitude,
                 geoPoint.longitude,
+<<<<<<< HEAD
               );
 
               double distanceInKm = distanceInMeters / 1000;
@@ -362,6 +368,13 @@ class ClientMapController {
                     "✅ Driver ${d.id} DENTRO DEL RADIO | "
                         "${distanceInKm.toStringAsFixed(2)} km"
                 );
+=======
+              ) / 1000;
+
+              if (distanceInKm <= radio) {
+                double rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+
+>>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
                 addMarkerDriver(
 
                   d.id,
@@ -382,19 +395,22 @@ class ClientMapController {
             }
 
           } catch (e) {
-            print("⚠️ Error leyendo driver ${d.id}: $e");
+            if (kDebugMode) print("⚠️ Error procesando driver ${d.id}: $e");
           }
         }
-        print("🚕 Conductores mostrados en mapa: ${markers.length - 1}");
 
+<<<<<<< HEAD
         // 🔥 Refrescar mapa
         refresh();
+=======
+        if (context.mounted) {
+          refresh();
+        }
+>>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
       });
 
     } catch (e) {
-      if (kDebugMode) {
-        print("❌ Error general en getNearbyDrivers: $e");
-      }
+      if (kDebugMode) print("❌ Error general en getNearbyDrivers: $e");
     }
   }
 

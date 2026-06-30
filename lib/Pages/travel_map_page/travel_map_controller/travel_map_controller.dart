@@ -82,6 +82,8 @@ class TravelMapController{
   int ratingCount = 0;
 
   bool _soundTaxiLlegadaPlayed = false;
+  bool _isMarkersLoaded = false;
+
 
   // =========================================================================
   // CORREGIDO: Un solo método init limpio y sin funciones duplicadas por dentro
@@ -124,12 +126,29 @@ class TravelMapController{
     toMarker = await createMarkerImageFromAssets('assets/marker_destino.png', finalWidthDestino);
     // =========================================================================
 
+    _isMarkersLoaded = true;
     checkGPS();
     await checkConnectionAndShowSnackbar();
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((_) async {
 
           await checkConnectionAndShowSnackbar();
+
+          // 🔥 Si volvió internet y falta la ruta de recogida
+          if (
+          travelInfo?.status == 'accepted' &&
+              !isPickUpTravel
+          ) {
+            pickupTravel();
+          }
+
+          // 🔥 Si volvió internet y falta la ruta al destino
+          if (
+          travelInfo?.status == 'started' &&
+              !isStartTravel
+          ) {
+            startTravel();
+          }
 
           if (context.mounted) {
             refresh();
@@ -157,15 +176,12 @@ class TravelMapController{
     Stream<DocumentSnapshot> stream = _travelInfoProvider.getByIdStream(_authProvider.getUser()!.uid);
     _streamTravelController = stream.listen((DocumentSnapshot document) async {
 
-      print("🔥 Travel listener disparado************************");
+      if (!_isMarkersLoaded) return;
 
       if (document.data() == null) {
-        print("🔥 Travel document NULL******************");
         return;
       }
       travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
-
-      print("🔥 Status recibido*******************: ${travelInfo?.status}");
       if (travelInfo == null) return;
       switch (travelInfo!.status) {
         case 'accepted':
@@ -180,12 +196,10 @@ class TravelMapController{
           pickupTravel();
           break;
         case 'driver_on_the_way':
-          print("✅ driver_on_the_way");
           currentStatus = 'Conductor en camino';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'driver_is_waiting':
-          print("✅ driver_is_waiting");
           cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
@@ -199,7 +213,6 @@ class TravelMapController{
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
         case 'started':
-          print("✅ started");
           currentStatus = 'El Viaje ha iniciado';
           startTravel();
           break;
@@ -289,7 +302,7 @@ class TravelMapController{
           .collection('Clients')
           .doc(_authProvider.getUser()!.uid)
           .update({'19_Viajes': FieldValue.increment(1)});
-      print('✅ Viaje incrementado');
+
     } catch (e) {
       print('❌ Error incrementando viajes: $e');
     }
@@ -314,6 +327,9 @@ class TravelMapController{
     final stream = _geofireProvider.getLocationByIdStream(idDriver);
 
     _streamLocationController = stream.listen((DocumentSnapshot document) {
+
+      if (!_isMarkersLoaded) return;
+
       final data = document.data() as Map<String, dynamic>?;
       if (data == null) return;
 
@@ -345,61 +361,145 @@ class TravelMapController{
       refresh();
 
       if (!isRouteready) {
-        print("📍 Primera ubicación recibida");
+
         isRouteready = true;
+
+        if (travelInfo?.status == 'started') {
+
+          startTravel();
+        }
+
+        if (travelInfo?.status == 'accepted' ||
+            travelInfo?.status == 'driver_on_the_way') {
+          pickupTravel();
+        }
       }
     });
   }
 
   Future<void> _moveCameraSmooth(LatLng position) async {
     try {
+
+      if (!_mapController.isCompleted) return;
+
       final controller = await _mapController.future;
-      controller.animateCamera(
+
+      await controller.animateCamera(
         CameraUpdate.newCameraPosition(
-          CameraPosition(target: position, zoom: 16, bearing: 0, tilt: 0),
+          CameraPosition(
+            target: position,
+            zoom: 16,
+            bearing: 0,
+            tilt: 0,
+          ),
         ),
       );
+
     } catch (e) {
-      if (kDebugMode) print("Error moviendo cámara: $e");
+      print("⚠️ Error animateCamera: $e");
     }
   }
 
-  void pickupTravel () {
-    if(!isPickUpTravel){
-      isPickUpTravel = true;
-      LatLng from = LatLng(_driverLatlng!.latitude, _driverLatlng!.longitude);
-      LatLng to = LatLng(travelInfo!.fromLat, travelInfo!.fromLng);
-      setPolylines(from, to);
-    }
+  void pickupTravel() {
+
+    if (_driverLatlng == null) return;
+
+    if (isPickUpTravel) return;
+
+    LatLng from = LatLng(
+      _driverLatlng!.latitude,
+      _driverLatlng!.longitude,
+    );
+
+    LatLng to = LatLng(
+      travelInfo!.fromLat,
+      travelInfo!.fromLng,
+    );
+
+    setPolylines(from, to).then((routeCreated) {
+
+      if (routeCreated) {
+        isPickUpTravel = true;
+      }
+
+    });
   }
 
-  void startTravel() {
-    if(!isStartTravel){
-      isStartTravel= true;
-      polylines = {};
-      points = List.from([]);
-      markers.removeWhere((key, marker) => marker.markerId.value == 'from');
-      addMarker('to', travelInfo!.toLat, travelInfo!.toLng, 'Destino', '', toMarker);
-      _from = LatLng(_driverLatlng!.latitude, _driverLatlng!.longitude);
-      _to = LatLng(travelInfo!.toLat, travelInfo!.toLng);
-      setPolylines(_from!, _to!);
-      refresh();
+  Future<void> startTravel() async {
+
+    if (_driverLatlng == null) {
+      return;
     }
+
+    if (isStartTravel) {
+      return;
+    }
+
+    polylines.clear();
+
+    points.clear();
+
+    markers.removeWhere(
+          (key, marker) =>
+      marker.markerId.value == 'from',
+    );
+
+    addMarker(
+      'to',
+      travelInfo!.toLat,
+      travelInfo!.toLng,
+      'Destino',
+      '',
+      toMarker,
+    );
+
+    _from = LatLng(
+      _driverLatlng!.latitude,
+      _driverLatlng!.longitude,
+    );
+
+    _to = LatLng(
+      travelInfo!.toLat,
+      travelInfo!.toLng,
+    );
+
+    bool routeCreated = await setPolylines(
+      _from!,
+      _to!,
+    );
+
+    if (routeCreated) {
+      isStartTravel = true;
+    }
+
+    refresh();
   }
 
   void finishTravel(){
+
     if(!isFinishtTravel){
+
       isFinishtTravel = true;
-      _actualizarIsTravelingFalse ();
+
+      polylines.clear();
+      points.clear();
+      markers.clear();
+
+      _actualizarIsTravelingFalse();
+
       actualizarContadorDeViajes();
-      Navigator.pushNamedAndRemoveUntil(context, 'travel_calification_page', (route) => false, arguments: travelInfo!.idTravelHistory);
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        'travel_calification_page',
+            (route) => false,
+        arguments: travelInfo!.idTravelHistory,
+      );
     }
   }
 
   void getDriverInfo(String id) async {
-    print("🚕 Consultando conductor");
     driver = await _driverProvider.getById(id);
-    print("🚕 Conductor cargado: ${driver?.the01Nombres}");
     refresh();
   }
 
@@ -419,20 +519,24 @@ class TravelMapController{
     refresh();
   }
 
-  Future<void> setPolylines(LatLng from, LatLng to) async {
+  Future<bool> setPolylines(
+      LatLng from,
+      LatLng to,
+      ) async {
+
     final ok = await connectionService.hasInternetConnection();
+
     if (!ok) {
-      if(context.mounted){
-        await connectionService.checkConnectionAndShowCard(context, () {
-          refresh();
-        });
-      }
-      return;
+      return false;
     }
 
     try {
-      points = List.from([]);
-      final res = await _functions.httpsCallable('getDirections').call({
+
+      points = [];
+
+      final res = await _functions
+          .httpsCallable('getDirections')
+          .call({
         'fromLat': from.latitude,
         'fromLng': from.longitude,
         'toLat': to.latitude,
@@ -441,25 +545,41 @@ class TravelMapController{
       });
 
       final data = Map<String, dynamic>.from(res.data);
-      if (data['ok'] != true) return;
 
-      final encoded = (data['polyline'] ?? '').toString();
-      if (encoded.isEmpty) return;
+      if (data['ok'] != true) {
+        return false;
+      }
 
-      final decoded = PolylinePoints().decodePolyline(encoded);
-      points = decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
+      final encoded = data['polyline'];
+
+      final decoded =
+      PolylinePoints().decodePolyline(encoded);
+
+      points = decoded
+          .map((p) => LatLng(
+        p.latitude,
+        p.longitude,
+      ))
+          .toList();
 
       polylines = {
         Polyline(
           polylineId: const PolylineId('poly'),
-          color: Colors.black87,
           points: points,
+          color: Colors.black87,
           width: 4,
         )
       };
+
       refresh();
+
+      return true;
+
     } catch (e) {
-      if (kDebugMode) print('setPolylines (function) error: $e');
+
+      print(e);
+
+      return false;
     }
   }
 
@@ -485,11 +605,36 @@ class TravelMapController{
     }
   }
 
-  Future? animateCameraToPosition(double latitude, double longitude)  async {
-    GoogleMapController controller = await _mapController.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(
-        CameraPosition(bearing: 0, target: LatLng(latitude,longitude), zoom: 15.1)
-    ));
+  Future<void> animateCameraToPosition(
+      double latitude,
+      double longitude,
+      ) async {
+
+    try {
+
+      if (!_mapController.isCompleted) {
+        return;
+      }
+
+      final controller = await _mapController.future;
+
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            bearing: 0,
+            target: LatLng(latitude, longitude),
+            zoom: 15.1,
+          ),
+        ),
+      );
+
+    } catch (e) {
+
+      if (kDebugMode) {
+        print('⚠️ animateCameraToPosition: $e');
+      }
+
+    }
   }
 
   Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {

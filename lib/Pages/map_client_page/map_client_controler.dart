@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide ModalBottomSheetRoute;
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart' as location;
@@ -16,15 +15,12 @@ import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/price_provider.dart';
 import '../../service/connection_service_singleton.dart';
-import 'dart:io';
-import 'dart:ui' as ui;
 
 class ClientMapController {
   late BuildContext context;
   late Function refresh;
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
-  Future<GoogleMapController> get mapController => _mapController.future;
 
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.8470616, -74.0743461),
@@ -77,38 +73,15 @@ class ClientMapController {
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
 
-    // =========================================================================
-    // 🔥 AJUSTE DINÁMICO DE MARCADORES PARA ESTA PANTALLA
-    // =========================================================================
-    double pixelRatio = MediaQuery.of(context).devicePixelRatio;
-
-    // Valores base finos y pequeños
-    double baseDriver = 11.0;  // Tamaño para los taxis en el radar
-    double baseClient = 13.0;  // Tamaño para tu pin de ubicación
-
-    if (Platform.isIOS) {
-      baseDriver = 11.0;
-      baseClient = 13.0;
-    } else if (Platform.isAndroid) {
-      baseDriver = 11.0;
-      baseClient = 13.0;
-    }
-
-    int finalWidthDriver = (baseDriver * pixelRatio).round();
-    int finalWidthClient = (baseClient * pixelRatio).round();
-
-    // Asignar las imágenes con el tamaño en píxeles reales calculados
-    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
-    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
-    // =========================================================================
-
     final config = await _clientProvider.getConfigCedula();
     _pedirCedula = config['cedula'] == true;
     _cedulaDespuesDeViajes = (config['cedula_despues_de_viajes'] as int?) ?? 1;
 
+
     _pushNotificationsProvider = PushNotificationsProvider();
 
-    // Se eliminaron las dos líneas repetidas de abajo que sobreescribían el tamaño
+    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
+    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
 
     checkGPS();
     await obtenerDatos();
@@ -185,11 +158,6 @@ class ClientMapController {
 
 
   Future<Null> setLocationdraggableInfo() async {
-    // 🔥 SI EL USUARIO YA SELECCIONÓ UN DESTINO CON PLACES, NO PERMITIR QUE EL ONCAMERAIDLE LO PISE
-    if (tolatlng != null && to != null && to!.isNotEmpty && !usandoUbicacionManual) {
-      return;
-    }
-
     double lat = initialPosition.target.latitude;
     double lng = initialPosition.target.longitude;
     List<Placemark> address = await placemarkFromCoordinates(lat, lng);
@@ -214,49 +182,79 @@ class ClientMapController {
   }
 
   Future<void> setLocationdraggableInfoOrigen({
+
     bool useCameraPosition = false,
   }) async {
-    // 🔥 SI YA SE USÓ AUTOCOMPLETE DE PLACES PARA EL ORIGEN Y NO SE ESTÁ EDITANDO MANUALMENTE EN EL MAPA, RESPETAR EL NOMBRE
-    if (fromlatlng != null && from != null && from!.isNotEmpty && usandoUbicacionManual && !useCameraPosition) {
-      return;
-    }
 
     double lat;
     double lng;
 
     /// 🔥 USAR CENTRO DEL MAPA
     if (useCameraPosition) {
-      lat = initialPosition.target.latitude;
-      lng = initialPosition.target.longitude;
+
+      lat =
+          initialPosition.target.latitude;
+
+      lng =
+          initialPosition.target.longitude;
     }
+
     /// 🔥 USAR GPS REAL
     else {
+
       /// 🔥 SI HAY UBICACIÓN MANUAL
-      if (usandoUbicacionManual && fromlatlng != null) {
+      if (usandoUbicacionManual &&
+          fromlatlng != null) {
+
         lat = fromlatlng!.latitude;
+
         lng = fromlatlng!.longitude;
       }
+
       /// 🔥 GPS NORMAL
       else {
+
         if (_position == null) {
           return;
         }
+
         lat = _position!.latitude;
+
         lng = _position!.longitude;
       }
     }
 
-    List<Placemark> address = await placemarkFromCoordinates(lat, lng);
+    List<Placemark> address =
+
+    await placemarkFromCoordinates(
+      lat,
+      lng,
+    );
 
     if (address.isNotEmpty) {
-      String? placeName = address[0].name;
-      String? direction = address[0].thoroughfare;
-      String? street = address[0].subThoroughfare;
-      String? city = address[0].locality;
-      String? department = address[0].administrativeArea;
+      String? placeName =
+          address[0].name;
 
-      from = '$direction #$street, $city, $department';
-      fromlatlng = LatLng(lat, lng);
+      String? direction =
+          address[0].thoroughfare;
+
+      String? street =
+          address[0].subThoroughfare;
+
+      String? city =
+          address[0].locality;
+
+      String? department =
+          address[0]
+              .administrativeArea;
+
+      from =
+      '$direction #$street, '
+          '$city, $department';
+
+      fromlatlng =
+          LatLng(lat, lng);
+
       refresh();
     }
   }
@@ -306,7 +304,8 @@ class ClientMapController {
       );
 
       _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-
+      print("🚨 DRIVER STREAM ACTIVO");
+      print("🚨 CONTEXT MOUNTED: ${context.mounted}");
         // 🔥 Limpiar SOLO markers de conductores
         markers.removeWhere((key, marker) => key.value != 'client');
 
@@ -320,9 +319,18 @@ class ClientMapController {
           markerClient,
         );
 
+
+
         for (DocumentSnapshot d in documentList) {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
+
+            // /// 🔥 NUEVO FILTRO
+            // if (!estaActivoRecientemente(data)) {
+            //   print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
+            //   continue;
+            // }
+
             Map<String, dynamic> positionData = d.get('position');
 
             if (positionData.containsKey('geopoint')) {
@@ -336,41 +344,51 @@ class ClientMapController {
               );
 
               double distanceInKm = distanceInMeters / 1000;
+
               double rotation = 0;
 
               try {
-                rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+
+                rotation =
+                    double.tryParse(
+                      data['heading']
+                          ?.toString() ?? '0',
+                    ) ?? 0;
+
               } catch (_) {}
 
               if (distanceInKm <= radio) {
-                print("✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km");
-
+                print(
+                    "✅ Driver ${d.id} DENTRO DEL RADIO | "
+                        "${distanceInKm.toStringAsFixed(2)} km"
+                );
                 addMarkerDriver(
+
                   d.id,
+
                   geoPoint.latitude,
+
                   geoPoint.longitude,
+
                   'Conductor disponible',
+
                   "",
+
                   markerDriver,
+
                   rotation: rotation,
                 );
               }
             }
+
           } catch (e) {
             print("⚠️ Error leyendo driver ${d.id}: $e");
           }
         }
         print("🚕 Conductores mostrados en mapa: ${markers.length - 1}");
 
-        // =========================================================================
-        // 🔒 PROTECCIÓN CRÍTICA ANTI-CRASH:
-        // =========================================================================
-        // Solo invocamos el redibujado si la pantalla del cliente sigue activa en el teléfono.
-        // Si el viaje ya fue aceptado o el usuario salió, context.mounted será 'false'
-        // y el flujo asíncrono morirá en silencio sin reventar la app.
-        if (context.mounted) {
-          refresh();
-        }
+        // 🔥 Refrescar mapa
+        refresh();
       });
 
     } catch (e) {
@@ -380,12 +398,17 @@ class ClientMapController {
     }
   }
 
-  void dispose(){
-    _positionStream.cancel();
-    _clientInfoSuscription.cancel();
-    _driversSubscription?.cancel();
-    //_connectivitySubscription?.cancel();
-  }
+  void dispose() {
+  print("🛑 CLIENT MAP CONTROLLER DISPOSE");
+
+  _positionStream.cancel();
+  _clientInfoSuscription.cancel();
+
+  print("🛑 CANCELANDO DRIVERS SUBSCRIPTION");
+  _driversSubscription?.cancel();
+
+  print("🛑 CONTROLLER DESTRUIDO");
+}
 
   void onMapCreated(GoogleMapController controller){
     controller.setMapStyle(utilsMap.mapStyle);
@@ -740,21 +763,11 @@ class ClientMapController {
     ));
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
-    // 1. Cargar el archivo desde los assets a la memoria del teléfono
-    ByteData data = await rootBundle.load(path);
-
-    // 2. Decodificar la imagen usando el alias 'ui.' para evitar conflictos
-    ui.Codec codec = await ui.instantiateImageCodec(
-      data.buffer.asUint8List(),
-      targetWidth: width,
-    );
-    ui.FrameInfo fi = await codec.getNextFrame();
-
-    // 3. Convertir la imagen procesada de nuevo a formato PNG usable por Google Maps
-    ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
-
-    return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
+  Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
+    ImageConfiguration configuration = const ImageConfiguration();
+    BitmapDescriptor bitmapDescriptor=
+    await BitmapDescriptor.fromAssetImage(configuration, path);
+    return bitmapDescriptor;
   }
 
 

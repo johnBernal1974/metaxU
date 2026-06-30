@@ -297,14 +297,8 @@ class ClientMapController {
       );
 
       _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-<<<<<<< HEAD
-      print("🚨 DRIVER STREAM ACTIVO");
-      print("🚨 CONTEXT MOUNTED: ${context.mounted}");
-        // 🔥 Limpiar SOLO markers de conductores
-=======
 
         // 1. Limpiar marcadores antiguos
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
         markers.removeWhere((key, marker) => key.value != 'client');
 
         // 2. Mantener marcador del cliente
@@ -346,35 +340,11 @@ class ClientMapController {
                 _position!.longitude,
                 geoPoint.latitude,
                 geoPoint.longitude,
-<<<<<<< HEAD
-              );
-
-              double distanceInKm = distanceInMeters / 1000;
-
-              double rotation = 0;
-
-              try {
-
-                rotation =
-                    double.tryParse(
-                      data['heading']
-                          ?.toString() ?? '0',
-                    ) ?? 0;
-
-              } catch (_) {}
-
-              if (distanceInKm <= radio) {
-                print(
-                    "✅ Driver ${d.id} DENTRO DEL RADIO | "
-                        "${distanceInKm.toStringAsFixed(2)} km"
-                );
-=======
               ) / 1000;
 
               if (distanceInKm <= radio) {
                 double rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
 
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
                 addMarkerDriver(
 
                   d.id,
@@ -399,14 +369,9 @@ class ClientMapController {
           }
         }
 
-<<<<<<< HEAD
-        // 🔥 Refrescar mapa
-        refresh();
-=======
         if (context.mounted) {
           refresh();
         }
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
       });
 
     } catch (e) {

@@ -115,17 +115,22 @@ class _ClientTravelInfoPageState
             refresh,
           );
 
-          _controller
-              .conductoresEncontradosCallback =
-
-              (cantidad) {
-
+          _controller.conductoresEncontradosCallback = (cantidad) {
             if (!mounted) return;
 
-            setState(() {
+            // 🔥 NUEVO: Si el controlador envía -1, apagamos las ondas y la búsqueda de inmediato
+            if (cantidad == -1) {
+              setState(() {
+                _conductoresConsultados = 0;
+                isVisibleTarjetaSolicitandoConductor = false;
+                _isSearching = false;
+              });
+              return; // Rompe la ejecución para que no asigne el -1 a la variable visual
+            }
 
-              _conductoresConsultados =
-                  cantidad;
+            // Si llega un número normal (0, 1, 2...), actualiza el contador en pantalla
+            setState(() {
+              _conductoresConsultados = cantidad;
             });
           };
 
@@ -554,8 +559,15 @@ class _ClientTravelInfoPageState
                             foregroundColor: Colors.white,
                           ),
 
-                          onPressed: () =>
-                              Navigator.pop(context, true),
+                          onPressed: () {
+                            // 1. Cerramos el diálogo regresando 'true'
+                            Navigator.pop(context, true);
+
+                            // 2. 🔥 APAGAMOS TODOS LOS MOTORES LÓGICOS DE INMEDIATO
+                            _timerBusqueda?.cancel();
+                            _controller.detenerBusquedaLogica();
+                          },
+
 
                           child: const Text(
                             "Sí, cancelar",
@@ -625,6 +637,7 @@ class _ClientTravelInfoPageState
 
                 /// 🔥 TODAVÍA NO ACEPTADO
                 if (status == 'created') {
+
 
                   setState(() {
 
@@ -2252,50 +2265,49 @@ class _ClientTravelInfoPageState
     if (!mounted) return;
 
     setState(() {
-
       _isSearching = true;
     });
 
     _timerBusqueda?.cancel();
-
     _reintentosBusqueda = 0;
 
     _timerBusqueda = Timer.periodic(
-
       const Duration(seconds: 1),
-
           (timer) async {
 
-        /// 🌐 INTERNET
-        if (!await connectionService
-            .hasInternetConnection()) {
-
-          print("⛔ Sin internet → detener búsqueda");
-
+        // =========================================================================
+        // 🛑 🔥 APAGADOR GLOBAL: Si el controlador detuvo el radar, matamos el timer
+        // =========================================================================
+        if (!_controller.buscandoConductor) {
+          print("⏹️ [VISTA METAX] El controlador apagó el radar. Cancelando Timer de la vista.");
           timer.cancel();
-
           if (mounted) {
-
             setState(() {
-
-              _mensajeBusqueda =
-              "📡 Sin conexión, reconectando...";
-
+              isVisibleTarjetaSolicitandoConductor = false;
               _isSearching = false;
             });
           }
+          return;
+        }
+        // =========================================================================
 
+        /// 🌐 INTERNET
+        if (!await connectionService.hasInternetConnection()) {
+          print("⛔ Sin internet → detener búsqueda");
+          timer.cancel();
+          if (mounted) {
+            setState(() {
+              _mensajeBusqueda = "📡 Sin conexión, reconectando...";
+              _isSearching = false;
+            });
+          }
           return;
         }
 
         /// 🛑 YA ACEPTADO
         if (_controller.serviceAccepted) {
-
-          print(
-              "🛑 Servicio aceptado → detener búsqueda");
-
+          print("🛑 Servicio aceptado → detener búsqueda");
           timer.cancel();
-
           return;
         }
 
@@ -2304,189 +2316,100 @@ class _ClientTravelInfoPageState
             _controller.yaIntentoTodosLosVIP &&
             !_controller.serviceAccepted) {
 
-          print(
-              "⚠️ No hay VIP reales → mostrar opción");
-
+          print("⚠️ No hay VIP reales → mostrar opción");
           _controller.yaIntentoTodosLosVIP = false;
 
           if (!mounted) return;
 
           showDialog(
-
             context: context,
-
             barrierDismissible: false,
-
             builder: (context) {
-
               return AlertDialog(
-
                 shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-
                 title: const Text(
-
                   "Sin vehículos VIP",
-
                   textAlign: TextAlign.center,
-
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-
                 content: const Text(
-
                   "No encontramos vehículos VIP disponibles.\n\n¿Deseas buscar un servicio estándar?",
-
                   textAlign: TextAlign.center,
                 ),
-
-                actionsAlignment:
-                MainAxisAlignment.center,
-
+                actionsAlignment: MainAxisAlignment.center,
                 actions: [
-
                   /// 🔥 STANDARD
                   SizedBox(
-
                     width: double.infinity,
-
                     child: ElevatedButton(
-
-                      style:
-                      ElevatedButton.styleFrom(
-
-                        backgroundColor:
-                        primary,
-
-                        foregroundColor:
-                        Colors.black,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primary,
+                        foregroundColor: Colors.black,
                       ),
-
                       onPressed: () async {
-
                         Navigator.pop(context);
-
-                        print(
-                            "🔁 Usuario acepta estándar");
-
-                        await _controller
-                            .deleteTravelInfo();
-
-                        final base =
-                            _controller.total?.toInt() ?? 0;
+                        print("🔁 Usuario acepta estándar");
+                        await _controller.deleteTravelInfo();
+                        final base = _controller.total?.toInt() ?? 0;
 
                         await _controller.createTravelInfo(
-
-                          tipoServicio:
-                          "standard",
-
+                          tipoServicio: "standard",
                           valorVipExtra: 0,
-
                           tarifaFinal: base,
-
-                          metodoPago:
-                          _metodoPagoSeleccionado,
-
-                          caracteristicaVehiculo:
-                          _caracteristicaSeleccionada,
-
-                          /// 🔥 NUEVOS
-                          recargoNocturno:
-                          _controller.recargoNocturno,
-
-                          recargoDominical:
-                          _controller.recargoDominical,
-
-                          recargoAeropuerto:
-                          _controller.recargoAeropuerto,
-
-                          recargoYellowWoman:
-                          _controller.recargoYellowWoman,
+                          metodoPago: _metodoPagoSeleccionado,
+                          caracteristicaVehiculo: _caracteristicaSeleccionada,
+                          recargoNocturno: _controller.recargoNocturno,
+                          recargoDominical: _controller.recargoDominical,
+                          recargoAeropuerto: _controller.recargoAeropuerto,
+                          recargoYellowWoman: _controller.recargoYellowWoman,
                         );
 
-                        /// 🔥 REINICIAR
                         _reintentosBusqueda = 0;
-
-                        _controller
-                            .getNearbyDrivers();
+                        _controller.getNearbyDrivers();
 
                         Future.delayed(
-
-                          const Duration(
-                              milliseconds: 1500),
-
+                          const Duration(milliseconds: 1500),
                               () {
-
                             if (!mounted) return;
-
                             _startSearch();
                           },
                         );
                       },
-
-                      child: const Text(
-                        "Buscar servicio estándar",
-                      ),
+                      child: const Text("Buscar servicio estándar"),
                     ),
                   ),
 
                   /// 🔴 CANCELAR
                   SizedBox(
-
                     width: double.infinity,
-
                     child: TextButton(
-
                       onPressed: () {
-
                         Navigator.pop(context);
-
-                        _controller
-                            .deleteTravelInfo();
-
+                        _controller.deleteTravelInfo();
                         _timerBusqueda?.cancel();
-
                         setState(() {
-
-                          isVisibleTarjetaSolicitandoConductor =
-                          false;
-
+                          isVisibleTarjetaSolicitandoConductor = false;
                           _isSearching = false;
                         });
                       },
-
-                      child: const Text(
-                        "Cancelar",
-                      ),
+                      child: const Text("Cancelar"),
                     ),
                   ),
                 ],
               );
             },
           );
-
           return;
         }
 
         /// 🔥 CICLOS
         _reintentosBusqueda++;
-
-
-        /// 🔥 REINTENTO REAL
-        if (_reintentosBusqueda % 18 == 0) {
-
-          print(
-              "🔁 Nueva búsqueda automática");
-
-          _controller.getNearbyDrivers();
-        }
       },
     );
   }
-
 
 }

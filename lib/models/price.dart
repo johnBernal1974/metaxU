@@ -82,7 +82,7 @@ class Price {
     theNumeroCancelacionesUsuario: json["numero_cancelaciones_usuario"]  ?? '',
     theRadioDeBusqueda: json["radio_de_busqueda"]?.toDouble() ?? 0.0,
 
-    theRadioMaximo: (json["radio_maximo_busqueda"] ?? 2.0).toDouble(),
+    theRadioMaximo: json["radio_maximo_busqueda"]?.toDouble() ?? 1.2,
     theTarifaAeropuerto: json["tarifa_aeropuerto"]  ?? '',
     theTarifaMinimaRegular: json["tarifa_minima_regular"]?? '',
     theTarifaMinimaHotel: json["tarifa_minima_hotel"]?? '',

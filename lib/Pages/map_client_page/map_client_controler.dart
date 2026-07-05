@@ -22,6 +22,8 @@ class ClientMapController {
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
 
+  Future<GoogleMapController> get mapController => _mapController.future;
+
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.8470616, -74.0743461),
     zoom: 20.0,
@@ -297,14 +299,8 @@ class ClientMapController {
       );
 
       _driversSubscription = stream.listen((List<DocumentSnapshot> documentList) {
-<<<<<<< HEAD
-      print("🚨 DRIVER STREAM ACTIVO");
-      print("🚨 CONTEXT MOUNTED: ${context.mounted}");
-        // 🔥 Limpiar SOLO markers de conductores
-=======
 
         // 1. Limpiar marcadores antiguos
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
         markers.removeWhere((key, marker) => key.value != 'client');
 
         // 2. Mantener marcador del cliente
@@ -317,18 +313,9 @@ class ClientMapController {
           markerClient,
         );
 
-
-
         for (DocumentSnapshot d in documentList) {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-
-            // /// 🔥 NUEVO FILTRO
-            // if (!estaActivoRecientemente(data)) {
-            //   print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
-            //   continue;
-            // }
-
             Map<String, dynamic> positionData = d.get('position');
 
             // 🔥 OPTIMIZACIÓN: Validación de actividad (Filtro Anti-Zombies)
@@ -341,54 +328,31 @@ class ClientMapController {
             if (positionData.containsKey('geopoint')) {
               GeoPoint geoPoint = positionData['geopoint'];
 
-              double distanceInKm = Geolocator.distanceBetween(
+              // ✅ Lógica unificada limpia: Calculamos la distancia real en kilómetros
+              double distanceInMeters = Geolocator.distanceBetween(
                 _position!.latitude,
                 _position!.longitude,
                 geoPoint.latitude,
                 geoPoint.longitude,
-<<<<<<< HEAD
               );
 
               double distanceInKm = distanceInMeters / 1000;
 
-              double rotation = 0;
-
-              try {
-
-                rotation =
-                    double.tryParse(
-                      data['heading']
-                          ?.toString() ?? '0',
-                    ) ?? 0;
-
-              } catch (_) {}
-
               if (distanceInKm <= radio) {
-                print(
-                    "✅ Driver ${d.id} DENTRO DEL RADIO | "
-                        "${distanceInKm.toStringAsFixed(2)} km"
-                );
-=======
-              ) / 1000;
+                double rotation = 0;
+                try {
+                  rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+                } catch (_) {}
 
-              if (distanceInKm <= radio) {
-                double rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+                print("✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km");
 
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
                 addMarkerDriver(
-
                   d.id,
-
                   geoPoint.latitude,
-
                   geoPoint.longitude,
-
                   'Conductor disponible',
-
                   "",
-
                   markerDriver,
-
                   rotation: rotation,
                 );
               }
@@ -399,14 +363,10 @@ class ClientMapController {
           }
         }
 
-<<<<<<< HEAD
-        // 🔥 Refrescar mapa
-        refresh();
-=======
+        // ✅ Refresco seguro validando si el contexto sigue montado
         if (context.mounted) {
           refresh();
         }
->>>>>>> fc23dce5738e2a742cc52e0752d4f6ba93151a5f
       });
 
     } catch (e) {

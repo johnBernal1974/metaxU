@@ -133,6 +133,7 @@ class TravelInfoController{
   bool esYellowWoman = false;
   bool esFestivo = false;
 
+
   Future<bool> verificarFestivo() async {
 
     try {
@@ -1624,7 +1625,31 @@ class TravelInfoController{
               }
               return;
             }
-            bool accepted = await sendNotification(driver.token);
+
+            // =========================================================================
+            // 📐 CALCULAR DISTANCIA REAL EN TIEMPO REAL DESDE EL BATCH
+            // =========================================================================
+            double distanciaRealConductor = 0.0;
+            try {
+              final locationDoc = await _firestore.collection('Locations').doc(driverId).get();
+              if (locationDoc.exists) {
+                final positionData = locationDoc.data()?['position'];
+                if (positionData != null && positionData['geopoint'] != null) {
+                  GeoPoint geoPoint = positionData['geopoint'];
+                  LatLng driverLatLng = LatLng(geoPoint.latitude, geoPoint.longitude);
+
+                  double distanciaEnMetros = _calculateDistance(fromLatlng, driverLatLng);
+                  distanciaRealConductor = distanciaEnMetros / 1000.0;
+                }
+              }
+            } catch (e) {
+              print("⚠️ Error al calcular distancia en tiempo real para $driverId: $e");
+              distanciaRealConductor = _radioActual;
+            }
+            // =========================================================================
+
+            // 🔥 ASIGNACIÓN CORREGIDA: Le pasamos su token y el valor de su posición actual
+            bool accepted = await sendNotification(driver.token, distanciaRealConductor);
 
             if (accepted) {
 
@@ -2002,25 +2027,50 @@ class TravelInfoController{
 
     await _travelInfoProvider.create(travelInfo);
 
+    // 2. 🔥 CONSULTA IN SITU PARA TRAER EL TIEMPO SIN QUEMARLO:
+    try {
+      // Consultamos el documento de Precios directo a Firestore
+      final pricesSnapshot = await FirebaseFirestore.instance
+          .collection('Prices')
+          .doc('all') // Reemplaza 'all' por el ID de tu documento si se llama diferente
+          .get();
+
+      if (pricesSnapshot.exists) {
+        // Leemos la llave 'tiempo_busqueda' de la base de datos
+        int tiempoBD = pricesSnapshot.data()?['tiempo_busqueda'] ?? 15;
+
+        // Actualizamos el viaje recién creado con el tiempo dinámico de la BD
+        await FirebaseFirestore.instance
+            .collection('TravelInfo')
+            .doc(user.uid)
+            .update({
+          'tiempo_busqueda': tiempoBD
+        });
+        print("⏱️ [CONFIG PRECIOS] Tiempo de búsqueda inyectado desde la BD: $tiempoBD segundos");
+      }
+    } catch (e) {
+      print("⚠️ No se pudo inyectar el tiempo dinámico, Android usará el resguardo de 15s: $e");
+    }
+
     _checkDriverResponse();
 
     return true;
   }
 
-
-
   Future<void> getDriverInfo(String idDriver) async {
   }
 
-
-
-  Future<bool> sendNotification(String token) async {
+  Future<bool> sendNotification(String token, double distanciaAlConductor) async {
     final user = _authProvider.getUser();
     if (user == null) {
       return false;
     }
 
-    // 👑 MAPA DATA BLINDADO DE NIVEL PRODUCCIÓN:
+    // Estimación táctica en ciudad: 2 minutos por cada kilómetro (mínimo 1 min)
+    int tiempoEstimadoMinutos = (distanciaAlConductor * 2).round();
+    if (tiempoEstimadoMinutos < 1) tiempoEstimadoMinutos = 1;
+
+    // 👑 MAPA DATA BLINDADO CON TELEMETRÍA INDIVIDUAL EN TIEMPO REAL:
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
       'tipo': 'servicio',
@@ -2037,17 +2087,16 @@ class TravelInfoController{
       'destinationLng': toLatlng.longitude.toString(),
       'tarifa': totalInt.toString(),
       'tipo_servicio': tipoServicioSolicitado,
-
-      // 🚨 LAS DOS LÍNEAS QUE HACÍAN FALTA PARA SINCRONIZAR KOTLIN:
-      // Aquí forzamos el envío de la forma de pago elegida en la vista del cliente
       'metodo_pago': metodoPago,
-
-      // Enviamos las notas bajo la clave nativa que espera el FloatingBubbleService
       'apuntes': apuntesAlConductor ?? 'Sin apuntes',
       'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
+
+      // 🔥 LAS DOS LÍNEAS QUE PREPARAN TU VENTANA FLOTANTE PREMIUM:
+      'distanciaCliente': '${distanciaAlConductor.toStringAsFixed(1)} km',
+      'tiempoLlegada': '$tiempoEstimadoMinutos min',
     };
 
-    print("🔥 [PUSH DISPATCH] Empaquetando variables nativas con éxito: $data");
+    print("🔥 [PUSH TELEMETRÍA] Despachando a conductor individual: $data");
 
     try {
       await _pushNotificationsProvider.sendMessage(token, data);

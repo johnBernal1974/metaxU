@@ -38,6 +38,15 @@ class Client {
 
   String nombreEstado;
 
+  // =====================================================================
+  // 🎁 NUEVOS CAMPOS DETECTADOS PARA EL MOTOR DE REFERIDOS
+  // =====================================================================
+  String idInvitadoPor;
+  bool viajeReferidoContabilizado;
+  Map<String, dynamic> referidosControl;
+  // =====================================================================
+  String codigoReferidoPropio;
+
   Client({
     required this.id,
     required this.nombres,
@@ -65,6 +74,12 @@ class Client {
     required this.cedulaReversoEstado,
 
     required this.nombreEstado,
+
+    // 🎯 Inyección en el Constructor
+    required this.idInvitadoPor,
+    required this.viajeReferidoContabilizado,
+    required this.referidosControl,
+    required this.codigoReferidoPropio,
   });
 
   // helpers
@@ -130,6 +145,19 @@ class Client {
     cedulaReversoEstado: (json["cedula_reverso_estado"] ?? '').toString(),
 
     nombreEstado: (json["nombre_estado"] ?? '').toString(),
+
+    // 🎯 Inyección en el mapeador FROM JSON para leer desde Firestore
+    idInvitadoPor: (json["idInvitadoPor"] ?? '').toString(),
+    viajeReferidoContabilizado: _toBool(json["viajeReferidoContabilizado"]),
+    codigoReferidoPropio: (json["codigoReferidoPropio"] ?? '').toString(),
+    referidosControl: json["referidosControl"] != null
+        ? Map<String, dynamic>.from(json["referidosControl"])
+        : {
+      "conductoresEfectivos": 0,
+      "conductoresRegistrados": 0,
+      "usuariosEfectivos": 0,
+      "usuariosRegistrados": 0,
+    },
   );
 
   Map<String, dynamic> toJson() => {
@@ -166,5 +194,12 @@ class Client {
     "cedula_reverso_estado": cedulaReversoEstado,
 
     "nombre_estado": nombreEstado,
+
+    // 🎯 Inyección en el mapeador TO JSON para escribir hacia Firestore
+    "idInvitadoPor": idInvitadoPor,
+    "viajeReferidoContabilizado": viajeReferidoContabilizado,
+    "referidosControl": referidosControl,
+    "codigoReferidoPropio": codigoReferidoPropio,
+
   };
 }

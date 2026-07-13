@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:apptaxis/providers/auth_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -70,12 +71,17 @@ class _RegisterPageState extends State<RegisterPage> {
   String? answerError;
   String? questionError;
 
+  String? codigoReferido;
+  String? referidoError;
+
   // Controllers
   final TextEditingController nameController = TextEditingController();
   final TextEditingController apellidosController = TextEditingController();
   final TextEditingController celularController = TextEditingController();
   final TextEditingController otpController = TextEditingController();
   final TextEditingController answerController = TextEditingController();
+
+  final TextEditingController referidoController = TextEditingController();
 
   final List<String> questions = [
     'Nombre de tu mascota',
@@ -91,7 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
   int _resendSeconds = 0; // 0 = ya puede reenviar
   static const int _resendCooldown = 30; // segundos
 
-  static const int _totalPages = 5; // total pasos = 5 (páginas 0..4)
+  static const int _totalPages = 6; // total pasos = 6 (páginas 0..5)
 
   bool get _isOtpComplete => (otpController.text.trim().length == 6);
 
@@ -181,6 +187,7 @@ class _RegisterPageState extends State<RegisterPage> {
     celularController.dispose();
     otpController.dispose();
     answerController.dispose();
+    referidoController.dispose();
 
     _nameFocusNode.dispose();
     _apellidosFocusNode.dispose();
@@ -784,8 +791,14 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // 4: pregunta/resp -> registrar
+    // 4: código de referido -> es opcional, así que pasa directo a pregunta de seguridad
     if (_currentPage == 4) {
+      _goToPage(5); // 👈 Va a la página de verificación de identidad
+      return;
+    }
+
+    // 5: pregunta/resp -> registrar
+    if (_currentPage == 5) {
       if (selectedQuestion == null) {
         setState(() => questionError = "Debes seleccionar una pregunta.");
         return;
@@ -956,6 +969,32 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
+      // 🎯 GENERACIÓN DEL CÓDIGO UTILIZANDO TU LÓGICA DE CONDUCTORES
+      String miCodigoUnico = generarCodigoNuevo(name ?? "MTX");
+
+      // =====================================================================
+      // 🔍 1. CONVERSIÓN ULTRA-EFICIENTE: DE CÓDIGO DE TEXTO A ID REAL DEL DUEÑO
+      // =====================================================================
+      String idDelDuenoDelCodigo = "";
+
+      if (codigoReferido != null && codigoReferido!.trim().isNotEmpty) {
+        try {
+          // Buscamos directo el documento por su nombre (ID de documento es el código ingresado)
+          final docCodigoSnap = await FirebaseFirestore.instance
+              .collection('ReferralCodes')
+              .doc(codigoReferido!.trim().toUpperCase())
+              .get();
+
+          if (docCodigoSnap.exists) {
+            final dataCodigo = docCodigoSnap.data() as Map<String, dynamic>;
+            idDelDuenoDelCodigo = dataCodigo['ownerUid'] ?? "";
+          }
+        } catch (e) {
+          if (kDebugMode) print("⚠️ Error al consultar el código en ReferralCodes: $e");
+        }
+      }
+      // =====================================================================
+
       // 7) Crear doc Client
       final client = Client(
         id: uid,
@@ -980,7 +1019,6 @@ class _RegisterPageState extends State<RegisterPage> {
         palabraClave: (answer ?? "").trim(),
         preguntaPalabraClave: (selectedQuestion ?? "").trim(),
 
-        // 🔥 NUEVO SISTEMA LIMPIO
         fotoPerfilUrl: "",
         fotoPerfilEstado: "",
 
@@ -991,9 +1029,59 @@ class _RegisterPageState extends State<RegisterPage> {
         cedulaReversoEstado: "",
 
         nombreEstado: "",
+
+        idInvitadoPor: idDelDuenoDelCodigo, // Guardamos el UID real del dueño si existía
+        viajeReferidoContabilizado: false,
+        referidosControl: {
+          "conductoresEfectivos": 0,
+          "conductoresRegistrados": 0,
+          "usuariosEfectivos": 0,
+          "usuariosRegistrados": 0,
+        },
+
+        codigoReferidoPropio: miCodigoUnico,
       );
 
+      // 💾 Guardamos el documento del cliente en su colección nativa de MetaX
       await _clientProvider.create(client);
+
+      // =====================================================================
+      // 🚀 2. MOTOR EN VIVO: INCREMENTAR CONTADOR Y REGISTRAR NUEVO CÓDIGO PROPIO
+      // =====================================================================
+      try {
+        // A. Si fue invitado por alguien, incrementamos el contador de registrados en su perfil
+        if (idDelDuenoDelCodigo.isNotEmpty) {
+          final duenoDriverRef = FirebaseFirestore.instance.collection('Drivers').doc(idDelDuenoDelCodigo);
+          final duenoDriverSnap = await duenoDriverRef.get();
+
+          if (duenoDriverSnap.exists) {
+            await duenoDriverRef.update({
+              "referidosControl.usuariosRegistrados": FieldValue.increment(1),
+            });
+          } else {
+            final duenoUserRef = FirebaseFirestore.instance.collection('Users').doc(idDelDuenoDelCodigo);
+            await duenoUserRef.update({
+              "referidosControl.usuariosRegistrados": FieldValue.increment(1),
+            });
+          }
+        }
+
+        // B. REGISTRAMOS EL NUEVO CÓDIGO PROPIO DEL PASAJERO EN EL ÍNDICE 'ReferralCodes'
+        // Tal cual como se ve en tu imagen de Cloud Firestore
+        await FirebaseFirestore.instance
+            .collection('ReferralCodes')
+            .doc(miCodigoUnico)
+            .set({
+          'createdAt': FieldValue.serverTimestamp(), // Se guarda la fecha del servidor en vivo
+          'ownerUid': uid,                          // El ID único del pasajero nuevo
+          'type': 'client',                         // Tipo de código: client
+        });
+
+        if (kDebugMode) print("🎯 Código propio registrado en ReferralCodes e incremento completado.");
+      } catch (e) {
+        if (kDebugMode) print("⚠️ Error en los procesos post-registro de referidos: $e");
+      }
+      // =====================================================================
 
       await _stopLoading();
 
@@ -1088,7 +1176,8 @@ class _RegisterPageState extends State<RegisterPage> {
                       _buildOtpPage(),        // 1 ✅ confirmar otp + estado
                       _buildNamePage(),       // 2
                       _buildApellidosPage(),  // 3
-                      _buildPalabraClave(),   // 4 (registrar)
+                      _buildReferidoPage(),   // 4
+                      _buildPalabraClave(),   // 5 (registrar)
                     ],
                   ),
                 ),
@@ -1129,7 +1218,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           child: Row(
                             children: [
                               Text(
-                                _currentPage == 4 ? "Registrar" : "Siguiente",
+                                _currentPage == 5 ? "Registrar" : "Siguiente",
                                 style: const TextStyle(color: Colors.black87),
                               ),
                               const SizedBox(width: 4),
@@ -1359,6 +1448,57 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  Widget _buildReferidoPage() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            "¿Tienes un código de referido?",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            "Ingresa el código de la persona que te invitó a MetaX. Si no tienes uno, puedes continuar sin problemas.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black54),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.black12),
+              boxShadow: const [
+                BoxShadow(
+                  blurRadius: 14,
+                  spreadRadius: 0,
+                  offset: Offset(0, 6),
+                  color: Color(0x11000000),
+                )
+              ],
+            ),
+            child: TextField(
+              controller: referidoController,
+              onChanged: (value) => codigoReferido = value.trim().toUpperCase(),
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                labelText: "Código de referido (Opcional)",
+                hintText: "Ej: METAX77",
+                prefixIcon: Icon(Icons.card_giftcard_rounded, color: Colors.grey),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Tu página de pregunta/clave (sin cambios grandes)
   Widget _buildPalabraClave() {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -1443,5 +1583,17 @@ class _RegisterPageState extends State<RegisterPage> {
         ],
       ),
     );
+  }
+
+  // 🎯 LÓGICA ULTRA-LIMPIA Y PERMANENTE PARA GENERAR CÓDIGO SIN NECESIDAD DE IMPORTS EXTRA
+  String generarCodigoNuevo(String nombre) {
+    String limpio = nombre.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z]'), '');
+    String prefijo = limpio.length >= 3 ? limpio.substring(0, 3) : limpio.padRight(3, 'X');
+
+    // Usamos el tiempo del sistema en microsegundos para extraer 3 dígitos exactos estables (100 a 999)
+    int microsegundos = DateTime.now().microsecondsSinceEpoch;
+    int sufijoAleatorio = 100 + (microsegundos % 900);
+
+    return '$prefijo$sufijoAleatorio';
   }
 }

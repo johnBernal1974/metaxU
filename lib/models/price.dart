@@ -39,6 +39,7 @@ class Price {
   String theLinkDescargaDriver;
 
   int? tiempoEsperaPorteria;
+  int? tiempoBusqueda;
 
 
   Price({
@@ -67,9 +68,7 @@ class Price {
     required this.theLinkDescargaClient,
     required this.theLinkDescargaDriver,
     required this.tiempoEsperaPorteria,
-
-
-
+    this.tiempoBusqueda,
   });
 
   factory Price.fromJson(Map<String, dynamic> json) => Price(
@@ -82,7 +81,7 @@ class Price {
     theNumeroCancelacionesUsuario: json["numero_cancelaciones_usuario"]  ?? '',
     theRadioDeBusqueda: json["radio_de_busqueda"]?.toDouble() ?? 0.0,
 
-    theRadioMaximo: (json["radio_maximo_busqueda"] ?? 2.0).toDouble(),
+    theRadioMaximo: json["radio_maximo_busqueda"]?.toDouble() ?? 1.2,
     theTarifaAeropuerto: json["tarifa_aeropuerto"]  ?? '',
     theTarifaMinimaRegular: json["tarifa_minima_regular"]?? '',
     theTarifaMinimaHotel: json["tarifa_minima_hotel"]?? '',
@@ -103,6 +102,7 @@ class Price {
     theLinkDescargaClient: json["link_descarga_client"]?? '',
     theLinkDescargaDriver: json["link_descarga_driver"]?? '',
     tiempoEsperaPorteria: json['tiempoEsperaPorteria'] ?? 10,
+    tiempoBusqueda: json['tiempo_busqueda'] ?? 15,
 
   );
 
@@ -133,5 +133,6 @@ class Price {
     "dinamica": theDinamica,
     "link_descarga_client": theLinkDescargaClient,
     "link_descarga_driver": theLinkDescargaDriver,
+    "tiempo_busqueda": tiempoBusqueda,
   };
 }

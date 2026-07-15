@@ -297,15 +297,6 @@ class TravelMapController{
   }
 
   void actualizarContadorDeViajes() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('Clients')
-          .doc(_authProvider.getUser()!.uid)
-          .update({'19_Viajes': FieldValue.increment(1)});
-
-    } catch (e) {
-      print('❌ Error incrementando viajes: $e');
-    }
     refresh();
   }
 

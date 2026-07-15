@@ -133,6 +133,7 @@ class TravelInfoController{
   bool esYellowWoman = false;
   bool esFestivo = false;
 
+
   Future<bool> verificarFestivo() async {
 
     try {
@@ -886,7 +887,7 @@ class TravelInfoController{
       Price price = await _pricesProvider.getAll();
 
       radioDeBusqueda = price.theRadioDeBusqueda;
-      _radioMaximo = price.theRadioMaximo ?? 2.0;
+      _radioMaximo = price.theRadioMaximo ?? 1.2;
       print("📢 [TEST GPS] El radio máximo cargado desde Firestore es: $_radioMaximo km");
 
       /// 🔥 NUEVO
@@ -1066,7 +1067,6 @@ class TravelInfoController{
   ///marca para saber si se hizo el rebase
 
   void getNearbyDrivers() {
-
     buscandoConductor = true;
     _permitirStandard = false;
 
@@ -1074,28 +1074,69 @@ class TravelInfoController{
     nearbyDrivers.clear();
     notifiedDrivers.clear();
     _isSendingNotifications = false;
-
     serviceAccepted = false;
 
-    _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 60));
+    _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 90));
 
-    /// 🔥 cancelar suscripción y timer anteriores
+    /// 🔥 Cancelar suscripción y timers anteriores por seguridad
     _streamSubscription?.cancel();
     _timerExpansion?.cancel();
+    _timeoutBusqueda?.cancel();
 
     /// 🔥 RADIO DE PRODUCCIÓN: Inicia con el radio dinámico configurado en Firestore
     _radioActual = radioDeBusqueda ?? 1.0;
+
+    // =========================================================================
+    // ⏰ TEMPORIZADOR DE FIRESTORE PARA PRODUCCIÓN (90 SEGUNDOS)
+    // =========================================================================
+    _timeoutBusqueda = Timer(const Duration(seconds: 90), () async {
+      print("⏹️ [RADAR METAX] ¡Tiempo global de 60 segundos agotado!");
+
+      // Apagamos los motores lógicos locales de inmediato
+      _streamSubscription?.cancel();
+      _timerExpansion?.cancel();
+      buscandoConductor = false;
+
+      // Obtenemos el UID del cliente actual
+      String? currentUserId = _authProvider.getUser()?.uid;
+      if (currentUserId == null) return;
+
+      try {
+        final doc = await _firestore.collection('TravelInfo').doc(currentUserId).get();
+        if (!doc.exists) return;
+
+        final status = doc.data()?["status"];
+
+        // Si el viaje no fue aceptado y sigue en 'created', lo pasamos a 'no_driver_found'
+        if (status == "created") {
+          print("💾 Actualizando Firestore a 'no_driver_found' por límite de tiempo...");
+          await _firestore.collection('TravelInfo').doc(currentUserId).update({
+            "status": "no_driver_found"
+          });
+        }
+      } catch (e) {
+        print("❌ Error al actualizar tiempo vencido en Firestore: $e");
+      }
+
+      // Forzamos el callback visual a 0 para que la vista limpie las animaciones
+      conductoresEncontradosCallback?.call(0);
+      refresh();
+    });
+    // =========================================================================
 
     _buscarConductores();
   }
 
   void _buscarConductores() {
-    if (_radioActual > _radioMaximo) {
-      print("🚫 Se alcanzó el radio máximo de búsqueda");
+    // 1. 🛑 FRENO DE MANO
+    if (_radioMaximo != null && _radioActual > _radioMaximo!) {
+      print("🚫 [RADAR METAX] Se alcanzó y superó el radio máximo de búsqueda ($_radioMaximo km). Deteniendo radar.");
+      _timerExpansion?.cancel();
+      _streamSubscription?.cancel();
       return;
     }
 
-    print("📡 Buscando conductores con radio: $_radioActual km");
+    print("📡 [RADAR METAX] Buscando conductores con radio: $_radioActual km (Máximo permitido: $_radioMaximo km)");
 
     _streamSubscription?.cancel();
 
@@ -1109,18 +1150,24 @@ class TravelInfoController{
 
       /// 🔥 STOP GLOBAL
       if (_tiempoAgotado() || serviceAccepted) {
+        print("⏹️ [RADAR METAX] Deteniendo stream por tiempo agotado o servicio aceptado.");
+        _timerExpansion?.cancel();
+        _streamSubscription?.cancel();
         return;
       }
 
-      /// 🔥 EVITAR múltiples ejecuciones
-      if (_isSendingNotifications) return;
+      /// 🔥 EVITAR múltiples ejecuciones simultáneas si ya estamos despachando notificaciones
+      if (_isSendingNotifications) {
+        print("⏳ [RADAR METAX] Envío en progreso. Ignorando actualización del stream.");
+        return;
+      }
 
       List<Map<String, dynamic>> driversFiltrados = [];
 
       /// 🔥 LIMPIAR SOLO TAXIS (mantener marcador de cliente)
       markers.removeWhere((key, value) => key.value.startsWith('driver_'));
 
-      // Definimos el límite de tiempo (10 minutos)
+      // Definimos el límite de tiempo (10 minutos) para evitar conductores "Zombies"
       final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 10));
 
       for (DocumentSnapshot d in documentList) {
@@ -1131,10 +1178,10 @@ class TravelInfoController{
           // 1. 🔥 FILTRO DE ESTADO: Solo disponibles
           final status = data['status']?.toString();
           if (status != 'driver_available') {
-            continue; // Si está ocupado o en otro estado, lo ignoramos
+            continue;
           }
 
-          // 2. 🔥 FILTRO DE TIEMPO (Anti-Zombies): Ignorar si no reporta hace > 10 min
+          // 2. 🔥 FILTRO DE TIEMPO: Ignorar si no reporta ubicación hace > 10 min
           final Timestamp? updatedAt = positionData['updatedAt'] as Timestamp?;
           if (updatedAt == null || updatedAt.toDate().isBefore(limiteTiempo)) {
             continue;
@@ -1175,24 +1222,56 @@ class TravelInfoController{
         }
       }
 
-      // Ordenar por distancia
+      // Ordenar por cercanía real
       driversFiltrados.sort((a, b) => a['distance'].compareTo(b['distance']));
       List<String> driversOrdenados = driversFiltrados.map((e) => e['id'] as String).toList();
+
+      // Identificar quiénes son realmente nuevos en este radio y no han sido notificados
       List<String> nuevosDrivers = driversOrdenados.where((id) => !notifiedDrivers.contains(id)).toList();
 
       nearbyDrivers = driversOrdenados;
 
-      // Si no hay nadie, expandir radio
+      print("📊 [RADAR METAX] Taxis encontrados en radio de $_radioActual km: ${driversOrdenados.length} | Nuevos por notificar: ${nuevosDrivers.length}");
+
+
+      // 3. 🔄 CONTROL DE EXPANSIÓN GEOGRÁFICA DE SELECCIÓN
       if (nuevosDrivers.isEmpty) {
-        _radioActual += 0.3;
         _timerExpansion?.cancel();
+
+        // Validamos si la PRÓXIMA expansión va a violar el tope máximo (1.2 km)
+        if (_radioMaximo != null && (_radioActual + 0.1) > _radioMaximo!) {
+
+          // 🛑 VERIFICACIÓN GLOBAL: ¿Aún nos queda tiempo dentro de los 60 segundos?
+          if (!_tiempoAgotado()) {
+            // 🔄 REINICIO TÁCTICO: Volvemos al radio inicial configurado en tu BD (0.7 km)
+            _radioActual = radioDeBusqueda ?? 0.7;
+            print("🔄 [RADAR METAX] ¡Tope de $_radioMaximo km alcanzado! Aún queda tiempo global. Reiniciando radar a $_radioActual km...");
+
+            // Volvemos a disparar el ciclo en 3 segundos desde el principio
+            _timerExpansion = Timer(const Duration(seconds: 3), () => _buscarConductores());
+            refresh();
+            return;
+          } else {
+            // ⏹️ Si el tiempo global de 60s ya se acabó, aquí sí apagamos todo
+            print("🛑 [RADAR METAX] Freno final: Se agotó el tiempo de 60 segundos. Deteniendo radar por completo.");
+            _streamSubscription?.cancel();
+            return;
+          }
+        }
+
+        // Si no ha llegado al máximo, sigue aumentando de 100 en 100 metros normalmente
+        _radioActual += 0.1;
+        print("🔁 [RADAR METAX] Incrementando radio a $_radioActual km en 3 segundos...");
         _timerExpansion = Timer(const Duration(seconds: 3), () => _buscarConductores());
+        refresh();
         return;
       }
 
+      // Si encontramos conductores, cancelamos cualquier temporizador de expansión activo para darles prioridad
+      _timerExpansion?.cancel();
       conductoresEncontradosCallback?.call(driversOrdenados.length);
 
-      // Precargar vehículos
+      // Precargar vehículos en caché
       for (String driverId in nuevosDrivers) {
         try {
           Driver? driver = await _driverProvider.getById(driverId);
@@ -1210,8 +1289,11 @@ class TravelInfoController{
 
       nearbyDrivers = nearbyDrivers.where((id) => nuevosDrivers.contains(id) || notifiedDrivers.contains(id)).toList();
 
+      // 4. 🚀 DESPACHO CONTROLADO MUTEX (Bloqueo de envío)
       _isSendingNotifications = true;
+      print("🚀 [RADAR METAX] Enviando notificaciones push a conductores en rango...");
       try {
+        // Pasamos los conductores de este ciclo apuntando al índice correcto
         await _attemptToSendNotification(nearbyDrivers, notifiedDrivers.length);
       } catch (e) {
         print("Error en envío: $e");
@@ -1543,7 +1625,31 @@ class TravelInfoController{
               }
               return;
             }
-            bool accepted = await sendNotification(driver.token);
+
+            // =========================================================================
+            // 📐 CALCULAR DISTANCIA REAL EN TIEMPO REAL DESDE EL BATCH
+            // =========================================================================
+            double distanciaRealConductor = 0.0;
+            try {
+              final locationDoc = await _firestore.collection('Locations').doc(driverId).get();
+              if (locationDoc.exists) {
+                final positionData = locationDoc.data()?['position'];
+                if (positionData != null && positionData['geopoint'] != null) {
+                  GeoPoint geoPoint = positionData['geopoint'];
+                  LatLng driverLatLng = LatLng(geoPoint.latitude, geoPoint.longitude);
+
+                  double distanciaEnMetros = _calculateDistance(fromLatlng, driverLatLng);
+                  distanciaRealConductor = distanciaEnMetros / 1000.0;
+                }
+              }
+            } catch (e) {
+              print("⚠️ Error al calcular distancia en tiempo real para $driverId: $e");
+              distanciaRealConductor = _radioActual;
+            }
+            // =========================================================================
+
+            // 🔥 ASIGNACIÓN CORREGIDA: Le pasamos su token y el valor de su posición actual
+            bool accepted = await sendNotification(driver.token, distanciaRealConductor);
 
             if (accepted) {
 
@@ -1638,8 +1744,8 @@ class TravelInfoController{
 
         if (travelInfo.status == 'accepted') {
           serviceAccepted = true; // Detener el envío de notificaciones
-
           buscandoConductor = false;
+
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (context) => const TravelMapPage()),
@@ -1648,13 +1754,22 @@ class TravelInfoController{
         }
 
         if (travelInfo.status == 'no_driver_found' && _tiempoAgotado()) {
+          print("🚫 [RADAR METAX] No se encontró conductor. Limpiando interfaz...");
 
-          print("🚫 No se encontró conductor");
+          // 1. 🔥 APAGAMOS EL RADAR LOCAL Y TEMPORIZADORES DE INMEDIATO
+          _streamSubscription?.cancel();
+          _timerExpansion?.cancel();
+          _timeoutBusqueda?.cancel();
+          buscandoConductor = false;
+
+          // 2. 🔥 LE AVISAMOS A LA VISTA QUE ESTABLEZCA LOS TAXIS EN -1
+          // Usaremos el -1 como código secreto para decirle a la vista: "Apaga las ondas ya mismo"
+          conductoresEncontradosCallback?.call(-1);
 
           if (context != null) {
-
             showDialog(
               context: context!,
+              barrierDismissible: false, // Forzar a que interactúe con el botón
               builder: (context) {
                 return AlertDialog(
                   shape: RoundedRectangleBorder(
@@ -1664,14 +1779,11 @@ class TravelInfoController{
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-
                       Image.asset(
                         'assets/metax_logo.png',
                         height: 70,
                       ),
-
                       const SizedBox(height: 10),
-
                       const Text(
                         "Sin taxis disponibles",
                         textAlign: TextAlign.center,
@@ -1680,11 +1792,9 @@ class TravelInfoController{
                           fontSize: 18,
                         ),
                       ),
-
                       const SizedBox(height: 10),
-
                       const Text(
-                        "No encontramos conductores para tu solicitud 🚕\n\nPuedes intentarlo nuevamente en unos segundos.",
+                        "En este momento los conductores estan ocupados 🚕\n\nPuedes intentarlo nuevamente en unos segundos.",
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -1694,20 +1804,57 @@ class TravelInfoController{
                     SizedBox(
                       width: double.infinity,
                       child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Entendido"),
+                        onPressed: () async {
+                          // 1. Cerramos el diálogo usando el contexto local del modal
+                          if (context != null) {
+                            Navigator.pop(context!);
+                          }
+
+                          try {
+                            // 2. Borramos el documento directamente de Firestore
+                            String currentUserId = _authProvider.getUser()!.uid;
+                            await _firestore.collection('TravelInfo').doc(currentUserId).delete();
+                            print("🗑️ [BD METAX] Solicitud caducada eliminada directamente de Firestore.");
+                          } catch (e) {
+                            print("⚠️ Error al borrar la solicitud de la BD: $e");
+                          }
+
+                          // 3. 🔥 NAVEGACIÓN SEGURA TRADICIONAL UTILIZANDO EL CONTEXTO GLOBAL DEL CONTROLADOR:
+                          // Usamos el 'this.context' que guardaste al inicializar el controlador.
+                          // NOTA: Si tu ruta de inicio en main.dart se llama diferente (ej: 'client/home'), cámbiala aquí.
+                          if (this.context != null) {
+                            if(context.mounted){
+                              Navigator.pushNamedAndRemoveUntil(
+                                this.context,
+                                'home',
+                                    (route) => false,
+                              );
+                            }
+                          }
+                        },
+                        child: const Text(
+                          "Entendido",
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                   ],
                 );
               },
             );
-
-            deleteTravelInfo(); // 🔥 limpia el request
           }
         }
       }
     });
+  }
+
+  void detenerBusquedaLogica() {
+    print("⏹️ [CANCELAR METAX] Apagando radar de forma fulminante por cancelación.");
+    _timerExpansion?.cancel();
+    _streamSubscription?.cancel();
+    _timeoutBusqueda?.cancel();
+    buscandoConductor = false;
+    _isSendingNotifications = false;
   }
 
 
@@ -1880,25 +2027,50 @@ class TravelInfoController{
 
     await _travelInfoProvider.create(travelInfo);
 
+    // 2. 🔥 CONSULTA IN SITU PARA TRAER EL TIEMPO SIN QUEMARLO:
+    try {
+      // Consultamos el documento de Precios directo a Firestore
+      final pricesSnapshot = await FirebaseFirestore.instance
+          .collection('Prices')
+          .doc('all') // Reemplaza 'all' por el ID de tu documento si se llama diferente
+          .get();
+
+      if (pricesSnapshot.exists) {
+        // Leemos la llave 'tiempo_busqueda' de la base de datos
+        int tiempoBD = pricesSnapshot.data()?['tiempo_busqueda'] ?? 15;
+
+        // Actualizamos el viaje recién creado con el tiempo dinámico de la BD
+        await FirebaseFirestore.instance
+            .collection('TravelInfo')
+            .doc(user.uid)
+            .update({
+          'tiempo_busqueda': tiempoBD
+        });
+        print("⏱️ [CONFIG PRECIOS] Tiempo de búsqueda inyectado desde la BD: $tiempoBD segundos");
+      }
+    } catch (e) {
+      print("⚠️ No se pudo inyectar el tiempo dinámico, Android usará el resguardo de 15s: $e");
+    }
+
     _checkDriverResponse();
 
     return true;
   }
 
-
-
   Future<void> getDriverInfo(String idDriver) async {
   }
 
-
-
-  Future<bool> sendNotification(String token) async {
+  Future<bool> sendNotification(String token, double distanciaAlConductor) async {
     final user = _authProvider.getUser();
     if (user == null) {
       return false;
     }
 
-    // 👑 MAPA DATA BLINDADO DE NIVEL PRODUCCIÓN:
+    // Estimación táctica en ciudad: 2 minutos por cada kilómetro (mínimo 1 min)
+    int tiempoEstimadoMinutos = (distanciaAlConductor * 2).round();
+    if (tiempoEstimadoMinutos < 1) tiempoEstimadoMinutos = 1;
+
+    // 👑 MAPA DATA BLINDADO CON TELEMETRÍA INDIVIDUAL EN TIEMPO REAL:
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
       'tipo': 'servicio',
@@ -1915,17 +2087,16 @@ class TravelInfoController{
       'destinationLng': toLatlng.longitude.toString(),
       'tarifa': totalInt.toString(),
       'tipo_servicio': tipoServicioSolicitado,
-
-      // 🚨 LAS DOS LÍNEAS QUE HACÍAN FALTA PARA SINCRONIZAR KOTLIN:
-      // Aquí forzamos el envío de la forma de pago elegida en la vista del cliente
       'metodo_pago': metodoPago,
-
-      // Enviamos las notas bajo la clave nativa que espera el FloatingBubbleService
       'apuntes': apuntesAlConductor ?? 'Sin apuntes',
       'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
+
+      // 🔥 LAS DOS LÍNEAS QUE PREPARAN TU VENTANA FLOTANTE PREMIUM:
+      'distanciaCliente': '${distanciaAlConductor.toStringAsFixed(1)} km',
+      'tiempoLlegada': '$tiempoEstimadoMinutos min',
     };
 
-    print("🔥 [PUSH DISPATCH] Empaquetando variables nativas con éxito: $data");
+    print("🔥 [PUSH TELEMETRÍA] Despachando a conductor individual: $data");
 
     try {
       await _pushNotificationsProvider.sendMessage(token, data);

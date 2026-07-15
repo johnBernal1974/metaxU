@@ -22,6 +22,8 @@ class ClientMapController {
   GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
   final Completer<GoogleMapController> _mapController = Completer();
 
+  Future<GoogleMapController> get mapController => _mapController.future;
+
   CameraPosition initialPosition = const CameraPosition(
     target: LatLng(4.8470616, -74.0743461),
     zoom: 20.0,
@@ -311,18 +313,9 @@ class ClientMapController {
           markerClient,
         );
 
-
-
         for (DocumentSnapshot d in documentList) {
           try {
             Map<String, dynamic> data = d.data() as Map<String, dynamic>;
-
-            // /// 🔥 NUEVO FILTRO
-            // if (!estaActivoRecientemente(data)) {
-            //   print("⛔ Driver ${d.id} sin movimiento, NO se muestra en mapa");
-            //   continue;
-            // }
-
             Map<String, dynamic> positionData = d.get('position');
 
             // 🔥 OPTIMIZACIÓN: Validación de actividad (Filtro Anti-Zombies)
@@ -335,30 +328,31 @@ class ClientMapController {
             if (positionData.containsKey('geopoint')) {
               GeoPoint geoPoint = positionData['geopoint'];
 
-              double distanceInKm = Geolocator.distanceBetween(
+              // ✅ Lógica unificada limpia: Calculamos la distancia real en kilómetros
+              double distanceInMeters = Geolocator.distanceBetween(
                 _position!.latitude,
                 _position!.longitude,
                 geoPoint.latitude,
                 geoPoint.longitude,
-              ) / 1000;
+              );
+
+              double distanceInKm = distanceInMeters / 1000;
 
               if (distanceInKm <= radio) {
-                double rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+                double rotation = 0;
+                try {
+                  rotation = double.tryParse(data['heading']?.toString() ?? '0') ?? 0;
+                } catch (_) {}
+
+                print("✅ Driver ${d.id} DENTRO DEL RADIO | ${distanceInKm.toStringAsFixed(2)} km");
 
                 addMarkerDriver(
-
                   d.id,
-
                   geoPoint.latitude,
-
                   geoPoint.longitude,
-
                   'Conductor disponible',
-
                   "",
-
                   markerDriver,
-
                   rotation: rotation,
                 );
               }
@@ -369,6 +363,7 @@ class ClientMapController {
           }
         }
 
+        // ✅ Refresco seguro validando si el contexto sigue montado
         if (context.mounted) {
           refresh();
         }

@@ -22,28 +22,6 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
-
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>MetaX necesita acceder a tu ubicación para encontrar conductores cercanos.</string>
-
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
-
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
-
-	<key>NSCameraUsageDescription</key>
-	<string>MetaX necesita acceder a la cámara para tomar fotografías.</string>
-
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MetaX necesita acceder a tus fotos para seleccionar imágenes.</string>
-
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>MetaX necesita guardar imágenes en tu galería.</string>		
-
-	<key>NSMicrophoneUsageDescription</key>
-	<string>MetaX necesita acceder al micrófono para permitir la comunicación por voz entre conductores y clientes.</string>
-	  
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -61,6 +39,20 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>MetaX necesita acceder a la cámara para tomar fotografías.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>MetaX necesita acceder a tu ubicación para prestar el servicio de transporte.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MetaX necesita acceder a tu ubicación para encontrar conductores cercanos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MetaX necesita acceder al micrófono para permitir la comunicación por voz entre conductores y clientes.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MetaX necesita guardar imágenes en tu galería.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MetaX necesita acceder a tus fotos para seleccionar imágenes.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -91,15 +83,13 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 </dict>
 </plist>

@@ -14,7 +14,9 @@ import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import '../../helpers/snackbar.dart';
 import '../../providers/price_provider.dart';
+import '../../providers/travel_info_provider.dart';
 import '../../service/connection_service_singleton.dart';
+import '../../utils/marker_utils.dart';
 
 class ClientMapController {
   late BuildContext context;
@@ -39,6 +41,7 @@ class ClientMapController {
   late GeofireProvider _geofireProvider;
   late MyAuthProvider _authProvider;
   late ClientProvider _clientProvider;
+  late TravelInfoProvider _travelInfoProvider;
   late StreamSubscription<DocumentSnapshot<Object?>> _clientInfoSuscription;
   StreamSubscription<List<DocumentSnapshot>>? _driversSubscription;
   late PushNotificationsProvider _pushNotificationsProvider;
@@ -71,21 +74,38 @@ class ClientMapController {
   Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
+
+    // Providers
     _geofireProvider = GeofireProvider();
     _authProvider = MyAuthProvider();
     _clientProvider = ClientProvider();
+    _pushNotificationsProvider = PushNotificationsProvider();
+    _travelInfoProvider = TravelInfoProvider();
 
+    // Configuración inicial
     final config = await _clientProvider.getConfigCedula();
     _pedirCedula = config['cedula'] == true;
     _cedulaDespuesDeViajes = (config['cedula_despues_de_viajes'] as int?) ?? 1;
 
+    // 🔥 AJUSTE DE MARCADORES (Uso de MarkerUtils sin async gap)
+    // Capturamos el pixelRatio ANTES del await
+    double pixelRatio = MediaQuery.of(context).devicePixelRatio;
 
-    _pushNotificationsProvider = PushNotificationsProvider();
+    // 13.0 para el cliente, 11.0 para el taxi
+    markerClient = await MarkerUtils.getMarkerFromAsset(
+        'assets/ubicacion_client.png',
+        pixelRatio,
+        13.0
+    );
 
-    markerClient = await createMarkerImageFromAssets('assets/ubicacion_client.png');
-    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png');
+    markerDriver = await MarkerUtils.getMarkerFromAsset(
+        'assets/marker_taxi.png',
+        pixelRatio,
+        11.0
+    );
 
     checkGPS();
+    await verificarYRepararEstadoViaje();
     await obtenerDatos();
   }
 
@@ -107,6 +127,40 @@ class ClientMapController {
 
     // Mostrar mensaje de error si no se pudieron obtener los datos
     mostrarMensajeError();
+  }
+
+  Future<void> verificarYRepararEstadoViaje() async {
+    final user = _authProvider.getUser();
+    if (user == null) return;
+
+    try {
+      final clientData = await _clientProvider.getById(user.uid);
+      if (clientData == null) return;
+
+      // Si el cliente NO dice estar viajando, no hay nada que reparar
+      if (clientData.isTraveling == false) return;
+
+      // Buscamos si existe un viaje en la colección TravelInfo
+      final travelDoc = await _travelInfoProvider.getById(user.uid);
+
+      // 🔥 LA REGLA DE ORO:
+      // Si el cliente está viajando (según su perfil), pero NO hay documento en TravelInfo,
+      // significa que el sistema se quedó en un estado inconsistente.
+      if (travelDoc == null) {
+        print("⚠️ Detectado viaje fantasma, reparando estado...");
+        await _actualizarIsTravelingFalse();
+      }
+    } catch (e) {
+      print("❌ Error en Guardian: $e");
+    }
+  }
+
+// Asegúrate de tener esta función auxiliar (o llámala a través de _clientProvider)
+  Future<void> _actualizarIsTravelingFalse() async {
+    final user = _authProvider.getUser();
+    if (user != null) {
+      await _clientProvider.update({'isTraveling': false}, user.uid);
+    }
   }
 
 
@@ -144,16 +198,9 @@ class ClientMapController {
             .getPositionStream()
 
             .listen((Position position) {
-
-          /// 🔥 SI EL USUARIO
-          /// ESTÁ USANDO
-          /// UBICACIÓN MANUAL
-          /// NO SOBREESCRIBIR
-
           if (usandoUbicacionManual) {
             return;
           }
-
           _position = position;
         });
   }
@@ -739,13 +786,6 @@ class ClientMapController {
     ));
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path) async {
-    ImageConfiguration configuration = const ImageConfiguration();
-    BitmapDescriptor bitmapDescriptor=
-    await BitmapDescriptor.fromAssetImage(configuration, path);
-    return bitmapDescriptor;
-  }
-
 
   void addMarker(
       String markerId,
@@ -833,7 +873,7 @@ class ClientMapController {
 
       final minutos = now.difference(updatedAt).inMinutes;
 
-      return minutos <= 720;
+      return minutos <= 60;
 
     } catch (e) {
 

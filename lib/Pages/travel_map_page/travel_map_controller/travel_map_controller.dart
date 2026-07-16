@@ -26,6 +26,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'dart:io';
 
+import '../../../utils/marker_utils.dart';
+
 class TravelMapController{
   late BuildContext context;
   late Function refresh;
@@ -85,12 +87,10 @@ class TravelMapController{
   bool _isMarkersLoaded = false;
 
 
-  // =========================================================================
-  // CORREGIDO: Un solo método init limpio y sin funciones duplicadas por dentro
-  // =========================================================================
-  Future? init(BuildContext context, Function refresh) async {
+  Future<void> init(BuildContext context, Function refresh) async {
     this.context = context;
     this.refresh = refresh;
+
     _geofireProvider = GeofireProvider();
     _authProvider = MyAuthProvider();
     _driverProvider = DriverProvider();
@@ -98,64 +98,40 @@ class TravelMapController{
     _travelInfoProvider = TravelInfoProvider();
 
     // =========================================================================
-    // 🔥 AJUSTE DINÁMICO DE MARCADORES (CON VALORES FINOS CALIBRADOS)
+    // 🔥 CARGA DINÁMICA DE MARCADORES USANDO HELPER (MarkerUtils)
     // =========================================================================
     double pixelRatio = MediaQuery.of(context).devicePixelRatio;
 
-    // Valores pequeños para conservar la estética compacta que te gustó
-    double baseDriver = 11.0;
-    double baseClient = 13.0;
-    double baseDestino = 13.0;
-
-    if (Platform.isIOS) {
-      baseDriver = 11.0;
-      baseClient = 13.0;
-      baseDestino = 13.0;
-    } else if (Platform.isAndroid) {
-      baseDriver = 11.0;
-      baseClient = 13.0;
-      baseDestino = 13.0;
-    }
-
-    int finalWidthDriver = (baseDriver * pixelRatio).round();
-    int finalWidthClient = (baseClient * pixelRatio).round();
-    int finalWidthDestino = (baseDestino * pixelRatio).round();
-
-    markerDriver = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
-    fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
-    toMarker = await createMarkerImageFromAssets('assets/marker_destino.png', finalWidthDestino);
+    // Usamos el mismo helper que en TravelInfoController para mantener consistencia
+    markerDriver = await MarkerUtils.getMarkerFromAsset('assets/marker_taxi.png', pixelRatio, 11.0);
+    fromMarker = await MarkerUtils.getMarkerFromAsset('assets/ubicacion_client.png', pixelRatio, 13.0);
+    toMarker = await MarkerUtils.getMarkerFromAsset('assets/marker_destino.png', pixelRatio, 13.0);
     // =========================================================================
 
     _isMarkersLoaded = true;
     checkGPS();
+
     await checkConnectionAndShowSnackbar();
-    _connectivitySubscription =
-        Connectivity().onConnectivityChanged.listen((_) async {
 
-          await checkConnectionAndShowSnackbar();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((_) async {
+      await checkConnectionAndShowSnackbar();
 
-          // 🔥 Si volvió internet y falta la ruta de recogida
-          if (
-          travelInfo?.status == 'accepted' &&
-              !isPickUpTravel
-          ) {
-            pickupTravel();
-          }
+      if (travelInfo?.status == 'accepted' && !isPickUpTravel) {
+        pickupTravel();
+      }
+      if (travelInfo?.status == 'started' && !isStartTravel) {
+        startTravel();
+      }
 
-          // 🔥 Si volvió internet y falta la ruta al destino
-          if (
-          travelInfo?.status == 'started' &&
-              !isStartTravel
-          ) {
-            startTravel();
-          }
+      if (context.mounted) {
+        refresh();
+      }
+    });
 
-          if (context.mounted) {
-            refresh();
-          }
-        });
-
+    // Nota: Mantenemos la lógica de isTraveling en true,
+    // pero recuerda que esto se ejecutará siempre que entres al mapa de viaje.
     _actualizarIsTravelingTrue();
+
     _position = await Geolocator.getCurrentPosition();
     if (_position != null) {
       initialPosition = CameraPosition(
@@ -178,13 +154,16 @@ class TravelMapController{
 
       if (!_isMarkersLoaded) return;
 
-      if (document.data() == null) {
-        return;
-      }
+      if (document.data() == null) return;
+
       travelInfo = TravelInfo.fromJson(document.data() as Map<String, dynamic>);
       if (travelInfo == null) return;
+
       switch (travelInfo!.status) {
         case 'accepted':
+        // 🔥 Aseguramos que el estado esté en true al ser aceptado
+          _actualizarIsTravelingTrue();
+
           currentStatus = 'Viaje aceptado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           refresh();
@@ -195,15 +174,18 @@ class TravelMapController{
           }
           pickupTravel();
           break;
+
         case 'driver_on_the_way':
           currentStatus = 'Conductor en camino';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
+
         case 'driver_is_waiting':
           cambiarestadoNotificado();
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
+
         case 'client_notificado':
           if (!_soundTaxiLlegadaPlayed) {
             _soundTaxiLlegadaPlayed = true;
@@ -212,40 +194,58 @@ class TravelMapController{
           currentStatus = 'El Conductor ha llegado';
           addMarker('from', travelInfo!.fromLat, travelInfo!.fromLng, 'Recoger aquí', '', fromMarker);
           break;
+
         case 'started':
           currentStatus = 'El Viaje ha iniciado';
           startTravel();
           break;
+
         case 'cancelByDriverAfterAccepted':
-          if(context.mounted){
-            Navigator.pushReplacementNamed(context, 'map_client');
-          }
-          _actualizarIsTravelingFalse();
-          if(context.mounted){
-            Snackbar.showSnackbar(context, 'El conductor canceló el servicio');
-          }
-          if (!_cancelSoundPlayed) {
-            _cancelSoundPlayed = true;
-            SoundManager().playCancelacionConductor();
-          }
-          break;
         case 'cancelTimeIsOver':
-          if(context.mounted){
-            Navigator.pushReplacementNamed(context, 'map_client');
-          }
-          _actualizarIsTravelingFalse();
-          if(context.mounted){
-            Snackbar.showSnackbar(context, 'El conductor canceló el servicio por tiempo de espera cumplido');
-          }
-          if (!_cancelSoundPlayed) {
-            _cancelSoundPlayed = true;
-            SoundManager().playCancelacionConductor();
+        // 🔥 GUARDAMOS EL STATUS EN UNA VARIABLE LOCAL ANTES DE BORRAR
+          final String statusCancelacion = travelInfo!.status;
+          final String userId = _authProvider.getUser()!.uid;
+
+          try {
+            // 1. Limpiamos el estado en la DB
+            await _actualizarIsTravelingFalse();
+
+            // 2. BORRAMOS el documento de la colección activa
+            await _travelInfoProvider.delete(userId);
+          } catch (e) {
+            if (kDebugMode) print("❌ Error al limpiar viaje: $e");
+          } finally {
+            // 3. USAMOS LA VARIABLE LOCAL PARA EL SNACKBAR
+            if (context.mounted) {
+              Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+
+              Snackbar.showSnackbar(
+                  context,
+                  statusCancelacion == 'cancelByDriverAfterAccepted'
+                      ? 'El conductor canceló el servicio'
+                      : 'El conductor canceló el servicio por tiempo de espera cumplido'
+              );
+            }
+
+            // 4. EL AUDIO SIGUE FUNCIONANDO NORMALMENTE
+            // Como ya pusimos _cancelSoundPlayed = true, garantizamos que suene
+            // independientemente de si el documento existe o no.
+            if (!_cancelSoundPlayed) {
+              _cancelSoundPlayed = true;
+              SoundManager().playCancelacionConductor();
+            }
           }
           break;
+
         case 'finished':
           currentStatus = 'Viaje finalizado';
-          finishTravel();
+
+          // 🔥 IMPORTANTE: Validamos antes de llamar
+          if (!isFinishtTravel) {
+            finishTravel();
+          }
           break;
+
         default:
           break;
       }
@@ -269,26 +269,69 @@ class TravelMapController{
   }
 
   void _getTravelInfo() async {
+    // 1. Obtenemos el documento desde Firestore
     travelInfo = await _travelInfoProvider.getById(_authProvider.getUser()!.uid);
+
+    // 2. SEGURIDAD: Si el viaje no existe en la base de datos
+    if (travelInfo == null) {
+      print("⚠️ Viaje inexistente detectado, forzando limpieza de estado...");
+      await _actualizarIsTravelingFalse();
+
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+      }
+      return;
+    }
+
+    // 3. 🔥 PARCHE DE SEGURIDAD: Detectar "Viajes Fantasma" (Bloqueos)
+    // Si el viaje está en estado 'created' pero no tiene conductor,
+    // y asumimos que ya pasó el tiempo de espera, lo eliminamos.
+    if (travelInfo!.status == 'created' && (travelInfo!.idDriver == null || travelInfo!.idDriver == "")) {
+      print("🧹 Viaje fantasma o bloqueado detectado. Limpiando datos...");
+
+      // Borramos el documento de la colección TravelInfo
+      await _deleteTravelInfo();
+
+      // Forzamos el estado de viaje a false en el perfil del cliente
+      await _actualizarIsTravelingFalse();
+
+      // Redirigimos al mapa principal para que el cliente pueda volver a intentar
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+      }
+      return;
+    }
+
+    // 4. Si el viaje es legítimo (tiene conductor o status válido), continuamos con la lógica normal
     animateCameraToPosition(travelInfo!.fromLat, travelInfo!.fromLng);
-    getDriverInfo(travelInfo!.idDriver);
+
+    // Solo pedimos información del conductor si realmente existe un ID
+    if (travelInfo!.idDriver != null && travelInfo!.idDriver!.isNotEmpty) {
+      getDriverInfo(travelInfo!.idDriver);
+      getDriverLocation(travelInfo!.idDriver);
+    }
+
     getClientInfo();
     checkTravelStatus();
-    getDriverLocation(travelInfo!.idDriver);
   }
 
-  void cancelTravelByClient() {
+  void cancelTravelByClient() async {
     Map<String, dynamic> data = {'status': 'cancelTravelByClient'};
-    _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
-    _actualizarIsTravelingFalse ();
-    _deleteTravelInfo();
-    actualizarContadorCancelaciones();
-    Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false).then((_) {
-      Navigator.pop(context);
-    });
+
+    // Esperamos a que Firebase confirme la actualización del estatus
+    await _travelInfoProvider.update(data, _authProvider.getUser()!.uid);
+
+    // Esperamos a que Firebase confirme que ya no está viajando
+    await _actualizarIsTravelingFalse();
+
+    await _deleteTravelInfo();
+
+    if(context.mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, 'map_client', (route) => false);
+    }
   }
 
-  void _deleteTravelInfo() async {
+  Future<void> _deleteTravelInfo() async {
     try {
       await _travelInfoProvider.delete(_authProvider.getUser()!.uid);
     } catch (e) {
@@ -466,26 +509,44 @@ class TravelMapController{
     refresh();
   }
 
-  void finishTravel(){
-
-    if(!isFinishtTravel){
-
+  void finishTravel() async { // 1. Convertimos a async
+    if (!isFinishtTravel) {
       isFinishtTravel = true;
 
+      // 2. 🔥 CAPTURAMOS DATOS CRÍTICOS ANTES DE CUALQUIER BORRADO
+      final String userId = _authProvider.getUser()!.uid;
+      final String idHistorial = travelInfo?.idTravelHistory ?? '';
+
+      // 3. LIMPIEZA DE BASE DE DATOS
+      try {
+        // Marcamos al cliente como "no viajando"
+        await _actualizarIsTravelingFalse();
+
+        // Borramos el documento de la colección activa de viajes
+        await _travelInfoProvider.delete(userId);
+
+      } catch (e) {
+        if (kDebugMode) print("❌ Error al limpiar viaje al finalizar: $e");
+      }
+
+      // 4. Limpieza de UI (Esto no depende de Firebase, puede ir después)
       polylines.clear();
       points.clear();
       markers.clear();
 
-      _actualizarIsTravelingFalse();
-
+      // 5. Lógica de negocio
       actualizarContadorDeViajes();
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        'travel_calification_page',
-            (route) => false,
-        arguments: travelInfo!.idTravelHistory,
-      );
+      // 6. NAVEGACIÓN (Usamos la variable local idHistorial que capturamos al principio)
+
+      if(context.mounted){
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'travel_calification_page',
+              (route) => false,
+          arguments: idHistorial,
+        );
+      }
     }
   }
 
@@ -504,7 +565,7 @@ class TravelMapController{
     refresh();
   }
 
-  void _actualizarIsTravelingFalse () async {
+  Future<void> _actualizarIsTravelingFalse() async {
     Map<String, dynamic> data = {'00_is_traveling': false};
     await _clientProvider.update(data, _authProvider.getUser()!.uid);
     refresh();
@@ -626,17 +687,6 @@ class TravelMapController{
       }
 
     }
-  }
-
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
-    ByteData data = await rootBundle.load(path);
-    ui.Codec codec = await ui.instantiateImageCodec(
-      data.buffer.asUint8List(),
-      targetWidth: width,
-    );
-    ui.FrameInfo fi = await codec.getNextFrame();
-    ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
-    return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
   }
 
   void addMarker(String markerId, double lat, double lng, String title, String content, BitmapDescriptor iconMarker) {

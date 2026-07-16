@@ -26,15 +26,11 @@ import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 
 // Controlador y variables exclusivas para el Autocomplete del Origen ✅
-final _textFromController = TextEditingController();
+
 Timer? _debounceFrom;
 List<Map<String, String>> _predictionsFrom = [];
 bool _loadingPredsFrom = false;
 bool _pickingPlaceFrom = false;
-
-
-
-
 
 class MapClientPage extends StatefulWidget {
   const MapClientPage({super.key});
@@ -330,7 +326,6 @@ class _MapClientPageState
     _debounce?.cancel();
     _debounceFrom?.cancel();
     _textController.dispose();
-    _textFromController.dispose();
     _controller.dispose();
     _promoController.dispose();
     super.dispose();
@@ -831,11 +826,13 @@ class _MapClientPageState
   /// 🔥 NUEVO SHEET EXCLUSIVO PARA AUTOCOMPLETAR EL ORIGEN ("from")
   Future<void> _mostrarCajonDeBusquedaOrigen(BuildContext context) async {
     _debounceFrom?.cancel();
-    _textFromController.clear();
+
     setState(() {
       _predictionsFrom = [];
       _loadingPredsFrom = false;
     });
+
+    _isSheetOpen = true;
 
     await showModalBottomSheet(
       isScrollControlled: true,
@@ -846,105 +843,69 @@ class _MapClientPageState
         return StatefulBuilder(
           builder: (context, setModalState) {
             _sheetSetState = setModalState;
-            _isSheetOpen = true;
-            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
             return AnimatedPadding(
               duration: const Duration(milliseconds: 150),
-              padding: EdgeInsets.only(bottom: bottomInset),
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
               child: Container(
                 height: MediaQuery.of(context).size.height * 0.75,
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
-                child: Stack(
-                  children: [
-                    SingleChildScrollView(
-                      child: Padding(
-                        padding: EdgeInsets.all(20.r),
-                        child: Column(
-                          children: [
-                            SizedBox(height: 15.r),
-                            Text(
-                              '¿Dónde te recogemos?',
-                              style: TextStyle(fontSize: 18.r, fontWeight: FontWeight.w900, color: negroLetras),
-                            ),
-                            SizedBox(height: 20.r),
-                            Container(
-                              height: 54.r,
-                              decoration: BoxDecoration(
-                                color: grisClaro,
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: primary, width: 1.5),
-                              ),
-                              alignment: Alignment.center,
-                              child: TextField(
-                                autofocus: true,
-                                controller: _textFromController,
-                                textCapitalization: TextCapitalization.sentences,
-                                cursorColor: Colors.black,
-                                decoration: InputDecoration(
-                                  hintText: 'Escribe tu lugar de recogida…',
-                                  hintStyle: TextStyle(fontSize: 13.r),
-                                  prefixIcon: const Icon(Icons.my_location, color: Colors.green),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 15.r),
-                                ),
-                                onChanged: _onOrigenChanged,
-                              ),
-                            ),
-                            if (_loadingPredsFrom)
-                              Padding(
-                                padding: EdgeInsets.only(top: 15.r),
-                                child: const CircularProgressIndicator(),
-                              ),
-                            if (_predictionsFrom.isNotEmpty)
-                              Container(
-                                margin: EdgeInsets.only(top: 15.r),
-                                height: 300.r,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: grisMedio),
-                                ),
-                                child: ListView.separated(
-                                  itemCount: _predictionsFrom.length,
-                                  separatorBuilder: (_, __) => const Divider(height: 1),
-                                  itemBuilder: (_, i) {
-                                    final p = _predictionsFrom[i];
-                                    return ListTile(
-                                      leading: const Icon(Icons.location_on, color: Colors.grey),
-                                      title: Text(p['description']!, style: TextStyle(fontSize: 13.r), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                      enabled: !_pickingPlaceFrom,
-                                      onTap: _pickingPlaceFrom ? null : () => _selectPredictionFrom(placeId: p['placeId']!, description: p['description']!),
-                                    );
-                                  },
-                                ),
-                              ),
-                            SizedBox(height: 20.r),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(Icons.cancel, color: negro),
-                                  label: const Text('Cancelar', style: TextStyle(color: negro, fontWeight: FontWeight.bold)),
-                                )
-                              ],
-                            )
-                          ],
-                        ),
+                child: Padding(
+                  padding: EdgeInsets.all(20.r),
+                  child: Column(
+                    children: [
+                      SizedBox(height: 15.r),
+                      Text(
+                        '¿Dónde te recogemos?',
+                        style: TextStyle(fontSize: 18.r, fontWeight: FontWeight.w900, color: negroLetras),
                       ),
-                    ),
-                    if (_pickingPlaceFrom)
-                      Positioned.fill(
-                        child: Container(
-                          color: Colors.white.withOpacity(0.7),
-                          child: const Center(child: CircularProgressIndicator()),
+                      SizedBox(height: 20.r),
+
+                      // 🔥 Aquí usamos el nuevo widget independiente
+                      Container(
+                        height: 54.r,
+                        decoration: BoxDecoration(
+                          color: grisClaro,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: primary, width: 1.5),
                         ),
+                        alignment: Alignment.center,
+                        child: OrigenTextField(onChanged: _onOrigenChanged),
+                      ),
+
+                      if (_loadingPredsFrom)
+                        Padding(
+                          padding: EdgeInsets.only(top: 15.r),
+                          child: const CircularProgressIndicator(),
+                        ),
+
+                      if (_predictionsFrom.isNotEmpty)
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: _predictionsFrom.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (_, i) {
+                              final p = _predictionsFrom[i];
+                              return ListTile(
+                                leading: const Icon(Icons.location_on, color: Colors.grey),
+                                title: Text(p['description']!, style: TextStyle(fontSize: 13.r), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                onTap: () => _selectPredictionFrom(placeId: p['placeId']!, description: p['description']!),
+                              );
+                            },
+                          ),
+                        ),
+
+                      SizedBox(height: 20.r),
+                      TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.cancel, color: negro),
+                        label: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.bold)),
                       )
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -952,9 +913,9 @@ class _MapClientPageState
         );
       },
     ).whenComplete(() {
-      _debounceFrom?.cancel();
-      _sheetSetState = null;
       _isSheetOpen = false;
+      _sheetSetState = null;
+      _debounceFrom?.cancel();
     });
   }
 
@@ -986,6 +947,10 @@ class _MapClientPageState
           'radiusMeters': 30000,
         });
 
+        // 🔥 VALIDACIÓN CRÍTICA:
+        // Si el sheet ya no está abierto, no intentes actualizar nada
+        if (!_isSheetOpen) return;
+
         final data = Map<String, dynamic>.from(res.data);
         final list = (data['predictions'] as List? ?? []);
 
@@ -1002,7 +967,11 @@ class _MapClientPageState
         _predictionsFrom = [];
       } finally {
         _loadingPredsFrom = false;
-        _safeSheetRepaint();
+        // 🔥 VALIDACIÓN CRÍTICA:
+        // Solo intenta repintar si el sheet sigue abierto
+        if (_isSheetOpen) {
+          _safeSheetRepaint();
+        }
       }
     });
   }
@@ -3845,6 +3814,87 @@ class FavoritePlace {
       subtitle: (json['subtitle'] ?? '').toString(),
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
+    );
+  }
+}
+
+class OrigenSearchField extends StatefulWidget {
+  final Function(String) onChanged;
+  const OrigenSearchField({super.key, required this.onChanged});
+
+  @override
+  State<OrigenSearchField> createState() => _OrigenSearchFieldState();
+}
+
+class _OrigenSearchFieldState extends State<OrigenSearchField> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    // El dispose aquí es seguro porque pertenece a este widget
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      autofocus: true,
+      controller: _controller,
+      textCapitalization: TextCapitalization.sentences,
+      cursorColor: Colors.black,
+      onChanged: widget.onChanged,
+      decoration: InputDecoration(
+        hintText: 'Escribe tu lugar de recogida…',
+        hintStyle: TextStyle(fontSize: 13.r),
+        prefixIcon: const Icon(Icons.my_location, color: Colors.green),
+        border: InputBorder.none,
+      ),
+    );
+  }
+}
+class OrigenTextField extends StatefulWidget {
+  final Function(String) onChanged;
+  const OrigenTextField({super.key, required this.onChanged});
+
+  @override
+  State<OrigenTextField> createState() => _OrigenTextFieldState();
+}
+
+class _OrigenTextFieldState extends State<OrigenTextField> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      autofocus: true,
+      controller: _controller,
+      textCapitalization: TextCapitalization.sentences,
+      cursorColor: Colors.black,
+      onChanged: widget.onChanged,
+      decoration: InputDecoration(
+        hintText: 'Escribe tu lugar de recogida…',
+        prefixIcon: const Icon(Icons.my_location, color: Colors.green),
+        border: InputBorder.none,
+      ),
     );
   }
 }

@@ -76,6 +76,7 @@ class _ClientTravelInfoPageState
 
 
   bool buscandoConductor = false;
+  bool _isCanceling = false;
 
 
   @override
@@ -510,193 +511,25 @@ class _ClientTravelInfoPageState
 
           /// CANCELAR
           SizedBox(
-
             width: double.infinity,
             height: 48.r,
-
             child: ElevatedButton.icon(
-
               onPressed: () async {
-
-                if (!mounted) return;
-
-                final confirm = await showDialog<bool>(
-
-                  context: context,
-
-                  barrierDismissible: false,
-
-                  builder: (context) {
-
-                    return AlertDialog(
-
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                        BorderRadius.circular(15),
-                      ),
-
-                      title: const Text(
-                        "Cancelar solicitud",
-                      ),
-
-                      content: const Text(
-                        "¿Estás seguro de que quieres cancelar el servicio?",
-                      ),
-
-                      actions: [
-
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, false),
-
-                          child: const Text("No"),
-                        ),
-
-                        ElevatedButton(
-
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-
-                          onPressed: () {
-                            // 1. Cerramos el diálogo regresando 'true'
-                            Navigator.pop(context, true);
-
-                            // 2. 🔥 APAGAMOS TODOS LOS MOTORES LÓGICOS DE INMEDIATO
-                            _timerBusqueda?.cancel();
-                            _controller.detenerBusquedaLogica();
-                          },
-
-
-                          child: const Text(
-                            "Sí, cancelar",
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-
-                if (confirm != true) return;
-
-                final hasInternet =
-                await connectionService
-                    .hasInternetConnection();
-
-                if (!hasInternet) {
-
-                  if(context.mounted){
-
-                    showDialog(
-                      context: context,
-
-                      builder: (_) => AlertDialog(
-
-                        title:
-                        const Text(
-                          "Sin conexión a internet",
-                        ),
-
-                        content: const Text(
-                          "No podemos verificar el estado del servicio.\n\nEs posible que ya haya sido aceptado.",
-                        ),
-
-                        actions: [
-
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(context),
-
-                            child:
-                            const Text("Entendido"),
-                          )
-                        ],
-                      ),
-                    );
-                  }
-
-                  return;
-                }
-
-                final uid =
-                    FirebaseAuth.instance
-                        .currentUser
-                        ?.uid;
-
-                if (uid == null) return;
-
-                final doc = await FirebaseFirestore.instance
-                    .collection('TravelInfo')
-                    .doc(uid)
-                    .get();
-
-                if (!doc.exists) return;
-
-                final status = doc.get('status');
-
-                /// 🔥 TODAVÍA NO ACEPTADO
-                if (status == 'created') {
-
-
-                  setState(() {
-
-                    isVisibleTarjetaSolicitandoConductor =
-                    false;
-
-                    _isSearching = false;
-                  });
-
-                  await _controller.deleteTravelInfo();
-
-                  _timerBusqueda?.cancel();
-                }
-
-                /// 🔥 YA ACEPTADO
-                else {
-
-                  if (!mounted) return;
-
-                  Navigator.pushNamedAndRemoveUntil(
-
-                    context,
-
-                    'travel_map_page',
-
-                        (route) => false,
-
-                    arguments: uid,
-                  );
-                }
+                if (_isCanceling) return; // Evita clics dobles
+                setState(() => _isCanceling = true);
+                await cancelarSolicitudConSeguridad();
+                if (mounted) setState(() => _isCanceling = false);
               },
-
-              icon: Icon(
-                Icons.close,
-                size: 18.r,
-              ),
-
+              icon: Icon(Icons.close, size: 18.r),
               label: Text(
                 'Cancelar solicitud',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14.r,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.r),
               ),
-
               style: ElevatedButton.styleFrom(
-
-                backgroundColor:
-                Colors.red,
-
-                foregroundColor:
-                Colors.white,
-
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
                 elevation: 0,
-
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(16.r),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
               ),
             ),
           ),
@@ -709,6 +542,68 @@ class _ClientTravelInfoPageState
     if(mounted){
       setState(() {
       });
+    }
+  }
+
+  Future<void> cancelarSolicitudConSeguridad() async {
+    // 1. Confirmación visual
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text("Cancelar solicitud"),
+        content: const Text("¿Estás seguro de que quieres cancelar el servicio?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("No")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Sí, cancelar"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // 2. Verificación de Red
+    final hasInternet = await connectionService.hasInternetConnection();
+    if (!hasInternet) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Sin conexión"),
+            content: const Text("No podemos verificar el estado del servicio. Es posible que ya haya sido aceptado."),
+            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Entendido"))],
+          ),
+        );
+      }
+      return;
+    }
+
+    // 3. Verificación en Firebase
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final doc = await FirebaseFirestore.instance.collection('TravelInfo').doc(uid).get();
+
+    // Si ya fue aceptado, ignoramos la cancelación y redirigimos
+    if (doc.exists && doc.get('status') != 'created') {
+      if (mounted) {
+        Navigator.pushNamedAndRemoveUntil(context, 'travel_map_page', (route) => false, arguments: uid);
+      }
+      return;
+    }
+
+    // 4. Si sigue en 'created', cancelamos
+    _timerBusqueda?.cancel();
+    _controller.detenerBusquedaLogica();
+    await _controller.deleteTravelInfo();
+
+    if (mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -2013,73 +1908,35 @@ class _ClientTravelInfoPageState
   }
 
   Widget _tarjetaSolicitandoConductor() {
-
     if (!mounted) {
       return Container();
     }
 
     return Visibility(
-
-      visible:
-      isVisibleTarjetaSolicitandoConductor,
-
+      visible: isVisibleTarjetaSolicitandoConductor,
       child: IgnorePointer(
-
         ignoring: true,
-
         child: Center(
-
           child: Stack(
-
             alignment: Alignment.center,
-
             children: [
-
               /// 🔥 OLAS CENTRADAS REALES
               Positioned.fill(
-
                 child: Builder(
-
                   builder: (_) {
-
-                    /// 🔥 ALTURA APROX DEL CAJÓN
                     final bottomSheetHeight = 260.r;
-
                     return Transform.translate(
-
-                      offset: Offset(
-                        0,
-                        -(bottomSheetHeight / 2),
-                      ),
-
+                      offset: Offset(0, -(bottomSheetHeight / 2)),
                       child: Center(
-
                         child: AnimatedBuilder(
-
                           animation: _waveController,
-
                           builder: (_, __) {
-
                             return Stack(
-
                               alignment: Alignment.center,
-
                               children: [
-
-                                _buildWave(
-                                  _waveController.value,
-                                  0.32,
-                                ),
-
-                                _buildWave(
-                                  (_waveController.value + 0.33) % 1,
-                                  0.24,
-                                ),
-
-                                _buildWave(
-                                  (_waveController.value + 0.66) % 1,
-                                  0.16,
-                                ),
+                                _buildWave(_waveController.value, 0.32),
+                                _buildWave((_waveController.value + 0.33) % 1, 0.24),
+                                _buildWave((_waveController.value + 0.66) % 1, 0.16),
                               ],
                             );
                           },
@@ -2092,88 +1949,44 @@ class _ClientTravelInfoPageState
 
               /// 🔥 TARJETA INDEPENDIENTE
               Positioned(
-
                 top: 60.r,
-
                 left: 0,
-
                 right: 0,
-
                 child: Center(
-
                   child: Container(
-
-                    padding: EdgeInsets.symmetric(
-
-                      horizontal: 18.r,
-
-                      vertical: 12.r,
-                    ),
-
+                    padding: EdgeInsets.symmetric(horizontal: 18.r, vertical: 12.r),
                     decoration: BoxDecoration(
-
                       color: Colors.white,
-
-                      borderRadius:
-                      BorderRadius.circular(
-                        18.r,
-                      ),
-
+                      borderRadius: BorderRadius.circular(18.r),
                       boxShadow: [
-
                         BoxShadow(
-
-                          color:
-                          Colors.black.withOpacity(
-                            0.08,
-                          ),
-
+                          color: Colors.black.withOpacity(0.08),
                           blurRadius: 10,
                         ),
                       ],
                     ),
-
                     child: Column(
-
-                      mainAxisSize:
-                      MainAxisSize.min,
-
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-
+                        // 👇 AQUÍ ESTÁ EL CAMBIO: Accediendo a la variable del controlador
                         Text(
-
-                          'Buscando un conductor...',
-
+                          _controller.mensajeTarjeta,
                           textAlign: TextAlign.center,
-
                           style: TextStyle(
-
-                            fontWeight:
-                            FontWeight.w800,
-
+                            fontWeight: FontWeight.w800,
                             fontSize: 14.r,
-
                             color: negro,
                           ),
                         ),
-
                         SizedBox(height: 5.r),
-
                         if (_conductoresConsultados > 0)
-
                           Text(
-
                             '$_conductoresConsultados '
                                 '${_conductoresConsultados == 1 ? 'taxi cercano' : 'taxis cercanos'}',
-
                             style: TextStyle(
-
                               fontSize: 12.r,
-
                               color: Colors.black54,
-
-                              fontWeight:
-                              FontWeight.w600,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                       ],

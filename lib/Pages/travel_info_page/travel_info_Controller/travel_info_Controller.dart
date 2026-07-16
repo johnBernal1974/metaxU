@@ -14,6 +14,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../providers/client_provider.dart';
 import '../../../../providers/geofire_provider.dart';
 import '../../../../providers/push_notifications_provider.dart';
+import '../../../helpers/snackbar.dart';
 import '../../../models/driver.dart';
 import '../../../models/price.dart';
 import '../../../models/travel_info.dart';
@@ -24,6 +25,7 @@ import 'package:apptaxis/models/client.dart';
 import 'package:apptaxis/utils/utilsMap.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../../../src/colors/colors.dart';
+import '../../../utils/marker_utils.dart';
 import '../../travel_map_page/View/travel_map_page.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
@@ -120,6 +122,9 @@ class TravelInfoController{
   int tiempoEsperaPorteria = 10;
 
   bool buscandoConductor = false;
+
+  String mensajeTarjeta = 'Buscando un conductor...'; // Nueva variable
+  Timer? timerMensaje45; // Nuevo timer
 
   //** para calculo de recargos
 
@@ -245,6 +250,8 @@ class TravelInfoController{
     _streamStatusSuscription?.cancel();
     clearApuntesAlConductor();
     _audioPlayer.dispose();
+    timerMensaje45?.cancel();
+    _timerExpansion?.cancel();
     km = null;
     min = null;
     total = 0.0;
@@ -292,7 +299,7 @@ class TravelInfoController{
 
       // ✅ Si la ruta es MUY vertical, agranda el ancho
       if (lngSpan < 0.002 || (latSpan > 0 && (lngSpan / latSpan) < 0.15)) {
-        final extra = 0.005; // ajusta: 0.003 a 0.01 según tu ciudad/zoom
+        const extra = 0.005; // ajusta: 0.003 a 0.01 según tu ciudad/zoom
         swLng -= extra;
         neLng += extra;
       }
@@ -314,151 +321,114 @@ class TravelInfoController{
     }
   }
 
+  Future<void> cancelarSolicitudConSeguridad() async {
+    final user = _authProvider.getUser();
+    if (user == null) return;
+
+    // 1. ANTES DE HACER NADA: Consultamos el estado real en la base de datos
+    // Esto es crucial para no borrar un viaje que ya fue aceptado
+    final travelDoc = await _travelInfoProvider.getById(user.uid);
+
+    // 2. VALIDACIÓN: ¿El viaje ya cambió de estado mientras estábamos sin internet?
+    if (travelDoc != null && travelDoc.status == 'accepted') {
+      // ⚠️ ESCENARIO: El conductor aceptó mientras no teníamos internet
+      if (context.mounted) {
+        Snackbar.showSnackbar(context, "¡El conductor ya aceptó el viaje! Redirigiendo...");
+
+        // Enviamos al cliente a la pantalla del viaje, ignorando su deseo de cancelar
+        Navigator.pushNamedAndRemoveUntil(context, 'travel_map', (route) => false);
+      }
+      return; // Salimos de la función, no cancelamos nada
+    }
+
+    // 3. SI LLEGAMOS AQUÍ: El viaje sigue como 'created' o no existe
+    // Entonces sí procedemos a cancelar con seguridad
+    await _deleteTravelInfo(); // Tu función que borra el doc
+    await _actualizarIsTravelingFalse();
+
+    if (context.mounted) {
+      Navigator.pop(context); // O a donde necesites volver
+    }
+  }
+
+  Future<void> _deleteTravelInfo() async {
+    try {
+      // Asegúrate de que _travelInfoProvider esté inicializado en este controlador
+      final user = _authProvider.getUser();
+      if (user != null) {
+        await _travelInfoProvider.delete(user.uid);
+      }
+    } catch (e) {
+      if (kDebugMode) print('❌ Error al borrar el documento de viaje: $e');
+    }
+  }
+
+  Future<void> _actualizarIsTravelingFalse() async {
+    final user = _authProvider.getUser();
+    if (user != null) {
+      try {
+        // Asegúrate de tener la instancia de _clientProvider aquí también
+        await _clientProvider.update({'isTraveling': false}, user.uid);
+        refresh();
+      } catch (e) {
+        if (kDebugMode) print("❌ Error al actualizar isTraveling: $e");
+      }
+    }
+  }
+
 
 
   Future<void> updateMap() async {
-
     clearMap();
 
     // =========================================================================
-    // 🔥 AJUSTE DINÁMICO DE MARCADORES PARA LA PANTALLA DE INFO VIAJE
+    // 🔥 AJUSTE DINÁMICO DE MARCADORES (Usando MarkerUtils)
     // =========================================================================
+
     double pixelRatio = MediaQuery.of(context).devicePixelRatio;
-
-    // Valores base finos y pequeños idénticos al mapa de inicio
-    double baseDriver = 11.0;  // Para los taxis en el radar
-    double baseClient = 13.0;  // Para tu pin de origen / destino
-
-    int finalWidthDriver = (baseDriver * pixelRatio).round();
-    int finalWidthClient = (baseClient * pixelRatio).round();
-
-    fromMarker = await createMarkerImageFromAssets('assets/ubicacion_client.png', finalWidthClient);
-    toMarker = await createMarkerImageFromAssets('assets/marker_destino.png', finalWidthClient);
-    driverMarker = await createMarkerImageFromAssets('assets/marker_taxi.png', finalWidthDriver);
+    // Usamos tu Helper para mantener la consistencia en toda la app
+    fromMarker = await MarkerUtils.getMarkerFromAsset('assets/ubicacion_client.png', pixelRatio, 13.0);
+    toMarker = await MarkerUtils.getMarkerFromAsset('assets/marker_destino.png', pixelRatio, 13.0);
+    driverMarker = await MarkerUtils.getMarkerFromAsset('assets/marker_taxi.png', pixelRatio, 11.0);
     // =========================================================================
-
-    /// 🔥 SOLO ORIGEN
+    /// 🔥 SOLO ORIGEN (Si está buscando conductor)
+    // =========================================================================
     if (buscandoConductor) {
-
-      addMarker(
-
-        'from',
-
-        fromLatlng.latitude,
-
-        fromLatlng.longitude,
-
-        'Origen',
-
-        '',
-
-        fromMarker,
-      );
-
+      addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
       refresh();
 
-      await Future.delayed(
-        const Duration(milliseconds: 200),
-      );
-
-      await animateCameraToPosition(
-
-        fromLatlng.latitude,
-
-        fromLatlng.longitude,
-      );
-
+      await Future.delayed(const Duration(milliseconds: 200));
+      await animateCameraToPosition(fromLatlng.latitude, fromLatlng.longitude);
       return;
     }
 
-    /// 🔥 VIAJE NORMAL
-    addMarker(
+    // =========================================================================
+    /// 🔥 VIAJE NORMAL (Origen + Destino)
+    // =========================================================================
+    addMarker('from', fromLatlng.latitude, fromLatlng.longitude, 'Origen', '', fromMarker);
+    addMarker('to', toLatlng.latitude, toLatlng.longitude, 'Destino', '', toMarker);
 
-      'from',
-
-      fromLatlng.latitude,
-
-      fromLatlng.longitude,
-
-      'Origen',
-
-      '',
-
-      fromMarker,
-    );
-
-    addMarker(
-
-      'to',
-
-      toLatlng.latitude,
-
-      toLatlng.longitude,
-
-      'Destino',
-
-      '',
-
-      toMarker,
-    );
-
+    // Cálculo de los límites del mapa para que se vean ambos puntos
     LatLngBounds bounds = LatLngBounds(
-
       northeast: LatLng(
-
-        fromLatlng.latitude >
-            toLatlng.latitude
-
-            ? fromLatlng.latitude
-
-            : toLatlng.latitude,
-
-        fromLatlng.longitude >
-            toLatlng.longitude
-
-            ? fromLatlng.longitude
-
-            : toLatlng.longitude,
+        fromLatlng.latitude > toLatlng.latitude ? fromLatlng.latitude : toLatlng.latitude,
+        fromLatlng.longitude > toLatlng.longitude ? fromLatlng.longitude : toLatlng.longitude,
       ),
-
       southwest: LatLng(
-
-        fromLatlng.latitude <
-            toLatlng.latitude
-
-            ? fromLatlng.latitude
-
-            : toLatlng.latitude,
-
-        fromLatlng.longitude <
-            toLatlng.longitude
-
-            ? fromLatlng.longitude
-
-            : toLatlng.longitude,
+        fromLatlng.latitude < toLatlng.latitude ? fromLatlng.latitude : toLatlng.latitude,
+        fromLatlng.longitude < toLatlng.longitude ? fromLatlng.longitude : toLatlng.longitude,
       ),
     );
 
-    bounds =
-        _extendBounds(
-          bounds,
-          fromLatlng,
-        );
-
-    bounds =
-        _extendBounds(
-          bounds,
-          toLatlng,
-        );
+    bounds = _extendBounds(bounds, fromLatlng);
+    bounds = _extendBounds(bounds, toLatlng);
 
     if (context.mounted) {
-
-      await fitBounds(
-        bounds,
-        context,
-      );
+      await fitBounds(bounds, context);
     }
   }
+
+
   void clearMap() {
     polylines.clear(); // Limpia todas las polilíneas actuales
     markers.clear();   // Limpia todos los marcadores actuales
@@ -1011,29 +981,6 @@ class TravelInfoController{
     });
   }
 
-  Future<BitmapDescriptor> createMarkerImageFromAssets(String path, int width) async {
-    try {
-      // 1. Cargar el archivo desde los assets a la memoria del teléfono
-      ByteData data = await rootBundle.load(path);
-
-      // 2. Decodificar la imagen usando el alias 'ui.' para evitar conflictos
-      ui.Codec codec = await ui.instantiateImageCodec(
-        data.buffer.asUint8List(),
-        targetWidth: width,
-      );
-      ui.FrameInfo fi = await codec.getNextFrame();
-
-      // 3. Convertir la imagen procesada de nuevo a formato PNG usable por Google Maps
-      ByteData? markerBuffer = await fi.image.toByteData(format: ui.ImageByteFormat.png);
-
-      return BitmapDescriptor.fromBytes(markerBuffer!.buffer.asUint8List());
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al cargar la imagen del marcador con tamaño dinámico: $e');
-      }
-      return BitmapDescriptor.defaultMarker;
-    }
-  }
 
   String formatDuration(String durationText) {
     List<String> parts = durationText.split(' ');
@@ -1070,59 +1017,54 @@ class TravelInfoController{
     buscandoConductor = true;
     _permitirStandard = false;
 
-    /// 🔥 RESET SOLO AL INICIO
     nearbyDrivers.clear();
     notifiedDrivers.clear();
     _isSendingNotifications = false;
     serviceAccepted = false;
 
+    // Reseteamos el mensaje y refrescamos la UI
+    mensajeTarjeta = 'Buscando un conductor...';
+    refresh();
+
     _deadlineBusqueda = DateTime.now().add(const Duration(seconds: 90));
 
-    /// 🔥 Cancelar suscripción y timers anteriores por seguridad
     _streamSubscription?.cancel();
     _timerExpansion?.cancel();
     _timeoutBusqueda?.cancel();
+    timerMensaje45?.cancel(); // Cancelamos timer anterior si existe
 
-    /// 🔥 RADIO DE PRODUCCIÓN: Inicia con el radio dinámico configurado en Firestore
     _radioActual = radioDeBusqueda ?? 1.0;
 
+    print("🚀 [RADAR METAX] Iniciando búsqueda. Radio: $_radioActual km");
+
     // =========================================================================
-    // ⏰ TEMPORIZADOR DE FIRESTORE PARA PRODUCCIÓN (90 SEGUNDOS)
+    // ⏰ TIMER DE REINTENTO (45s)
+    // =========================================================================
+    timerMensaje45 = Timer(const Duration(seconds: 45), () {
+      if (buscandoConductor && !serviceAccepted) {
+
+        // ✅ ACTUALIZAR MENSAJE Y UI
+        mensajeTarjeta = "INICIANDO UNA NUEVA BÚSQUEDA...";
+        refresh(); // <--- Así es como actualizas la pantalla desde el controlador
+
+        print("🔄 [RADAR METAX] ¡45 segundos! Limpiando lista para re-notificar.");
+        notifiedDrivers.clear();
+
+        if (nearbyDrivers.isNotEmpty) {
+          print("🔄 [RADAR METAX] Reintentando envío a: $nearbyDrivers");
+          _attemptToSendNotification(nearbyDrivers, 0);
+        }
+      }
+    });
+
+    // =========================================================================
+    // ⏰ TEMPORIZADOR DE CIERRE (90s)
     // =========================================================================
     _timeoutBusqueda = Timer(const Duration(seconds: 90), () async {
-      print("⏹️ [RADAR METAX] ¡Tiempo global de 60 segundos agotado!");
-
-      // Apagamos los motores lógicos locales de inmediato
-      _streamSubscription?.cancel();
-      _timerExpansion?.cancel();
       buscandoConductor = false;
-
-      // Obtenemos el UID del cliente actual
-      String? currentUserId = _authProvider.getUser()?.uid;
-      if (currentUserId == null) return;
-
-      try {
-        final doc = await _firestore.collection('TravelInfo').doc(currentUserId).get();
-        if (!doc.exists) return;
-
-        final status = doc.data()?["status"];
-
-        // Si el viaje no fue aceptado y sigue en 'created', lo pasamos a 'no_driver_found'
-        if (status == "created") {
-          print("💾 Actualizando Firestore a 'no_driver_found' por límite de tiempo...");
-          await _firestore.collection('TravelInfo').doc(currentUserId).update({
-            "status": "no_driver_found"
-          });
-        }
-      } catch (e) {
-        print("❌ Error al actualizar tiempo vencido en Firestore: $e");
-      }
-
-      // Forzamos el callback visual a 0 para que la vista limpie las animaciones
-      conductoresEncontradosCallback?.call(0);
-      refresh();
+      refresh(); // Refrescamos al finalizar
+      // ... tu lógica de cierre existente
     });
-    // =========================================================================
 
     _buscarConductores();
   }
@@ -1541,21 +1483,18 @@ class TravelInfoController{
     }
 
     if (index >= driverIds.length) {
-
       print("🏁 Fin de lista de conductores");
-
       if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip" && !_permitirStandard) {
         yaIntentoTodosLosVIP = true;
         print("⚠️ Ya se intentaron todos los VIP");
       }
-
       return;
     }
 
-    // 🔥 ARMAR BATCH DE 2
+    // 🔥 ARMAR BATCH DE 4
     List<String> batch = [];
 
-    // 🚀 BATCH DE PRODUCCIÓN: Notificar en bloques masivos de 4 conductores en simultáneo
+    // Se notifican en bloques de hasta 4 conductores en simultáneo
     for (int i = index; i < index + 4 && i < driverIds.length; i++) {
       if (!notifiedDrivers.contains(driverIds[i])) {
         batch.add(driverIds[i]);
@@ -1563,72 +1502,40 @@ class TravelInfoController{
       }
     }
 
+    // Si este batch está vacío, saltamos al siguiente bloque de 4 inmediatamente
     if (batch.isEmpty) {
       return await _attemptToSendNotification(driverIds, index + 4);
     }
 
-    try {
+    if (batch.isNotEmpty) {
+      print("🔔 [RADAR METAX] Notificando a este grupo: $batch");
+    }
 
+    try {
+      // Ejecutamos en paralelo para este grupo de 4
       await Future.wait(
         batch.map((driverId) async {
 
-          // 🔥 STOP dentro del batch
+          // 🔥 STOP dentro del batch si alguien aceptó mientras esperábamos
           if (serviceAccepted) return;
 
           try {
-
-            if (kDebugMode) {
-              print("📡 Enviando notificación a driver: $driverId");
-            }
+            if (kDebugMode) print("📡 Enviando notificación a driver: $driverId");
 
             Driver? driver = await _driverProvider.getById(driverId);
-
-            if (driver == null) {
-              if (kDebugMode) {
-                print("⚠️ Driver $driverId no encontrado");
-              }
+            if (driver == null || driver.token == null || driver.token!.isEmpty) {
               return;
             }
 
             // 🔥 VALIDACIÓN VIP
             if ((tipoServicioSolicitado ?? "").toLowerCase() == "vip") {
-
               final vehiculoData = vehiculosCache[driverId];
-
-              if (vehiculoData == null) {
-                if (kDebugMode) {
-                  print("❌ Vehículo no cargado en cache ($driverId)");
-                }
-                return;
-              }
-
+              if (vehiculoData == null) return;
               final soportaVIP = vehiculoData['soportaVIP'] ?? false;
-
-              if (!_permitirStandard && !soportaVIP) {
-                if (kDebugMode) {
-                  print("⛔ Conductor $driverId no es VIP");
-                }
-                return;
-              }
-
-              if (_permitirStandard) {
-                if (kDebugMode) {
-                  print("⚠️ Fallback activo → permitiendo estándar ($driverId)");
-                }
-              }
+              if (!_permitirStandard && !soportaVIP) return;
             }
 
-            // 🔥 VALIDAR TOKEN
-            if (driver.token == null || driver.token.isEmpty) {
-              if (kDebugMode) {
-                print("⚠️ Driver $driverId sin token");
-              }
-              return;
-            }
-
-            // =========================================================================
-            // 📐 CALCULAR DISTANCIA REAL EN TIEMPO REAL DESDE EL BATCH
-            // =========================================================================
+            // 📐 CÁLCULO DISTANCIA REAL
             double distanciaRealConductor = 0.0;
             try {
               final locationDoc = await _firestore.collection('Locations').doc(driverId).get();
@@ -1637,64 +1544,43 @@ class TravelInfoController{
                 if (positionData != null && positionData['geopoint'] != null) {
                   GeoPoint geoPoint = positionData['geopoint'];
                   LatLng driverLatLng = LatLng(geoPoint.latitude, geoPoint.longitude);
-
-                  double distanciaEnMetros = _calculateDistance(fromLatlng, driverLatLng);
-                  distanciaRealConductor = distanciaEnMetros / 1000.0;
+                  distanciaRealConductor = _calculateDistance(fromLatlng, driverLatLng) / 1000.0;
                 }
               }
             } catch (e) {
-              print("⚠️ Error al calcular distancia en tiempo real para $driverId: $e");
               distanciaRealConductor = _radioActual;
             }
-            // =========================================================================
 
-            // 🔥 ASIGNACIÓN CORREGIDA: Le pasamos su token y el valor de su posición actual
-            bool accepted = await sendNotification(driver.token, distanciaRealConductor);
+            // 🔥 LLAMADA CORREGIDA (la lógica de espera ahora vive dentro de sendNotification)
+            bool accepted = await sendNotification(driver.token!, distanciaRealConductor);
 
             if (accepted) {
-
-              if (kDebugMode) {
-                print("✅ Driver $driverId ACEPTÓ el servicio");
-              }
-
+              print("✅ Driver $driverId ACEPTÓ el servicio");
               serviceAccepted = true;
-
               _timeoutBusqueda?.cancel();
               _streamSubscription?.cancel();
-
               notifiedDrivers.clear();
-
-              return;
-            } else {
-              if (kDebugMode) {
-                print("⏱ Driver $driverId no respondió");
-              }
             }
 
           } catch (e) {
-            if (kDebugMode) {
-              print("❌ Error driver $driverId: $e");
-            }
+            print("❌ Error individual driver $driverId: $e");
           }
-
         }),
       );
-
     } catch (e) {
       print("❌ Error en batch: $e");
     }
 
-    // 🔥 STOP si alguien aceptó
+    // 🔥 STOP si alguien aceptó durante el Future.wait
     if (serviceAccepted) {
       print("🛑 STOP GLOBAL: servicio aceptado");
       return;
     }
 
-    print("➡️ Batch finalizado, pasando al siguiente...");
+    print("➡️ Batch de 4 finalizado, pasando al siguiente bloque...");
 
-    // 🔥 SIGUIENTE BATCH
-    //temporal ************* ojo cambiar nuevmente a 2
-    return await _attemptToSendNotification(driverIds, index + 2);
+    // 🔥 SIGUIENTE BATCH: Salto de 4 en 4 para avanzar correctamente
+    return await _attemptToSendNotification(driverIds, index + 4);
   }
 
   void permitirStandardManual() async {
@@ -1746,11 +1632,13 @@ class TravelInfoController{
           serviceAccepted = true; // Detener el envío de notificaciones
           buscandoConductor = false;
 
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const TravelMapPage()),
-                (route) => false,
-          );
+          if(context.mounted){
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const TravelMapPage()),
+                  (route) => false,
+            );
+          }
         }
 
         if (travelInfo.status == 'no_driver_found' && _tiempoAgotado()) {
@@ -2099,22 +1987,42 @@ class TravelInfoController{
     print("🔥 [PUSH TELEMETRÍA] Despachando a conductor individual: $data");
 
     try {
+      // 1. Enviamos la notificación al conductor
       await _pushNotificationsProvider.sendMessage(token, data);
       if (kDebugMode) {
         print('Notification sent successfully');
       }
-      int segundosRestantes = _deadlineBusqueda!
-          .difference(DateTime.now())
-          .inSeconds;
 
-      if (segundosRestantes <= 0) {
-        print("⛔ Sin tiempo restante (NORMAL)");
-        return false;
-      }
+      // 2. Usamos un Completer para escuchar cambios en el documento del viaje
+      final completer = Completer<bool>();
 
-      int tiempoEspera = segundosRestantes > 8 ? 8 : segundosRestantes;
-      await Future.delayed(Duration(seconds: tiempoEspera));
-      return false;
+      // Escuchamos el estado del documento en Firestore
+      final sub = FirebaseFirestore.instance
+          .collection('TravelInfo')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+        if (!doc.exists) return;
+
+        final data = doc.data() as Map<String, dynamic>;
+        // Si el estado cambia a 'accepted', completamos con true exitosamente
+        if (data['status'] == 'accepted') {
+          if (!completer.isCompleted) {
+            completer.complete(true);
+          }
+        }
+      });
+
+      // 3. Esperamos la confirmación del conductor (13 segundos de espera activa)
+      // Usamos 14 segundos de timeout para asegurar que cubrimos los 13s del conductor
+      final bool aceptado = await completer.future
+          .timeout(const Duration(seconds: 14), onTimeout: () => false);
+
+      // 4. Cancelamos el listener inmediatamente al terminar
+      await sub.cancel();
+
+      return aceptado;
+
     } catch (error) {
       if (kDebugMode) {
         print('Failed to send notification: $error');
@@ -2126,21 +2034,19 @@ class TravelInfoController{
   //PARA PORTERIA
 
   Future<bool> sendNotificationPorteria(String token) async {
-
+    // 1. Obtener datos iniciales del request
     final doc = await FirebaseFirestore.instance
         .collection("TravelRequests")
         .doc(requestId)
         .get();
 
-    final dataRequest = doc.data();
-
+    // 2. Construir payload de la notificación
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
       'tipo': 'servicio',
       'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
           ? 'porteria'
           : 'normal',
-
       'idClient': requestId,
       'origin': from,
       'originLat': fromLatlng.latitude.toString(),
@@ -2150,65 +2056,83 @@ class TravelInfoController{
       'destinationLng': toLatlng.longitude.toString(),
       'tarifa': totalInt.toString(),
       'tipo_servicio': tipoServicioSolicitado ?? 'Normal',
-
-      // 🚨 LA SOLUCIÓN EN DART:
-      // Si la variable local no se encuentra, leemos directamente el string 'to' o validamos el estado dinámico.
-      // Para blindarlo, puedes pasarle la variable de selección que usa tu vista (por ejemplo 'Efectivo' o evaluar tu controlador):
-      'metodo_pago': 'Nequi', // 👈 Pásale el string dinámico o la variable exacta que use tu selector de pago en la vista del cliente
-
+      'metodo_pago': metodoPago, // Asegúrate de que esta variable esté actualizada en tu controlador
       'apuntes': apuntesAlConductor ?? 'Sin apuntes',
       'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
     };
 
+    // 3. Enviar mensaje push
     await _pushNotificationsProvider.sendMessage(token, data);
 
-    int segundosRestantes = _deadlineBusqueda!
-        .difference(DateTime.now())
-        .inSeconds;
-
+    // 4. Validar tiempo límite global
+    int segundosRestantes = _deadlineBusqueda!.difference(DateTime.now()).inSeconds;
     if (segundosRestantes <= 0) {
-      print("⛔ Sin tiempo restante (sendNotification)");
+      print("⛔ Sin tiempo restante (sendNotificationPorteria)");
       return false;
     }
 
-    /// usar el menor entre 20 y el tiempo restante
-    int tiempoEspera =
-    segundosRestantes > tiempoEsperaPorteria
+    // 5. Lógica de espera inteligente con Completer
+    final completer = Completer<bool>();
+
+    // Escuchamos el documento para saber si el conductor aceptó instantáneamente
+    final sub = FirebaseFirestore.instance
+        .collection("TravelRequests")
+        .doc(requestId)
+        .snapshots()
+        .listen((snapshot) {
+      if (!snapshot.exists) return;
+
+      final status = snapshot.data()?['status'];
+      if (status == 'accepted') {
+        if (!completer.isCompleted) {
+          completer.complete(true);
+        }
+      }
+    });
+
+    // Determinar el tiempo máximo de espera
+    int tiempoMaximoEspera = segundosRestantes > tiempoEsperaPorteria
         ? tiempoEsperaPorteria
         : segundosRestantes;
 
-    print(
-        "⏱️ PORTERIA esperando "
-            "$tiempoEspera segundos "
-            "para conductor"
-    );
+    print("⏱️ PORTERIA esperando hasta $tiempoMaximoEspera segundos para respuesta del conductor");
 
-    print("⏱️ Esperando $tiempoEspera segundos para respuesta del conductor");
+    // 6. Esperamos a que alguien acepte O que se cumpla el tiempo de espera
+    try {
+      final bool aceptado = await completer.future.timeout(
+        Duration(seconds: tiempoMaximoEspera),
+        onTimeout: () => false,
+      );
 
-    await Future.delayed(Duration(seconds: tiempoEspera));
+      // 7. Limpiar listener
+      await sub.cancel();
 
-    return false;
+      return aceptado;
+    } catch (e) {
+      await sub.cancel();
+      print("❌ Error en espera de respuesta portería: $e");
+      return false;
+    }
   }
 
   Future<void> _attemptToSendNotificationPorteria(List<String> driverIds, int index) async {
-    if (serviceAccepted) return;
+    // 1. Verificación de parada temprana (evita procesos innecesarios)
+    if (serviceAccepted) {
+      print("🛑 Servicio ya aceptado, deteniendo secuencia de Portería");
+      return;
+    }
 
-    if (_tiempoAgotado() || serviceAccepted) {
-
-      print("⛔ STOP listener porteria");
-
+    // 2. Verificación de tiempo y estado del viaje
+    if (_tiempoAgotado()) {
+      print("⛔ Tiempo global agotado");
       await _streamSubscriptionPorteria?.cancel();
-      _streamSubscriptionPorteria = null;
-
       _timeoutBusqueda?.cancel();
-      _timeoutBusqueda = null;
-
       return;
     }
 
     if (requestId == null) return;
 
-    /// 🔥 validar estado actual
+    // 3. Validar estado actual del documento (evita seguir si el viaje ya no está disponible)
     final requestDoc = await FirebaseFirestore.instance
         .collection("TravelRequests")
         .doc(requestId)
@@ -2217,116 +2141,69 @@ class TravelInfoController{
     if (!requestDoc.exists) return;
 
     final status = requestDoc.data()?["status"] ?? "";
-
     if (status != "created") {
-      print("⛔ STOP GLOBAL ($status)");
+      print("⛔ STOP GLOBAL: El viaje ya no está en estado 'created' (Estado: $status)");
       return;
     }
 
-    /// 🔥 fin de lista
-    if (index >= driverIds.length || serviceAccepted) {
+    // 4. Fin de lista de conductores
+    if (index >= driverIds.length) {
+      print("🚫 No hay más conductores disponibles en la lista (PORTERIA)");
 
-      print("🚫 No hay más conductores disponibles (PORTERIA)");
-
-      if (!serviceAccepted && requestId != null) {
-        final doc = await FirebaseFirestore.instance
+      // Solo marcamos 'no_driver_found' si realmente terminamos la lista y nadie aceptó
+      if (!serviceAccepted) {
+        await FirebaseFirestore.instance
             .collection("TravelRequests")
             .doc(requestId)
-            .get();
-
-        final status = doc.data()?["status"];
-
-        if (status == "created") {
-          await FirebaseFirestore.instance
-              .collection("TravelRequests")
-              .doc(requestId)
-              .update({
-            "status": "no_driver_found"
-          });
-        }
+            .update({"status": "no_driver_found"});
       }
-
       return;
     }
 
     String driverId = driverIds[index];
 
-    /// 🔥 evitar duplicados
+    // 5. Evitar re-notificar al mismo conductor
     if (notifiedDrivers.contains(driverId)) {
       return await _attemptToSendNotificationPorteria(driverIds, index + 1);
     }
 
     notifiedDrivers.add(driverId);
 
-    print("📡 PORTERIA → Enviando a $driverId");
+    print("📡 PORTERIA → Enviando notificación a: $driverId");
 
     try {
-
       Driver? driver = await _driverProvider.getById(driverId);
 
+      // Validar ubicación y actividad reciente
       final locationDoc = await FirebaseFirestore.instance
           .collection("Locations")
           .doc(driverId)
           .get();
 
-      if (!locationDoc.exists) {
-
-        print("⛔ Driver no existe");
-
-        return await _attemptToSendNotificationPorteria(
-          driverIds,
-          index + 1,
-        );
+      if (!locationDoc.exists || locationDoc.data() == null || !estaActivoRecientemente(locationDoc.data()!)) {
+        print("⛔ Driver $driverId inactivo o sin ubicación, saltando...");
+        return await _attemptToSendNotificationPorteria(driverIds, index + 1);
       }
 
-      final driverData = locationDoc.data();
-
-      if (driverData == null) {
-
-        print("⛔ Driver sin data");
-
-        return await _attemptToSendNotificationPorteria(
-          driverIds,
-          index + 1,
-        );
-      }
-
-      /// 🔥 VALIDAR SI REALMENTE ESTÁ ACTIVO
-      if (!estaActivoRecientemente(driverData)) {
-
-        print("⛔ Driver inactivo recientemente: $driverId");
-
-        return await _attemptToSendNotificationPorteria(
-          driverIds,
-          index + 1,
-        );
-      }
-
-      if (driver?.token != null) {
-
-        bool accepted = await sendNotificationPorteria(driver!.token);
+      if (driver?.token != null && driver!.token!.isNotEmpty) {
+        // LLAMADA AL NUEVO MÉTODO EFICIENTE
+        bool accepted = await sendNotificationPorteria(driver.token!);
 
         if (accepted) {
-
           serviceAccepted = true;
-
           _timeoutBusqueda?.cancel();
           _streamSubscriptionPorteria?.cancel();
-
-          print("✅ Servicio aceptado PORTERIA");
-
+          print("✅ Servicio aceptado PORTERIA por el driver: $driverId");
           return;
         }
-
       } else {
-        print("⚠️ Driver sin token");
+        print("⚠️ Driver $driverId sin token, saltando...");
       }
-
     } catch (e) {
-      print("Error driver porteria: $e");
+      print("❌ Error en despacho a driver $driverId: $e");
     }
 
-    /// 🔥 continuar secuencia
+    // 6. Continuar con el siguiente conductor
     return await _attemptToSendNotificationPorteria(driverIds, index + 1);
   }
 
@@ -2346,8 +2223,8 @@ class TravelInfoController{
 
       final minutos = now.difference(updatedAt).inMinutes;
 
-      // 🔥 AQUÍ defines la regla
-      return minutos <= 720;
+      // 🔥 REGLA: 1 hora = 60 minutos
+      return minutos <= 60;
 
     } catch (e) {
       print("⚠️ Error validando activity location: $e");
@@ -2358,28 +2235,20 @@ class TravelInfoController{
 
   bool estaActivoRecientemente(Map<String, dynamic> data) {
     try {
-
       final now = DateTime.now();
-
       final position = data['position'];
-
       if (position == null) return false;
-
       final updatedAt = position['updatedAt']?.toDate();
-
       if (updatedAt == null) return false;
 
       final minutos = now.difference(updatedAt).inMinutes;
 
-      return minutos <= 720;
+      // 🔥 Actualizado a 60 minutos (1 hora)
+      return minutos <= 60;
 
     } catch (e) {
-
       print("⚠️ Error validando actividad: $e");
-
       return false;
     }
   }
-
-
 }

@@ -750,13 +750,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
     // 0: celular -> enviar otp
     if (_currentPage == 0) {
-      await _sendOtp();   // si se envía, _sendOtp() te manda a 1
+      await _sendOtp();
       return;
     }
 
     // 1: otp -> verificar
     if (_currentPage == 1) {
-      await _verifyOtp(); // si ok, te manda a 2
+      await _verifyOtp();
       return;
     }
 
@@ -771,8 +771,8 @@ class _RegisterPageState extends State<RegisterPage> {
         setState(() => nameError = "Solo se permiten letras.");
         return;
       }
-      _goToPage(3);
-      _handleFocusForPage(3);
+      // 🛠️ Dejamos que _goToPage se encargue de todo limpiamente (sin duplicar llamadas de foco)
+      await _goToPage(3);
       return;
     }
 
@@ -787,13 +787,13 @@ class _RegisterPageState extends State<RegisterPage> {
         setState(() => apellidosError = "Solo se permiten letras.");
         return;
       }
-      _goToPage(4);
+      await _goToPage(4);
       return;
     }
 
-    // 4: código de referido -> es opcional, así que pasa directo a pregunta de seguridad
+    // 4: código de referido
     if (_currentPage == 4) {
-      _goToPage(5); // 👈 Va a la página de verificación de identidad
+      await _goToPage(5);
       return;
     }
 

@@ -59,7 +59,7 @@ class TakeFotoController {
                 title: const Text('No pudimos verificar tu selfie', textAlign: TextAlign.center),
                 content: const Text(
                   'Parece que la imagen capturada no muestra claramente tu rostro.\n\n'
-                  'Toma una selfie donde tu cara sea visible completamente, evitando gafas oscuras, objetos que cubran el rostro o fotografías de otras personas.',
+                      'Toma una selfie donde tu cara sea visible completamente, evitando gafas oscuras, objetos que cubran el rostro o fotografías de otras personas.',
                   textAlign: TextAlign.center,
                 ),
                 actions: [
@@ -77,7 +77,7 @@ class TakeFotoController {
         return;
       }
 
-      // ✅ Comprimir imagen
+      // ✅ Comprimir imagen de perfil
       File compressedImage = await compressImage(
         File(pickedFile!.path),
       );
@@ -108,11 +108,11 @@ class TakeFotoController {
         nuevoEstado = "corregida";
       }
 
-      // ✅ NUEVO SISTEMA LIMPIO
+      // ✅ ACTUALIZAR PERFIL Y CAMBIAR ESTADO A PENDIENTE DE CÉDULA
       final Map<String, dynamic> data = {
         'foto_perfil_url': imageUrl,
         'foto_perfil_estado': nuevoEstado,
-        'status': 'activacion_parcial',
+        'status': 'pendiente_cedula', // 👈 Lo dejamos en este estado hasta que suba la cédula
       };
 
       await _clientProvider.update(data, uid);
@@ -122,8 +122,9 @@ class TakeFotoController {
 
         Navigator.pushNamedAndRemoveUntil(
           context,
-          'map_client',
-          (route) => false,
+          'upload_cedula',
+              (route) => false,
+          arguments: {'tipo': 'ambas'},
         );
       }
     } catch (e) {
@@ -136,8 +137,6 @@ class TakeFotoController {
   }
 
   Future<bool> validarRostro(File imageFile) async {
-    // 🔥 BLINDAJE PARA IOS: Si es iOS, devolvemos true directamente.
-    // Esto evita que se ejecute la lógica de MLKit y garantiza que el diálogo no salga.
     if (Platform.isIOS) {
       return true;
     }
@@ -149,7 +148,7 @@ class TakeFotoController {
       );
       final faceDetector = FaceDetector(options: options);
       final faces = await faceDetector.processImage(inputImage);
-      
+
       await faceDetector.close();
 
       print('🔥 Rostros detectados: ${faces.length}');
@@ -232,7 +231,7 @@ class TakeFotoController {
       maxHeight: 1200,
       maxWidth: 1200,
     );
-    
+
     if (image != null) {
       pickedFile = image;
       refresh();

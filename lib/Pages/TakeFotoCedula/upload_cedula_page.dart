@@ -324,8 +324,8 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
             child: ElevatedButton.icon(
               onPressed: onTap,
               style: ElevatedButton.styleFrom(backgroundColor: primary),
-              icon: const Icon(Icons.camera_alt, color: blanco, size: 16),
-              label: const Text('Tomar foto', style: TextStyle(color: blanco)),
+              icon: const Icon(Icons.camera_alt, color: Colors.black, size: 16),
+              label: const Text('Tomar foto', style: TextStyle(color: Colors.black)),
             ),
           )
         ],

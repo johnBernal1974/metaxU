@@ -112,7 +112,7 @@ class TakeFotoController {
       final Map<String, dynamic> data = {
         'foto_perfil_url': imageUrl,
         'foto_perfil_estado': nuevoEstado,
-        'status': 'pendiente_cedula', // 👈 Lo dejamos en este estado hasta que suba la cédula
+        'status': 'activacion_parcial',
       };
 
       await _clientProvider.update(data, uid);

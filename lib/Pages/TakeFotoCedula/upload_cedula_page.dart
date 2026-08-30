@@ -171,7 +171,7 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
               // ✅ SOLO muestra FRONTAL si aplica
               if (tipoCedula == 'frontal' || tipoCedula == 'ambas')
                 _cardFoto(
-                  titulo: 'Frontal de la cédula',
+                  titulo: 'Cédula Parte Delantera',
                   file: _controller.frontFile,
                   onTap: _controller.takeFront,
                 ),
@@ -182,7 +182,7 @@ class _UploadCedulaPageState extends State<UploadCedulaPage> {
               // ✅ SOLO muestra REVERSO si aplica
               if (tipoCedula == 'reverso' || tipoCedula == 'ambas')
                 _cardFoto(
-                  titulo: 'Reverso de la cédula',
+                  titulo: 'Cédula Parte Trasera',
                   file: _controller.backFile,
                   onTap: _controller.takeBack,
                 ),

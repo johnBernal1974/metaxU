@@ -337,7 +337,7 @@ class ClientMapController {
       _driversSubscription?.cancel();
 
       // Calculamos el tiempo límite (hace 10 minutos)
-      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 10));
+      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 20));
 
       Stream<List<DocumentSnapshot>> stream = _geofireProvider.getNearbyDrivers(
         _position!.latitude,

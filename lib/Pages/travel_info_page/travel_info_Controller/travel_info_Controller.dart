@@ -1110,7 +1110,7 @@ class TravelInfoController{
       markers.removeWhere((key, value) => key.value.startsWith('driver_'));
 
       // Definimos el límite de tiempo (10 minutos) para evitar conductores "Zombies"
-      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 10));
+      final limiteTiempo = DateTime.now().subtract(const Duration(minutes: 20));
 
       for (DocumentSnapshot d in documentList) {
         try {

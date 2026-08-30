@@ -237,14 +237,6 @@ class MyAuthProvider {
         return;
       }
 
-      /// ==============================
-      /// 🔥 VALIDAR RECHAZOS
-      /// ==============================
-      final cedulaFront =
-      (client.cedulaFrontalEstado ?? '').toLowerCase();
-      final cedulaBack =
-      (client.cedulaReversoEstado ?? '').toLowerCase();
-
       if (fotoEstado == 'rechazada') {
         _navigating = true;
 
@@ -260,6 +252,29 @@ class MyAuthProvider {
         return;
       }
 
+      /// ==============================
+      /// 🔥 VALIDAR RECHAZOS CÉDULA
+      /// ==============================
+      final cedulaFront = (client.cedulaFrontalEstado ?? '').toLowerCase();
+      final cedulaBack = (client.cedulaReversoEstado ?? '').toLowerCase();
+
+      // 1️⃣ Si AMBAS están rechazadas
+      if (cedulaFront == 'rechazada' && cedulaBack == 'rechazada') {
+        _navigating = true;
+
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          'upload_cedula',
+              (route) => false,
+          arguments: {
+            'tipo': 'ambas',
+            'mensaje': 'Las dos fotos de tu cédula fueron rechazadas. Por favor tómalas nuevamente.',
+          },
+        );
+        return;
+      }
+
+      // 2️⃣ Si SOLO la frontal está rechazada
       if (cedulaFront == 'rechazada') {
         _navigating = true;
 
@@ -269,13 +284,13 @@ class MyAuthProvider {
               (route) => false,
           arguments: {
             'tipo': 'frontal',
-            'mensaje':
-            'La foto delantera de tu cédula fue rechazada.',
+            'mensaje': 'La foto delantera de tu cédula fue rechazada.',
           },
         );
         return;
       }
 
+      // 3️⃣ Si SOLO el reverso está rechazado
       if (cedulaBack == 'rechazada') {
         _navigating = true;
 
@@ -285,8 +300,7 @@ class MyAuthProvider {
               (route) => false,
           arguments: {
             'tipo': 'reverso',
-            'mensaje':
-            'La foto trasera de tu cédula fue rechazada.',
+            'mensaje': 'La foto trasera de tu cédula fue rechazada.',
           },
         );
         return;
@@ -370,7 +384,6 @@ class MyAuthProvider {
   Future<bool> isUserLoggedIn() async {
     return _firebaseAuth.currentUser != null;
   }
-
 
   // =========================
   // Helpers

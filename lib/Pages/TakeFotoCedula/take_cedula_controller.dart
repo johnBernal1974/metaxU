@@ -166,7 +166,6 @@ class TakeCedulaController {
         updates.addAll({
           'cedula_frontal_url': frontUrl,
           'cedula_frontal_estado': nuevoEstado,
-          'status': 'procesando',
         });
       }
 
@@ -195,9 +194,11 @@ class TakeCedulaController {
         updates.addAll({
           'cedula_reverso_url': backUrl,
           'cedula_reverso_estado': nuevoEstado,
-          'status': 'procesando',
         });
       }
+
+      // 🔄 Establecemos el status general en procesando una sola vez para evitar sobreescrituras parciales
+      updates.addAll({'status': 'procesando'});
 
       // ✅ Guardar en Firestore
       await FirebaseFirestore.instance

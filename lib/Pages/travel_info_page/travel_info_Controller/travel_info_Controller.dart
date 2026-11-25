@@ -2033,7 +2033,21 @@ class TravelInfoController{
 
   //PARA PORTERIA
 
-  Future<bool> sendNotificationPorteria(String token) async {
+  Future<bool> sendNotificationPorteria(
+      String token,
+      double? distanciaAlConductor,
+      ) async {
+
+    // 🏢 Misma estimación utilizada en servicios normales
+    int? tiempoEstimadoMinutos;
+
+    if (distanciaAlConductor != null) {
+      tiempoEstimadoMinutos = (distanciaAlConductor * 2).round();
+
+      if (tiempoEstimadoMinutos < 1) {
+        tiempoEstimadoMinutos = 1;
+      }
+    }
     // 1. Obtener datos iniciales del request
     final doc = await FirebaseFirestore.instance
         .collection("TravelRequests")
@@ -2072,6 +2086,13 @@ class TravelInfoController{
       'apuntes': (datosSolicitud['caracteristica'] ?? 'Sin apuntes').toString(),
       'apuntes_usuario': (datosSolicitud['caracteristica'] ?? 'Sin apuntes').toString(),
       'tiempo_busqueda': tiempoEsperaPorteria.toString(),
+      'distanciaCliente': distanciaAlConductor != null
+          ? '${distanciaAlConductor.toStringAsFixed(1)} km'
+          : 'No disponible',
+
+      'tiempoLlegada': tiempoEstimadoMinutos != null
+          ? '$tiempoEstimadoMinutos min'
+          : 'No disponible',
     };
 
     debugPrint('✅ [PORTERIA PUSH] Datos de solicitud preparados');
@@ -2201,8 +2222,32 @@ class TravelInfoController{
       }
 
       if (driver?.token != null && driver!.token!.isNotEmpty) {
-        // LLAMADA AL NUEVO MÉTODO EFICIENTE
-        bool accepted = await sendNotificationPorteria(driver.token!);
+
+        // 🏢 Calcular distancia utilizando la ubicación ya consultada
+        final position = locationDoc.data()?['position'];
+
+        final geoPoint =
+        position is Map ? position['geopoint'] : null;
+
+        double? distanciaAlConductor;
+
+        if (geoPoint is GeoPoint) {
+          distanciaAlConductor = Geolocator.distanceBetween(
+            fromLatlng.latitude,
+            fromLatlng.longitude,
+            geoPoint.latitude,
+            geoPoint.longitude,
+          ) / 1000;
+        }
+
+        debugPrint(
+          '🏢 [PORTERIA] Distancia calculada: ${distanciaAlConductor?.toStringAsFixed(1) ?? "No disponible"} km',
+        );
+
+        bool accepted = await sendNotificationPorteria(
+          driver.token!,
+          distanciaAlConductor,
+        );
 
         if (accepted) {
           serviceAccepted = true;

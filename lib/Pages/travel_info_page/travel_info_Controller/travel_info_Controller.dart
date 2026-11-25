@@ -2041,25 +2041,40 @@ class TravelInfoController{
         .get();
 
     // 2. Construir payload de la notificación
+    final datosSolicitud = doc.data();
+
+    if (!doc.exists || datosSolicitud == null) {
+      debugPrint('❌ [PORTERIA PUSH] Solicitud no encontrada');
+      return false;
+    }
+
+    if (datosSolicitud['status'] != 'created') {
+      debugPrint('⚠️ [PORTERIA PUSH] Solicitud no disponible');
+      return false;
+    }
+
     final data = {
       'click_action': 'FLUTTER_NOTIFICATION_CLICK',
       'tipo': 'servicio',
-      'tipoSolicitud': (tipoServicioSolicitado ?? '').toLowerCase() == 'porteria'
-          ? 'porteria'
-          : 'normal',
-      'idClient': requestId,
-      'origin': from,
+      'tipoSolicitud': 'porteria',
+      'idClient': requestId!,
+      'origin': (datosSolicitud['direccion'] ?? from).toString(),
       'originLat': fromLatlng.latitude.toString(),
       'originLng': fromLatlng.longitude.toString(),
-      'destination': to,
-      'destinationLat': toLatlng.latitude.toString(),
-      'destinationLng': toLatlng.longitude.toString(),
-      'tarifa': totalInt.toString(),
-      'tipo_servicio': tipoServicioSolicitado ?? 'Normal',
-      'metodo_pago': metodoPago, // Asegúrate de que esta variable esté actualizada en tu controlador
-      'apuntes': apuntesAlConductor ?? 'Sin apuntes',
-      'apuntes_usuario': apuntesAlConductor ?? 'Sin apuntes',
+      'destination': 'Por definir',
+      'tarifa': 'CON TAXÍMETRO',
+      'tipo_servicio': 'porteria',
+      'metodo_pago': (datosSolicitud['metodoPago'] ?? 'Efectivo').toString(),
+      'nombreConjunto': (datosSolicitud['nombreConjunto'] ?? '').toString(),
+      'nombrePorteria': (datosSolicitud['nombrePorteria'] ?? '').toString(),
+      'barrio': (datosSolicitud['barrio'] ?? '').toString(),
+      'caracteristica': (datosSolicitud['caracteristica'] ?? '').toString(),
+      'apuntes': (datosSolicitud['caracteristica'] ?? 'Sin apuntes').toString(),
+      'apuntes_usuario': (datosSolicitud['caracteristica'] ?? 'Sin apuntes').toString(),
+      'tiempo_busqueda': tiempoEsperaPorteria.toString(),
     };
+
+    debugPrint('✅ [PORTERIA PUSH] Datos de solicitud preparados');
 
     // 3. Enviar mensaje push
     await _pushNotificationsProvider.sendMessage(token, data);
